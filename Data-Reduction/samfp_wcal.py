@@ -49,16 +49,13 @@ class WCal:
         around_peak = np.delete(around_peak, 2)
         around_peak += peak_position
         around_peak = np.where(around_peak < 0, 0, around_peak)
-        around_peak = np.where(around_peak > data.size - 1, data.size - 1,
-                               around_peak)
+        around_peak = np.where(around_peak > data.size - 1, data.size - 1, around_peak)
 
         is_peak = True
         for i in range(around_peak.size):
             p = data[around_peak[i]] < data[peak_position]
             is_peak *= p
-            log.debug(
-                'Comparing %d and %d frames - %s' % (
-                    peak_position, around_peak[i], 'True' if p else 'False'))
+            log.debug('Comparing %d and %d frames - %s' % (peak_position, around_peak[i], 'True' if p else 'False'))
 
         return peak_position
 
