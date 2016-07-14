@@ -13,7 +13,7 @@ Scripts for data-reduction are saved inside the `Data-Reduction` folder.
 Each script is explained bellow. The sequence that they are explained 
 is related to their use for a standard data-reduction process. 
 
-## samfp_xjoin.py
+## xjoin.py
 
 Every single `.fits` file obtained with SAMI, SAM's Imager, has four 
 extension. I find it much easier to work with files that contains a 
@@ -62,11 +62,11 @@ The options can be printed if one executes
     
  This script combines 2D images that are used as standard calibrations. 
 
- ## samfp_mkcube.py
+ ## mkcube.py
  
  
  
- ## samfp_phmxtractor.py
+ ## phmxtractor.py
  
   When we observe with a Fabry-Perot, we take several images while changing 
   the gap size between the two FP plates. This process is called _scanning_ or 
@@ -95,8 +95,8 @@ The options can be printed if one executes
   
   
  
- ## samfp_phmfit.py
+ ## phmfit.py
  
- ## samfp_apply.py
+ ## apply.py
  
- ## samfp_wcal.py
+ ## wcal.py
