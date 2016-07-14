@@ -57,6 +57,7 @@ The options can be printed if one executes
   or
 ```
   $ python sami_xjoin.py -h
+```
 
  ## samfp_imcombine.py
     
