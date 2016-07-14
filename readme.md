@@ -1,17 +1,22 @@
 #SAM-FP
 
-This page contains some scripts that help me (and hopefully will
-help you too) to reduce Fabry-Perot data obtained at 
-[SOAR Telescope](http://www.ctio.noao.edu/soar/) with 
-[SOAR Adaptive Module](http://www.ctio.noao.edu/soar/content/soar-adaptive-optics-module-sam),
-or SAM. 
+ This page contains some scripts that help me (and hopefully will
+ help you too) to reduce Fabry-Perot data obtained at 
+ [SOAR Telescope](http://www.ctio.noao.edu/soar/) with 
+ [SOAR Adaptive Module](http://www.ctio.noao.edu/soar/content/soar-adaptive-optics-module-sam),
+ or SAM. 
 
-This observing mode is considered a Restricted User Instrument and you 
-will have support to reduce, edit, visualize and manipulate your data.
+ This observing mode is considered a Restricted User Instrument and you 
+ will have support to reduce, edit, visualize and manipulate your data.
 
-Scripts for data-reduction are saved inside the `Data-Reduction` folder. 
-Each script is explained bellow. The sequence that they are explained 
-is related to their use for a standard data-reduction process. 
+ Scripts for data-reduction are saved inside the `scripts` folder. 
+ Each script is explained bellow. The sequence that they are explained 
+ is related to their use for a standard data-reduction process.
+ 
+## fix_header.py
+ 
+This script fixes the header of the images obtained with SAMI so they 
+can be handled by 
 
 ## xjoin.py
 
