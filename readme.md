@@ -16,7 +16,18 @@
 ## fix_header.py
  
 This script fixes the header of the images obtained with SAMI so they 
-can be handled by 
+can be handled by `ccdproc.ImageFileCollection`. The fix involves 
+simply removing the `ADC` card that appears twice in the header and 
+causes the class above to raise errors. 
+
+This script can be used by simply:
+```
+    $ python fix_header.py root_directory
+```
+
+The `-v`/`--verbose` option is available if you want to follow up the 
+status of the script but it makes the process much slower.
+
 
 ## xjoin.py
 
