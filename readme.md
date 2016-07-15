@@ -53,7 +53,7 @@ After that, this script may also:
   * Simple division by FLAT;
   * Simple division by the exposure time (EXPTIME);
   * Clean hot columns and lines;
-  * Clean cosmic rays using [LACosmic](http://www.astro.yale.edu/dokkum/lacosmic/ "Visit LACosmic Webpage");
+  * Clean cosmic rays using [LACosmic](http://www.astro.yale.edu/dokkum/lacosmic/ "Visit LACosmic Webpage") and [CCDProc](https://github.com/astropy/ccdproc); 
   * Remove the instrument fingerprint that sometimes shows up as glows in the lower lateral borders;
   * Add HISTORY card that stores all the steps taken with it.
 
