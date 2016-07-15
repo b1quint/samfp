@@ -18,26 +18,33 @@ import time
 
 from scipy.interpolate import UnivariateSpline
 
+
 def main():
 
     # Setting Options ---------------------------------------------------------
-    parser = argparse.ArgumentParser(description="Apply a phase-map on" + \
-                                     "a data-cube.")
-
-    parser.add_argument('-o', '--output', metavar='output', type=str,
-                        default=None, help="Name of the output corrected cube")
-
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help="Run it quietly.")
-
-    parser.add_argument('-n', '--npoints', type=int, default=10,
-                        help="Number of points in the re-sampling for channel [10].")
-
-    parser.add_argument('cube_file', metavar='cube_file', type=str,
-                        help="Input calibration cube filename.")
-
-    parser.add_argument('map_file', metavar='map_file', type=str,
-                        help="Input phase-map image filename.")
+    parser = argparse.ArgumentParser(
+        description="Apply a phase-map on a data-cube."
+    )
+    parser.add_argument(
+        '-o', '--output', metavar='output', type=str, default=None,
+        help="Name of the output corrected cube"
+    )
+    parser.add_argument(
+        '-q', '--quiet', action='store_true',
+        help="Run it quietly."
+    )
+    parser.add_argument(
+        '-n', '--npoints', type=int, default=10,
+        help="Number of points in the re-sampling for channel [10]."
+    )
+    parser.add_argument(
+        'cube_file', metavar='cube_file', type=str,
+        help="Input calibration cube filename."
+    )
+    parser.add_argument(
+        'map_file', metavar='map_file', type=str,
+        help="Input phase-map image filename."
+    )
 
     args = parser.parse_args()
     v = not args.quiet

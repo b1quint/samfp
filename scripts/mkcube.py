@@ -40,6 +40,9 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
         combine_algorithm : string
             The algorithm used to combine several images into a single frame
             (average|median|sum)
+
+        output : str
+            Name of the output data-cube.
     """
 
     assert isinstance(list_of_files, list)

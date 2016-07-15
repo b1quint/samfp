@@ -1241,7 +1241,6 @@ class CosmicsImage:
         if verbose:
             print("Calculating Laplacian signal to noise ratio ...")
 
-
         # Laplacian signal to noise ratio :
         s = lplus / (2.0 * noise)  # the 2.0 is from the 2x2 subsampling
         # This s is called sigmap in the original lacosmic.cl

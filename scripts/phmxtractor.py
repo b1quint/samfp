@@ -8,10 +8,12 @@
     2014.04.16 15:45 - Created an exception for errors while trying to access
                        'CRPIX%' cards on cube's header.
 
+    Todo:
+        Add debug option to argparse
+        Add log-to-a-file option to argparse
+        Verify code
 """
-# TODO Add debug option to argparse
-# TODO Add log-to-a-file option to argparse
-# TODO Verify code
+
 from __future__ import division, print_function
 
 import argparse
@@ -29,28 +31,39 @@ log = logging.getLogger('phasemap_extractor')
 log.setLevel(logging.DEBUG)
 
 def main():
+    """
+    Main method that runs the Phase-map Extraction.
+
+    """
+
     # Parse arguments ---------------------------------------------------------
     parser = argparse.ArgumentParser(
-        description="Extracts the phase-map from a fits file containing a data"
-                    + "-cube.")
-
-    parser.add_argument('-c', '--correlation', action='store_true',
-                        help="Use correlation cube? true/[FALSE]")
-
-    parser.add_argument('filename', type=str, help="Input data-cube name.")
-
-    parser.add_argument('-o', '--output', type=str, default=None,
-                        help="Name of the output phase-map file.")
-
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help="Run program quietly. true/[FALSE]")
-
-    parser.add_argument('-r', '--ref', type=int, nargs=2, default=None,
-                        help="Reference pixel for the correlation cube.")
-
-    parser.add_argument('-s', '--show', action='store_true',
-                        help="Show plots used in the process. true/[FALSE]")
-
+        description="Extracts the phase-map from a fits file containing a "
+                    "data-cube."
+    )
+    parser.add_argument(
+        '-c', '--correlation', action='store_true',
+        help="Use correlation cube? true/[FALSE]"
+    )
+    parser.add_argument(
+        'filename', type=str, help="Input data-cube name."
+    )
+    parser.add_argument(
+        '-o', '--output', type=str, default=None,
+        help="Name of the output phase-map file."
+    )
+    parser.add_argument(
+        '-q', '--quiet', action='store_true',
+        help="Run program quietly. true/[FALSE]"
+    )
+    parser.add_argument(
+        '-r', '--ref', type=int, nargs=2, default=None,
+        help="Reference pixel for the correlation cube."
+    )
+    parser.add_argument(
+        '-s', '--show', action='store_true',
+        help="Show plots used in the process. true/[FALSE]"
+    )
     args = parser.parse_args()
 
     # Starting program --------------------------------------------------------
@@ -67,8 +80,10 @@ def main():
     check_dimensions(args.filename)
 
     # Extracting phase-map -----------------------------
-    PhaseMapFP(args.filename, correlation=args.correlation, show=args.show,
-               verbose=v, ref=args.ref, output=args.output)
+    PhaseMapFP(
+        args.filename, correlation=args.correlation, show=args.show,
+       verbose=v, ref=args.ref, output=args.output
+    )
 
     # All done! ---------------------------------------------------------------
     end = time.time() - start
@@ -82,6 +97,17 @@ def main():
 def check_dimensions(filename, dimensions=3, keyword='NAXIS'):
     """
     Method written to check the dimensions of the input fits data.
+
+    Parameters
+    ----------
+        filename : str
+            String containing path to the input filename.
+
+        dimensions : int
+            Base number of dimensions for reference.
+
+        keyword : str
+            Header keyword that holds the number of axis (dimensions).
     """
     header = pyfits.getheader(filename)
 
@@ -483,6 +509,32 @@ class PhaseMap:
 
 
 class PhaseMapFP(PhaseMap):
+    """
+    Class that holds the methods and sequences to perform phase-map extraction
+    on a data-cube obtained with Fabry-Perot.
+
+    Parameters
+    ----------
+        filename : str
+            String that contains the path to the input data-cube.
+
+        correlation : bool
+            Use correlation cube? This is usefull in case that you have several
+            lines in the data-cube or even if the data-cube has a low
+            signal-to-noise ratio.
+
+        show : bool
+            Do you want the process to show plots? This is useful for
+            debugging. If you know that your data is well behaved, you can
+            leave this as false.
+
+        verbose : bool
+            Turn on verbose mode?
+
+        output : str
+            String that contains the path to the output phase-map.
+    """
+
     def __init__(self, filename, correlation=False, show=False,
                  verbose=False, ref=None, output=None):
 
@@ -529,7 +581,17 @@ class PhaseMapFP(PhaseMap):
 
     def extract_phase_map(self):
         """
-        Extract the phase-map.
+        Extract the phase-map using numpy.argmax.
+
+        Returns
+        -------
+            phase_map : numpy.ndarray
+                A 2D array that contains the phase-map, i. e., the channel
+                in *bcv* with maximum intensity for each pixel.
+
+        See also
+        --------
+            numpy.argmax
         """
 
         now = time.time()
@@ -558,6 +620,14 @@ class PhaseMapFP(PhaseMap):
     def find_reference_pixel(self):
         """
         Read the reference pixel from header or find it.
+
+        Returns
+        -------
+            ref_x : int
+                X position of the center of the rings.
+
+            ref_y : int
+                Y position of the center of the rings.
         """
         if self.verbose:
             log.info("\n Finding reference pixel.")
@@ -583,7 +653,22 @@ class PhaseMapFP(PhaseMap):
 
     def find_rings_center(self, n_interactions=20):
         """
-        Method used to find the center of the rings inside a FP data-cube.
+        Method used to find the center of the rings inside a FP data-cube by
+        cutting it in two directions (XZ to find Y center and YZ to find X
+        center), fitting a 2nd degree polynomium and get its extrema points.
+
+        Parameters
+        ----------
+            n_interactions : int
+                Number of interactions to find the center.
+
+        Returns
+        -------
+            ref_x : int
+                X position of the center of the rings.
+
+            ref_y : int
+                Y position of the center of the rings.
         """
         now = time.time()
 
@@ -765,7 +850,15 @@ class PhaseMapFP(PhaseMap):
     def get_finesse(self):
         """
         Assuming you have the Free-Spectral-Range in Z unit and that
-        you have the FWHM in Z units as well, calculate the finesse.
+        you have the FWHM in Z units as well, calculate the finesse by the
+        expressions:
+
+        .. math::
+            F=\\frac{\\Delta z}{\\delta z}
+
+        Returns
+        -------
+            finesse : float
         """
 
         finesse = self.free_spectral_range / self.fwhm
@@ -775,7 +868,6 @@ class PhaseMapFP(PhaseMap):
 
         return finesse
 
-
     def get_free_spectral_range(self):
         """
         A quick-and-dirty way to measure the free range in FP units.
@@ -783,6 +875,14 @@ class PhaseMapFP(PhaseMap):
         first one. Then, it calculates the absolute value and collapse
         in X and Y. The FSR is where the resulting spectrum is minimum,
         excluding (of course), the first one.
+
+        Returns
+        -------
+            fsr : float
+                Free-spectral-range in BCV units.
+
+            fsr_channel : int
+                Free-spectral-range in channels.
         """
 
         if self.verbose:
@@ -887,15 +987,6 @@ class PhaseMapFP(PhaseMap):
         h.set('', '', before='PHMREFX')
         h.set('', '--- PHM Xtractor ---', before='PHMREFX')
 
-        # if 'PHMREFX' not in self.header:
-        # update = '.'
-        # while update.upper() not in 'YESNO':
-        # update = raw_input(" Update input file? [Y]/n \n ")
-        # if update.upper() in 'YES':\usemintedstyle{bw}
-        # log.info(" Updating input file %s" % self.input_file)
-        # data = getdata(self.input_file)
-        # writeto(self.input_file, data, h, clobber=\usemintedstyle{bw}True)
-
         fsr = self.free_spectral_range
 
         h['PHMREFF'] = (self.input_file, 'Original file')
@@ -909,10 +1000,13 @@ class PhaseMapFP(PhaseMap):
         except KeyError:
             h['PHMSAMP'] = 1
 
-
         self.phase_map = self.phase_map - self.phase_map[self.ref_y, self.ref_x]
 
-        # TODO Remove 3rd axis calibration residuals
+        try:
+            del (h['CRPIX3'], h['CRVAL3'], h['C3_3'], h['CDELT3'])
+        except KeyError:
+            pass
+
         filename = safe_save(f + "--obs_phmap.fits", overwrite=True, verbose=v)
         log.info(" Saving observed phase-map to file: %s" % filename)
         pyfits.writeto(filename, self.phase_map, h, clobber=True)
