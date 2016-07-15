@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 log.addHandler(log_handler)
 log.setLevel(logging.NOTSET)
 
+
 def signal_handler(signal, frame):
     sys.exit()
 

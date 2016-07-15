@@ -695,9 +695,12 @@ class SAMI_XJoin:
                 Flag to indicate if cosmic rays removal should be performed.
         """
         if cosmic_rays:
-            data, _ = cosmicray_lacosmic(data, gain=1.0, readnoise=10.0,
+            data, _ = cosmicray_lacosmic(data, gain=2.6, readnoise=10.0,
                                          sigclip=2.5, sigfrac=0.3, objlim=5.0)
+            data /= 2.6
 
+            header.set('UNITS', 'adu')
+            header.set('BUNIT', 'adu')
             header.add_history(
                 'Cosmic rays and hot pixels removed using LACosmic')
             prefix = 'r' + prefix
