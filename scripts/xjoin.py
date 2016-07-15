@@ -62,10 +62,54 @@ dilstruct[4, 4] = 0
 
 # noinspection PyPep8Naming
 class SAMI_XJoin:
+    """
+    SAMI_XJoin
+
+    This class holds all the methods used to join the extensions within a
+    FITS file obtained with SAMI.
+
+    Parameters
+    ----------
+        list_of_files : list
+            A list of input files
+
+        bias_file : str
+            The filename of the master bias that will be used in subtraction.
+
+        clean : bool
+            Clean bad collumns by taking the median value of the pixels around
+            them.
+
+        cosmic_rays : bool
+            Clean cosmic rays using LACosmic package. See noted bellow for
+            reference.
+
+        dark_file : str
+            Master Dark's filename to be used for dark subtraction.
+
+        debug : bool
+            Turn on debug mode with lots of printing.
+
+        flat_file : str
+            Master Flat filename to be used for normalization.
+
+        glow_file : str
+            Master file that contains the lateral glowings sometimes present in
+            SAMI's data.
+
+        time : bool
+            Divide each pixel's values by the exposure time and update header.
+
+        verbose : bool
+            Turn on verbose mode (not so talktive as debug mode).
+
+    See also
+    --------
+        LACosmic - http://www.astro.yale.edu/dokkum/lacosmic/
+    """
     def __init__(self, list_of_files, bias_file=None, clean=False,
                  cosmic_rays=False, dark_file=None, debug=False,
                  flat_file=None, glow_file=None, time=False, verbose=False):
-
         self.set_verbose(verbose)
         self.set_debug(debug)
         self.main(list_of_files, bias_file=bias_file, clean=clean,
@@ -75,14 +119,96 @@ class SAMI_XJoin:
         return
 
     @staticmethod
+    def bias_subtraction(data, header, prefix, bias_file):
+        """
+        Subtract bias from data.
+
+            Parameters
+            ----------
+                data : numpy.ndarray
+                    A 2D numpy array that contains the data.
+
+                header : astropy.io.fits.Header
+                    A header that will be updated.
+
+                prefix : str
+                    File prefix that is added after each process.
+
+                bias_file: str | None
+                    Master Bias filename. If None is given, nothing is done.
+        """
+        if bias_file is not None:
+            bias = pyfits.getdata(os.path.abspath(bias_file))
+            data -= bias
+            header['BIASFILE'] = bias_file
+            header.add_history('Bias subtracted')
+            prefix = 'b' + prefix
+
+        return data, header, prefix
+
+    @staticmethod
     def clean_column(_data, x0, y0, yf, n=5):
+        """
+        Substitutes a single column by the median of the neighbours columns.
+
+        Parameters
+        ----------
+            _data : numpy.ndarray
+                A 2D numpy array that contains the data.
+
+            x0 : int
+                X position of the pixel to be cleaned.
+
+            y0 : int
+                Start position of the column.
+
+            yf : int
+                Final position of the column.
+
+            n : int
+                Number of neighbour columns. (Default=5)
+
+        See also
+        --------
+            SAMI_XJoin.clean_columns
+            SAMI_XJoin.clean_line
+            SAMI_XJoin.clean_lines
+        """
+        if not isinstance(_data, np.array):
+            raise (TypeError, 'Please, use a np.array as input')
+
+        if _data.ndim is not 2:
+            raise (TypeError, 'Data contains %d dimensions while it was '
+                              'expected 2 dimensions.')
+
         t1 = _data[y0:yf, x0 - n:x0]
         t2 = _data[y0:yf, x0 + 1:x0 + n]
         t = np.hstack((t1, t2))
         _data[y0:yf, x0] = np.median(t, axis=1)
+
         return _data
 
     def clean_columns(self, _data):
+        """
+        Clean the known bad columns that exists in most of SAMI's data.
+
+        Parameters
+        ----------
+            _data : numpy.ndarray
+                A 2D numpy array that contains the data.
+
+        See also
+        --------
+            SAMI_XJoin.clean_column
+            SAMI_XJoin.clean_line
+            SAMI_XJoin.clean_lines
+        """
+        if not isinstance(_data, np.array):
+            raise (TypeError, 'Please, use a np.array as input')
+        if _data.ndim is not 2:
+            raise (TypeError, 'Data contains %d dimensions while it was '
+                              'expected 2 dimensions.')
+
         bad_columns = [
             [167, 0, 513],
             [476, 0, 513],
@@ -102,23 +228,65 @@ class SAMI_XJoin:
 
     @staticmethod
     def clean_line(_data, x0, xf, y, n=5):
+        """
+            Substitutes a single column by the median of the neighbours columns.
+
+            Parameters
+            ----------
+                _data : numpy.ndarray
+                    A 2D numpy array that contains the data.
+
+                x0 : int
+                    Start position of the line.
+
+                xf : int
+                    Final position of the line.
+
+                y : int
+                    Y position of the pixel to be cleaned.
+
+                n : int
+                    Number of neighbour columns. (Default=5)
+
+            See also
+            --------
+                SAMI_XJoin.clean_column
+                SAMI_XJoin.clean_columns
+                SAMI_XJoin.clean_lines
+        """
+        if not isinstance(_data, np.array):
+            raise (TypeError, 'Please, use a np.array as input')
+        if _data.ndim is not 2:
+            raise (TypeError, 'Data contains %d dimensions while it was '
+                              'expected 2 dimensions.')
+
         t1 = _data[y - n:y, x0:xf]
         t2 = _data[y + 1:y + n, x0:xf]
         t = np.vstack((t1, t2))
         _data[y, x0:xf] = np.median(t, axis=0)
         return _data
 
-    def clean_hot_columns_and_lines(self, data, header, prefix, clean):
-
-        if clean is True:
-            data = self.clean_columns(data)
-            data = self.clean_lines(data)
-            header.add_history('Cleaned bad columns and lines.')
-            prefix = 'c' + prefix
-
-        return data, header, prefix
-
     def clean_lines(self, _data):
+        """
+        Clean the known bad lines that exists in most of SAMI's data.
+
+        Parameters
+        ----------
+            _data : numpy.ndarray
+                A 2D numpy array that contains the data.
+
+        See also
+        --------
+            SAMI_XJoin.clean_column
+            SAMI_XJoin.clean_columns
+            SAMI_XJoin.clean_line
+        """
+        if not isinstance(_data, np.array):
+            raise (TypeError, 'Please, use a np.array as input')
+        if _data.ndim is not 2:
+            raise (TypeError, 'Data contains %d dimensions while it was '
+                              'expected 2 dimensions.')
+
         bad_lines = [
             [214, 239, 688],
             [477, 516, 490],
@@ -136,8 +304,89 @@ class SAMI_XJoin:
             _data = self.clean_line(_data, x0, xf, y)
         return _data
 
+    def clean_hot_columns_and_lines(self, data, header, prefix, clean):
+        """
+            Clean known hot columns and lines from SAMI's images.
+
+            Parameters
+            ----------
+                data : numpy.ndarray
+                    A 2D numpy array that contains the data.
+
+                header : astropy.io.fits.Header
+                    A header that will be updated.
+
+                prefix : str
+                    File prefix that is added after each process.
+
+                clean : bool
+                    Should I perform the clean?
+
+            See also
+            --------
+                SAMI_XJoin.clean_column
+                SAMI_XJoin.clean_columns
+                SAMI_XJoin.clean_line
+                SAMI_XJoin.clean_lines
+        """
+        if not isinstance(data, np.array):
+            raise (TypeError, 'Please, use a np.array as input')
+
+        if data.ndim is not 2:
+            raise (TypeError, 'Data contains %d dimensions while it was '
+                              'expected 2 dimensions.')
+
+        if not isinstance(header, pyfits.Header):
+            raise (TypeError, 'Expected header has invalid type.')
+
+        if not isinstance(prefix, str):
+            raise (TypeError, 'Expected string but found %s instead.' %
+                   prefix.__class__)
+
+        if not isinstance(clean, bool):
+            raise (TypeError, 'Expected boolean but found %s instead.' %
+                   clean.__class__)
+
+        if clean is True:
+            data = self.clean_columns(data)
+            data = self.clean_lines(data)
+            header.add_history('Cleaned bad columns and lines.')
+            prefix = 'c' + prefix
+
+        return data, header, prefix
+
     @staticmethod
-    def dark_subtraction(data, header, prefix, dark_file):
+    def dark_subtraction(data, header, prefix, dark_file=None):
+        """
+            Subtract the dark file from data and add HISTORY to header.
+
+            Parameters
+            ----------
+                data : numpy.ndarray
+                    A 2D numpy array that contains the data.
+
+                header : astropy.io.fits.Header
+                    A header that will be updated.
+
+                prefix : str
+                    File prefix that is added after each process.
+
+                dark_file: str | None
+                    Master Dark filename. If None is given, nothing is done.
+        """
+        if not isinstance(data, np.array):
+            raise (TypeError, 'Please, use a np.array as input')
+
+        if data.ndim is not 2:
+            raise (TypeError, 'Data contains %d dimensions while it was '
+                              'expected 2 dimensions.')
+
+        if not isinstance(header, pyfits.Header):
+            raise (TypeError, 'Expected header has invalid type.')
+
+        if not isinstance(prefix, str):
+            raise (TypeError, 'Expected string but found %s instead.' %
+                   prefix.__class__)
 
         if dark_file is not None:
             dark = pyfits.getdata(dark_file)
@@ -150,6 +399,36 @@ class SAMI_XJoin:
 
     @staticmethod
     def divide_by_flat(data, header, prefix, flat_file):
+        """
+            Divide the image by the master flat file and add HISTORY to header.
+
+            Parameters
+            ----------
+                data : numpy.ndarray
+                    A 2D numpy array that contains the data.
+
+                header : astropy.io.fits.Header
+                    A header that will be updated.
+
+                prefix : str
+                    File prefix that is added after each process.
+
+                flat_file: str | None
+                    Master flat filename. If None is given, nothing is done.
+        """
+        if not isinstance(data, np.array):
+            raise (TypeError, 'Please, use a np.array as input')
+
+        if data.ndim is not 2:
+            raise (TypeError, 'Data contains %d dimensions while it was '
+                              'expected 2 dimensions.')
+
+        if not isinstance(header, pyfits.Header):
+            raise (TypeError, 'Expected header has invalid type.')
+
+        if not isinstance(prefix, str):
+            raise (TypeError, 'Expected string but found %s instead.' %
+                   prefix.__class__)
 
         if flat_file is not None:
             flat = pyfits.getdata(flat_file)
@@ -162,7 +441,23 @@ class SAMI_XJoin:
 
     @staticmethod
     def divide_by_exposuretime(data, header, prefix, time):
+        """
+            Divide the image by the exposure time and add HISTORY to header.
 
+            Parameters
+            ----------
+                data : numpy.ndarray
+                    A 2D numpy array that contains the data.
+
+                header : astropy.io.fits.Header
+                    A header that will be updated.
+
+                prefix : str
+                    File prefix that is added after each process.
+
+                time: bool
+                    Divide image by exposure time?
+        """
         if time is True:
             try:
                 exptime = float(header['EXPTIME'])
@@ -177,19 +472,22 @@ class SAMI_XJoin:
 
     @staticmethod
     def get_header(filename):
+        """
+        Return the header of the primary HDU extension of a FITS file.
+
+        Parameters
+        ----------
+            filename : str
+                Path to the file.
+        """
+        if not isinstance(filename, str):
+            raise (TypeError, 'Expected string. Found %s' % filename.__class__)
+
+        if not os.path.exists(filename):
+            raise (IOError, '%s file not found.' % filename)
 
         fits_file = pyfits.open(filename)
         h0 = fits_file[0].header
-        # noinspection PyUnusedLocal
-        h1 = fits_file[1].header
-
-        # TODO - Multiple header inheritance.
-        # If there's any card that should be passed from the extentions
-        # header to the main header, uncomment bellow.
-        # for key in h1:
-        #     if key not in h0:
-        #         h0.set(key, value=h1[key], comment=h1.comments[key])
-
         h0.append('UNITS')
         h0.set('UNITS', value='COUNTS', comment='Pixel intensity units.')
 
@@ -197,9 +495,27 @@ class SAMI_XJoin:
 
     @staticmethod
     def get_joined_data(filename):
+        """
+        Open a FITS image and try to join its extensions in a single array.
+
+        Parameters
+        ----------
+            filename : str
+                Path to the file.
+        """
+        if not isinstance(filename, str):
+            raise (TypeError, 'Expected string. Found %s' % filename.__class__)
+
+        if not os.path.exists(filename):
+            raise (IOError, '%s file not found.' % filename)
 
         fits_file = pyfits.open(filename)
         w, h = str2pixels(fits_file[1].header['DETSIZE'])
+
+        if len(fits_file) is 1:
+            log.warning('%s file contains a single extension. ' % fits_file +
+                        'Not doing anything')
+            return fits_file[0].data
 
         log.info(' > %s' % filename)
 
@@ -240,6 +556,50 @@ class SAMI_XJoin:
     def main(self, list_of_files, bias_file=None, clean=False,
              cosmic_rays=False, dark_file=None, flat_file=None,
              glow_file=None, time=False):
+        """
+        Main method used to:
+            1. Join data
+            2. Read header
+            3. Remove central bad columns and lines
+            4. Subtract BIAS
+            5. Subtract DARK
+            6. Remove cosmic rays and hot pixels
+            7. Remove lateral glows
+            8. Divide by FLAT
+            9. Divide by exposure time
+            10. Clean hot columns and lines
+
+        Parameters
+        ----------
+            list_of_files : list
+                A list of input files
+
+            bias_file : str
+                The filename of the master bias that will be used in
+                subtraction.
+
+            clean : bool
+                Clean bad collumns by taking the median value of the pixels
+                around them.
+
+            cosmic_rays : bool
+                Clean cosmic rays using LACosmic package. See noted bellow for
+                reference.
+
+            dark_file : str
+                Master Dark's filename to be used for dark subtraction.
+
+            flat_file : str
+                Master Flat filename to be used for normalization.
+
+            glow_file : str
+                Master file that contains the lateral glowings sometimes present
+                 in SAMI's data.
+
+            time : bool
+                Divide each pixel's values by the exposure time and update
+                header.
+        """
 
         self.print_header()
         log.info('Processing data')
@@ -249,7 +609,11 @@ class SAMI_XJoin:
             prefix = "xj"
 
             # Get joined data
-            data = self.get_joined_data(filename)
+            try:
+                data = self.get_joined_data(filename)
+            except IOError:
+                log.warning('%s file does not exists' % filename)
+                continue
 
             # Build header
             header = self.get_header(filename)
@@ -302,6 +666,9 @@ class SAMI_XJoin:
 
     @staticmethod
     def print_header():
+        """
+        Simply prints a message at the beginning.
+        """
         msg = (
             "\n SAMI - Join Extensions"
             " by Bruno Quint (bquint@astro.iag.usp.br)"
@@ -311,7 +678,23 @@ class SAMI_XJoin:
 
     @staticmethod
     def remove_cosmic_rays(data, header, prefix, cosmic_rays):
+        """
+        Use LACosmic to remove cosmic rays.
 
+        Parameters
+        ----------
+            data : numpy.ndarray
+                2D Array containing the data
+
+            header : astropy.io.fits.Header
+                FITS Header to store HISTORY
+
+            prefix : str
+                Filename prefix to flag images that were clean.
+
+            cosmic_rays : bool
+                Flag to indicate if cosmic rays removal should be performed.
+        """
         if cosmic_rays:
             c = CosmicsImage(data, gain=2.1, readnoise=10.0, sigclip=3.0,
                              sigfrac=0.3, objlim=5.0)
@@ -326,7 +709,24 @@ class SAMI_XJoin:
         return data, header, prefix
 
     def remove_glows(self, data, header, prefix, glow_file):
+        """
+        Remove lateral glows by scaling the glows in the `glow_file` based
+         on `data` and subtracting it.
 
+        Parameters
+        ----------
+            data : numpy.ndarray
+                2D Array containing the data
+
+            header : astropy.io.fits.Header
+                FITS Header to store HISTORY
+
+            prefix : str
+                Filename prefix to flag images that were clean.
+
+            glow_file : str
+                Path to a long dark file that contains the lateral glow.
+        """
         if glow_file is not None:
             # Create four different regions.
             regions = [
@@ -373,13 +773,25 @@ class SAMI_XJoin:
 
     @staticmethod
     def set_debug(debug):
+        """
+        Turn on debug mode.
 
+        Parameter
+        ---------
+            debug : bool
+        """
         if debug:
             log.basicConfig(level=log.DEBUG, format='%(message)s')
 
     @staticmethod
     def set_verbose(verbose):
+        """
+        Turn on verbose mode.
 
+        Parameter
+        ---------
+            verbose : bool
+        """
         if verbose:
             log.basicConfig(level=log.INFO, format='%(message)s')
         else:
@@ -387,7 +799,14 @@ class SAMI_XJoin:
 
     @staticmethod
     def remove_central_bad_columns(data):
+        """
+        Remove central bad columns at the interface of the four extensions.
 
+        Parameter
+        ---------
+            data : numpy.ndarray
+                2D Array containing the data.
+        """
         n_rows, n_columns = data.shape
 
         # Copy the central bad columns to a temp array
@@ -1029,28 +1448,6 @@ class CosmicsImage:
                 break
 
 
-def bias_subtraction(data, header, prefix, bias_file):
-    """
-    Subtract bias from data.
-
-    :param data: 2D numpy.ndarray containing data.
-    :param header: astropy.io.fits.Header instance.
-    :param prefix: string containg the filename prefix.
-    :param bias_file: string containing the filename that holds the BIAS image.
-    :return: data - bias subtracted.
-    :return: header - updated header.
-    :return: prefix - updated prefix.
-    """
-    if bias_file is not None:
-        bias = pyfits.getdata(os.path.abspath(bias_file))
-        data -= bias
-        header['BIASFILE'] = bias_file
-        header.add_history('Bias subtracted')
-        prefix = 'b' + prefix
-
-    return data, header, prefix
-
-
 def subsample(a):  # this is more a generic function then a method ...
     """
     Returns a 2x2-subsampled version of array a (no interpolation, just cutting
@@ -1062,36 +1459,26 @@ def subsample(a):  # this is more a generic function then a method ...
     makes funny borders.
 
     """
-    """
-    # Ouuwww this is slow ...
-    outarray = np.zeros((a.shape[0]*2, a.shape[1]*2), dtype=np.float64)
-    for i in range(a.shape[0]):
-        for j in range(a.shape[1]):
-            outarray[2*i,2*j] = a[i,j]
-            outarray[2*i+1,2*j] = a[i,j]
-            outarray[2*i,2*j+1] = a[i,j]
-            outarray[2*i+1,2*j+1] = a[i,j]
-    return outarray
-    """
-    # much better :
     newshape = (2 * a.shape[0], 2 * a.shape[1])
+
     slices = [slice(0, old, float(old) / new) for old, new in
               zip(a.shape, newshape)]
     coordinates = np.mgrid[slices]
-    indices = coordinates.astype(
-        'i')  # choose the biggest smaller integer index
+
+    # choose the biggest smaller integer index
+    indices = coordinates.astype('i')
+
     return a[tuple(indices)]
 
 
 # noinspection PyUnusedLocal
 def rebin(a, newshape):
     """
-    Auxiliary function to rebin an ndarray a.
-    U{http://www.scipy.org/Cookbook/Rebinning}
+    Auxiliary function to rebin an ndarray
+    a.U{http://www.scipy.org/Cookbook/Rebinning}
 
     > a=rand(6,4); b=rebin(a,(3,2))
     """
-
     shape = a.shape
     len_shape = len(shape)
     factor = np.asarray(shape) / np.asarray(newshape)
@@ -1106,7 +1493,7 @@ def rebin(a, newshape):
 
 def rebin2x2(a):
     """
-    Wrapper around rebin that actually rebins 2 by 2
+    Wrapper around rebin that actually re-bins 2 by 2.
     """
     inshape = np.array(a.shape)
     if not (inshape % 2 == np.zeros(
@@ -1117,6 +1504,13 @@ def rebin2x2(a):
 
 
 def str2pixels(my_string):
+    """
+    Parse a string containing [XX:XX, YY:YY] to pixels.
+
+    Parameter
+    ---------
+        my_string : str
+    """
     my_string = my_string.replace('[', '')
     my_string = my_string.replace(']', '')
     x, y = my_string.split(',')

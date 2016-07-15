@@ -18,7 +18,8 @@
 This script fixes the header of the images obtained with SAMI so they 
 can be handled by `ccdproc.ImageFileCollection`. The fix involves 
 simply removing the `ADC` card that appears twice in the header and 
-causes the class above to raise errors. 
+causes the class above to raise errors. This is not really useful at the 
+moment but future scripts will rely on that.
 
 This script can be used by simply:
 ```
@@ -33,7 +34,7 @@ status of the script but it makes the process much slower.
 
 Every single `.fits` file obtained with SAMI, SAM's Imager, has four 
 extension. I find it much easier to work with files that contains a 
-single extension so I created the `samfp_xjoin.py` script joins all the 
+single extension so I created the `xjoin.py` script joins all the 
 extensions and a lot of other things. 
  
 This script will always:
@@ -58,32 +59,32 @@ After that, this script may also:
 
 This file can be executed in a common terminal by simply calling
 ``` 
-  $ python samfp_xjoin.py [options] file1 file2 ... fileN
+  $ python xjoin.py [options] file1 file2 ... fileN
 ```  
   Or
 ```  
-  $ chmod a+x samfp_xjoin.py
-  $ ./samfp_xjoin.py [options] file1 file2 ... fileN
+  $ chmod a+x xjoin.py
+  $ ./xjoin.py [options] file1 file2 ... fileN
 ```
 
 The options can be printed if one executes
 ```
-  $ python samfp_xjoin.py --help
+  $ python xjoin.py --help
 ```
   or
 ```
-  $ python sami_xjoin.py -h
+  $ python xjoin.py -h
 ```
 
- ## samfp_imcombine.py
+## samfp_imcombine.py
     
  This script combines 2D images that are used as standard calibrations. 
 
- ## mkcube.py
+## mkcube.py
  
  
  
- ## phmxtractor.py
+## phmxtractor.py
  
   When we observe with a Fabry-Perot, we take several images while changing 
   the gap size between the two FP plates. This process is called _scanning_ or 
@@ -109,11 +110,9 @@ The options can be printed if one executes
   These three parameters are usefull for further steps in the data-reduction
   or even for data-acquisition. They are all stored in the header of the 
   phase-map extracted.
-  
-  
  
- ## phmfit.py
+## phmfit.py
  
- ## apply.py
+## apply.py
  
- ## wcal.py
+## wcal.py
