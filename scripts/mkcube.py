@@ -14,7 +14,6 @@ import astropy.io.fits as pyfits
 import argparse
 import logging as log
 import numpy as np
-import os
 import pandas as pd
 
 __author__ = 'Bruno Quint'
@@ -28,14 +27,19 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     """
     Stack FITS images within a single FITS data-cube.
 
-    :param list_of_files: a list of strings containing the path to the input fits files.
-    :type list_of_files: list
+    Parameters
+    ----------
+        list_of_files : list
+            A list of strings containing the path to the input fits files.
 
-    :param z_key: the wildcard name responsible to store the FP gap size in *bcv* units.
-    :type z_key: string
 
-    :param combine_algorithm: the algorithm used to combine several images into a single frame (average|median|sum)
-    :type combine_algorithm: string
+        z_key : str
+            The wildcard name responsible to store the FP gap size in *bcv*
+            units.
+
+        combine_algorithm : string
+            The algorithm used to combine several images into a single frame
+            (average|median|sum)
     """
 
     assert isinstance(list_of_files, list)
@@ -132,13 +136,20 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
 
 def safesave(name, overwrite=False, verbose=False):
     """
-    This is a generic method used to check if a file called 'name' already exists. If so, it starts some interaction with the user.
+    This is a generic method used to check if a file called 'name'
+    already exists. If so, it starts some interaction with the user.
 
-    :param name: the name of the file that will be written in the future.
+    Parameters:
+        name : str
+            The name of the file that will be written in the future.
 
-    :keyword overwrite: if False, this method will interact with the user to ask if 'name' file shall be overwritten or if a new name will be given. If True, 'name' file is automatically overwritten.
+        overwrite : bool
+            If False, this method will interact with the user to ask if 'name'
+            file shall be overwritten or if a new name will be given. If True,
+            'name' file is automatically overwritten.
 
-    :keyword verbose: force verbose mode on even when overwrite is automatic.
+        verbose : bool
+            force verbose mode on even when overwrite is automatic.
     """
     import os
     import sys
@@ -155,7 +166,7 @@ def safesave(name, overwrite=False, verbose=False):
             os.remove(name)
 
         elif overwrite in ['', 'n', 'N', False]:
-            name = raw_input("   Please, enter a new filename:\n   > ")
+            name = input("   Please, enter a new filename:\n   > ")
 
         elif overwrite in ['q']:
             if v:
@@ -163,7 +174,7 @@ def safesave(name, overwrite=False, verbose=False):
             sys.exit()
 
         else:
-            overwrite = raw_input("   '%s' file exist. Overwrite? (y/[n])"% name)
+            overwrite = input("   '%s' file exist. Overwrite? (y/[n])"% name)
             if v:
                 print(" Writing data-cube to %s" % name)
 
