@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 """
     SAMI Make Cube
@@ -80,6 +80,10 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     nrows = df['nrows'].unique()
     ncols = df['ncols'].unique()
     nchan = len(df['z'].unique())
+
+    nrows = int(nrows)
+    ncols = int(ncols)
+    nchan = int(nchan)
 
     log.info('Creating data-cube with shape')
     log.info('[%d, %d, %d]' % (nrows, ncols, nchan))
