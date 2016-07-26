@@ -9,12 +9,10 @@ from __future__ import division, print_function
 
 import argparse
 import astropy.io.fits as pyfits
-import colorama
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import scipy.optimize as optimize
 
 
 class PhaseMapFit:
@@ -196,7 +194,12 @@ class PhaseMapFit:
 
         # Tell me the limits to fit the first parabola
         dz_abs = np.abs(dz)
-        where = np.argmin(np.abs(r[dz_abs >= FSR / 2][0] - r))
+        dz_abs_crit = dz_abs >= FSR / 2
+        print(np.any(dz_abs_crit))
+        if np.any(dz_abs_crit):
+            where = np.argmin(np.abs(r[dz_abs_crit][0] - r))
+        else:
+            where = (r.size - 1)
 
         # Plot the gradient
         if args.show_plots:

@@ -1,5 +1,17 @@
 #!/usr/bin/env python2
 # -*- coding: utf8 -*-
+"""
+    Wavelength Calibration
+
+    This script calculates the wavelength calibration using a Terminal Interface
+    with the User.
+
+    Todo
+    ----
+    -   Look in the header for other options of FP_ZFSR.
+    -   Look in the header for other options of FP_ZSTEP.
+    -
+"""
 from __future__ import division, print_function
 
 import argparse

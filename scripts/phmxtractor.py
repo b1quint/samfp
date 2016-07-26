@@ -8,10 +8,13 @@
     2014.04.16 15:45 - Created an exception for errors while trying to access
                        'CRPIX%' cards on cube's header.
 
-    Todo:
-        Add debug option to argparse
-        Add log-to-a-file option to argparse
-        Verify code
+    Todo
+    ----
+        - Add debug option to argparse
+        - Add log-to-a-file option to argparse
+        - Add multithread/multiprocess
+        - Use astropy.ccdproc
+        - Verify code
 """
 
 from __future__ import division, print_function
@@ -28,7 +31,7 @@ import scipy.interpolate as interpolate
 import sys
 
 log = logging.getLogger('phasemap_extractor')
-log.setLevel(logging.DEBUG)
+
 
 def main():
     """
@@ -44,6 +47,10 @@ def main():
     parser.add_argument(
         '-c', '--correlation', action='store_true',
         help="Use correlation cube? true/[FALSE]"
+    )
+    parser.add_argument(
+        '-d', '--debug', action='store_true',
+        help="Enable debug mode."
     )
     parser.add_argument(
         'filename', type=str, help="Input data-cube name."
@@ -66,9 +73,17 @@ def main():
     )
     args = parser.parse_args()
 
-    # Starting program --------------------------------------------------------
-    v = not args.quiet
+    if args.quiet:
+        log.setLevel(logging.NOTSET)
+    else:
+        log.setLevel(logging.INFO)
+
+    if args.debug:
+        log.setLevel(logging.DEBUG)
+
+    # Starting program ---
     start = time.time()
+    v = not args.quiet
 
     log.info("\n Phase-Map Extractor")
     log.info("by Bruno Quint & Fabricio Ferrari")
@@ -702,8 +717,8 @@ class PhaseMapFP(PhaseMap):
             ref_x = min(ref_x, self.header['NAXIS1'] - 1)
 
             # First Version -- Get a slice from cube
-            temp_x = self.data[:fsr, ref_y, x]
-            temp_y = self.data[:fsr, y, ref_x]
+            temp_x = self.data[:(fsr // 4 * 3), ref_y, x]
+            temp_y = self.data[:(fsr // 4 * 3), y, ref_x]
 
             # First Version -- Extract a parabola or a set of parabolas
             temp_x = np.argmax(temp_x, axis=0)
@@ -784,9 +799,9 @@ class PhaseMapFP(PhaseMap):
                 old_ref_x = ref_x
                 old_ref_y = ref_y
 
-        if self.show:
-            plt.tight_layout()
-            plt.show()
+            if self.show:
+                plt.tight_layout()
+                plt.show()
 
         # If my program gets here, it could not find the center.
         # So what?

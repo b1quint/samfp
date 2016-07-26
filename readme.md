@@ -57,6 +57,8 @@ After that, this script may also:
   * Remove the instrument fingerprint that sometimes shows up as glows in the lower lateral borders;
   * Add HISTORY card that stores all the steps taken with it.
 
+  ### Usage
+
 This file can be executed in a common terminal by simply calling
 ``` 
   $ python xjoin.py [options] file1 file2 ... fileN
@@ -76,13 +78,49 @@ The options can be printed if one executes
   $ python xjoin.py -h
 ```
 
-## samfp_imcombine.py
-    
- This script combines 2D images that are used as standard calibrations. 
-
 ## mkcube.py
  
- 
+  This script creates a new data-cube based on the FITS images given 
+  as input. It first walks ovel all files and create a table that contains
+  the filename, the number of pixels in X, in Y and the Fabry-Perot spacing
+  in Binary-Control-Value units (BCV).
+   
+  Based on this table, this script checks if all input has the same 
+   X and Y dimentions. It also created a Z calibration that relates the
+   channel number to a BCV number. Since the wavelength decreases as 
+   the BCV increases, the script reverse the data-cube in Z so the 
+   wavelength increases with the channels. 
+   
+  The creation of the Z calibration mentioned above is needed because 
+  some scans are done with steps slightly unneven. With this fit, the 
+  difference between the fitted Z and the actual Z in a channel shall 
+  be smaller than 0.5 BCV since the Fabry-Perot controller accepts only
+  integer values.
+  
+  If there is more than an FITS image for a given channel, it is possible 
+  to tell the script which algorithm it should use to combine them. The 
+  options available are `mean`/`average`, `median` and `sum`.
+  
+  ### Usage
+  
+  This file can be executed in a common terminal by simply calling
+    ``` 
+    $ python mkcube.py [options] file1 file2 ... fileN
+    ```
+  Or
+    ```  
+    $ chmod a+x mkcube.py
+    $ ./mkcube.py [options] file1 file2 ... fileN
+    ```
+  The options can be printed if one executes
+    ```
+    $ python mkcube.py --help
+    ```
+  or
+    ```
+    $ python mkcube.py -h
+    ```
+   
  
 ## phmxtractor.py
  
