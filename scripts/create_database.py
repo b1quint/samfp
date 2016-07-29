@@ -1,14 +1,4 @@
 #!/usr/bin/env python2
-"""
-    Reduce Everything
-
-    This script was created with the intention to reduce all SAMI's data. For
-    now, here is it's current features:
-
-
-    by Bruno C. Quint
-"""
-
 from __future__ import print_function, division
 
 import argparse
@@ -55,6 +45,18 @@ def files_to_database(path, keys, cursor):
         cursor : sqlite.Cursor
             A SQLite Cursor that will receive the rows.
     """
+
+    if not os.path.exists(path):
+        raise (IOError, 'Could not open file: {:s}'.format(path))
+
+    if not isinstance(keys, dict):
+        raise (TypeError, '"keys" should be a dictionary. '
+                          'Found {:s} instead'.format(keys.__class__))
+
+    if not isinstance(cursor, lite.Cursor):
+        raise (TypeError, '"cursor" should be a sqlite.Cursor object. '
+                          'Found {:s} instead.'.format(cursor.__class__) )
+
     list_of_files = glob(os.path.join(path, '*', '*.fits'))
     list_of_files.sort()
 
