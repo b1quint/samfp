@@ -20,6 +20,11 @@
 
     The documentation for each process is shown in the corresponding function.
 
+    Todo
+    ----
+    - Use multithread or multiprocessing to run this script faster.
+    - Use astropy.ccdproc to process the data.
+
     Bruno Quint (bquint at ctio.noao.edu)
     May 2016
 
@@ -656,6 +661,11 @@ class SAMI_XJoin:
             )
 
             # Writing file
+            try:
+                del header['NEXTEND']
+            except KeyError:
+                pass
+
             header.add_history('Extensions joined using "sami_xjoin"')
             path, filename = os.path.split(filename)
             pyfits.writeto(os.path.join(path, prefix + filename), data,

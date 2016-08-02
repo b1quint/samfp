@@ -6,6 +6,10 @@
     This file gets several FITS images and put them together inside a single
     FITS file with three dimensions (data-cube).
 
+    Todo
+    ----
+    - Treat error case multiple extensions.
+
 """
 
 from __future__ import division, print_function
