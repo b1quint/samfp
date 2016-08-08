@@ -235,10 +235,6 @@ def parse_arguments():
         '-q', '--quiet', action='store_true',
         help="Run program quietly. true/[FALSE]"
     )
-    parser.add_argument(
-        '-s', '--split', action='store_true',
-        help="Split the results in multiple files."
-    )
     args = parser.parse_args()
 
     return args
