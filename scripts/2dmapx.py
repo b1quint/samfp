@@ -23,8 +23,8 @@ import numpy as np
 from astropy.modeling import models, fitting
 
 __author__ = 'Bruno C. Quint'
-__date__ = '2016.07.28'
-__version__ = '0.9'
+__date__ = '2016.08.09'
+__version__ = '1.0'
 
 
 # noinspection PyUnusedLocal,PyUnusedLocal
