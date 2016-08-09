@@ -23,8 +23,8 @@ import numpy as np
 from astropy.modeling import models, fitting
 
 __author__ = 'Bruno C. Quint'
-__date__ = '2016.07.28'
-__version__ = '0.9'
+__date__ = '2016.08.09'
+__version__ = '1.0'
 
 
 # noinspection PyUnusedLocal,PyUnusedLocal
@@ -234,10 +234,6 @@ def parse_arguments():
     parser.add_argument(
         '-q', '--quiet', action='store_true',
         help="Run program quietly. true/[FALSE]"
-    )
-    parser.add_argument(
-        '-s', '--split', action='store_true',
-        help="Split the results in multiple files."
     )
     args = parser.parse_args()
 

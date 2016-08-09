@@ -16,6 +16,7 @@ from __future__ import division, print_function
 
 import astropy.io.fits as pyfits
 import argparse
+import itertools
 import logging as log
 import numpy as np
 import pandas as pd
@@ -27,7 +28,7 @@ log.basicConfig(format='%(levelname)s: %(name)s(%(funcName)s): %(message)s',
 
 
 def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
-              output='cube.fits'):
+              output='cube.fits', binning=(1, 1)):
     """
     Stack FITS images within a single FITS data-cube.
 
@@ -47,6 +48,9 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
 
         output : str
             Name of the output data-cube.
+
+        binning : list or tuple
+            Binning to be applied to the data-cube when mounting it.
     """
 
     assert isinstance(list_of_files, list)
@@ -81,8 +85,8 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
         raise (
             IOError, 'Width mismatch for %d files' % len(df['ncols'].unique()))
 
-    nrows = df['nrows'].unique()
-    ncols = df['ncols'].unique()
+    nrows = df['nrows'].unique() // binning[0]
+    ncols = df['ncols'].unique() // binning[1]
     nchan = len(df['z'].unique())
 
     nrows = int(nrows)
@@ -108,17 +112,26 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
         raise ValueError('"combine_algorith" kwarg must be average/median/sum')
 
     log.info('Filling data-cube')
+    x, y = range(binning[0]), range(binning[1])
+
+    # Build data-cube
     for i in range(z_array.size):
         log.debug('Processing channel %03d - z = %.2f' % (i + 1, z_array[i]))
         files = df[df['z'] == z_array[i]]['filename'].tolist()
         temp_cube = np.zeros((len(files), ncols, nrows))
+
+        # Build temporary data-cube for each frame before combine it
         for j in range(len(files)):
-            temp_cube[j] = pyfits.getdata(files[j])
+            temp_image = pyfits.getdata(files[j])
+
+            # Binning images ---
+            for (m, n) in itertools.product(x, y):
+                temp_cube[j] += temp_image[n::binning[1], m::binning[0]]
+
         cube[i] = combine(temp_cube, axis=0)
 
     log.info('Find Z solution')
     z = np.arange(z_array.size) + 1
-    # delta_z = (z_array.min() - z_array.max()) / z_array.size
     p = np.polyfit(z, z_array, deg=1)
     delta_z = p[0]
     z_zero = np.polyval(p, 1)
@@ -203,6 +216,9 @@ if __name__ == '__main__':
                         help="Algorithm used when combining images per "
                              "frame (average | median | sum)")
 
+    parser.add_argument('-b', '--binning', type=int, nargs=2, default=(1, 1),
+                        help='New binning to be applied to the data-cube')
+
     parser.add_argument('-d', '--debug', action='store_true',
                         help="Run debug mode.")
 
@@ -225,5 +241,6 @@ if __name__ == '__main__':
 
     make_cube(parsed_args.files,
               output=parsed_args.output,
-              combine_algorithm=parsed_args.algorithm)
+              combine_algorithm=parsed_args.algorithm,
+              binning=parsed_args.binning)
 
