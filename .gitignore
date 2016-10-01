@@ -1,0 +1,7 @@
+# Ignored Files
+# by Bruno Quint
+# 2016.09.21
+.idea
+.idea/*
+.idea/*.xml
+.idea/*.iml
