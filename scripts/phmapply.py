@@ -198,6 +198,14 @@ def main():
     if v:
         print(" Done.")
 
+    if args.center:
+        collapsed_cube = data_cube.data.sum(axis=2).sum(axis=1)
+        imax = np.argmax(collapsed_cube)
+        print(' Maximum argument found at {:d}'.format(imax))
+        print(' Cube center at {:d}'.format(collapsed_cube.size // 2))
+        print(' Displacemente to be applied: {:d}'.format(imax - collapsed_cube.size // 2))
+        data_cube.data = np.roll(data_cube.data, - (imax - collapsed_cube.size // 2), axis=0)
+
     # Saving corrected data-cube ----------------------------------------------
     if v:
         print("\n Writing output to file %s." % out_file)
@@ -207,7 +215,7 @@ def main():
         # noinspection PyUnboundLocalVariable
         end = time.time() - start
         print("\n Total time ellapsed: {0:02d}:{1:02d}:{2:02d}".format(
-            end // 3600, end % 3600 // 60, end % 60))
+            int(end // 3600), int(end % 3600 // 60), int(end % 60)))
         print(" All done!\n")
 
 

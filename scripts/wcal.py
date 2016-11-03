@@ -150,7 +150,7 @@ class WCal:
         return log
 
     def get_wavelength_step(self, w_central, header=None, key_gap_size='FP_GAP',
-                            key_zfsr='FP_ZFSR', key_z_step='FP_ZSTEP'):
+                            key_zfsr='PHMFSR', key_z_step='PHMSAMP'):
         """
         Calculates the wavelength step between channels.
 
