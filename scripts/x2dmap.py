@@ -286,23 +286,28 @@ def write_results(_results, _input_file, _output_file, lorentzian=False):
     m1 = _results[:, 1] # Mean
     m2 = _results[:, 2] # STDDEV
 
-    m0 = m0.reshape((x, y))
-    m1 = m1.reshape((x, y))
-    m2 = m2.reshape((x, y))
+    m0 = m0.reshape((x, y)).T
+    m1 = m1.reshape((x, y)).T
+    m2 = m2.reshape((x, y)).T
+
+    if lorentzian:
+        i = 'l'
+    else:
+        i = 'g'
 
     if _output_file is None:
 
         pyfits.writeto(
-            _input_file.replace('.fits', '.m0.fits'), data=m0, header=header,
-            clobber=True
+            _input_file.replace('.fits', '.{:s}m0.fits'.format(i)), data=m0,
+            header=header, clobber=True
         )
         pyfits.writeto(
-            _input_file.replace('.fits', '.m1.fits'), data=m1, header=header,
-            clobber=True
+            _input_file.replace('.fits', '.{:s}m1.fits'.format(i)), data=m1,
+            header=header, clobber=True
         )
         pyfits.writeto(
-            _input_file.replace('.fits', '.m2.fits'), data=m2, header=header,
-            clobber=True
+            _input_file.replace('.fits', '.{:s}m2.fits'.format(i)), data=m2,
+            header=header, clobber=True
         )
 
     else:
