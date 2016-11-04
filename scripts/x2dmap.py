@@ -16,7 +16,7 @@ import itertools
 import logging
 import os
 import sys
-from multiprocessing import Pool
+from multiprocessing import Pool, Process
 
 import astropy.io.fits as pyfits
 import numpy as np
@@ -63,15 +63,19 @@ def main():
     )
 
     # Write the results to a FITS file ---
-    write_results(results, args.filename, args.output)
+    write_results(
+        results, args.filename, args.output, lorentzian=args.lorentzian,
+        wavelength=args.wavelength
+    )
 
     # Now I am good. The script is already done ---
     tend = datetime.datetime.now()
     delta_t = tend - tstart
 
-    log.debug(' [{0}] Script fineshed.'.format(tend.strftime('%H:%M:%S')))
+    log.info('')
+    log.debug(' [{0}] Script finished.'.format(tend.strftime('%H:%M:%S')))
     log.debug(' Total time elapsed: {:s}'.format(str(delta_t)))
-    log.info('All done.')
+    log.info(' All done.')
     
 
 def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
@@ -133,12 +137,16 @@ def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
     p = Pool(n)
     results = None
 
+    log.info(' Extracting 2D Maps...'.format(_input_filename))
+    loading =  Process(target=stand_by, name="stand_by", args=[log.level])
+    loading.start()
     try:
         results = p.map_async(fitter, itertools.product(x, y)).get(99999999)
     except KeyboardInterrupt:
         log.info('\n\nYou pressed Ctrl+C!')
         log.info('Leaving now. Bye!\n')
         pass
+    loading.terminate()
 
     return np.array(results)
 
@@ -250,12 +258,39 @@ def parse_arguments():
         '-q', '--quiet', action='store_true',
         help="Run program quietly. true/[FALSE]"
     )
+    parser.add_argument(
+        '-w', '--wavelength', type=float, default=None,
+        help="The rest wavelength if you want to get your maps in km/s instead."
+    )
     args = parser.parse_args()
 
     return args
 
 
-def write_results(_results, _input_file, _output_file, lorentzian=False):
+def stand_by(level=logging.NOTSET):
+    """
+    A silly method that keeps the terminal alive so the user knows that
+    this programs is still running. :-)
+    """
+    from time import sleep
+
+    output = ['/', '-', '\\', '|']
+    i = 0
+
+    if level in [logging.NOTSET, logging.WARN, logging.ERROR]:
+        return
+
+    while True:
+        sys.stdout.write("\r [{:s}]".format(output[i]))
+        sys.stdout.flush()
+        sleep(0.5)
+        i += 1
+        i %= 4
+
+    return
+
+def write_results(_results, _input_file, _output_file, lorentzian=False,
+                  wavelength=None):
     """
     Write the results to one or more FITS file.
 
@@ -275,7 +310,11 @@ def write_results(_results, _input_file, _output_file, lorentzian=False):
         contains the Gaussian stddev.
     lorentzian : bool
         Use Lorentzian instead of Gaussian
+    wavelength : float / None
+        If the wavelength is given, this method automatically convert the maps
+        from Angstrom to km/s.
     """
+    from astropy import constants
 
     header = pyfits.getheader(_input_file)
     header = clean_header(header)
@@ -290,10 +329,26 @@ def write_results(_results, _input_file, _output_file, lorentzian=False):
     m1 = m1.reshape((x, y)).T
     m2 = m2.reshape((x, y)).T
 
+    h1 = header
+    h2 = header
+
     if lorentzian:
         i = 'l'
     else:
         i = 'g'
+
+    if wavelength is not None:
+
+        m1 = (m1 - wavelength) / wavelength * constants.c.to('km/s').value
+        m2 = m2 / wavelength * constants.c.to('km/s').value
+
+        h1.set('UNITS', 'km/s')
+        h2.set('UNITS', 'km/s')
+
+    else:
+
+        h1.set('UNITS', 'Angstrom')
+        h2.set('UNITS', 'Angstrom')
 
     if _output_file is None:
 
@@ -303,11 +358,11 @@ def write_results(_results, _input_file, _output_file, lorentzian=False):
         )
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m1.fits'.format(i)), data=m1,
-            header=header, clobber=True
+            header=h1, clobber=True
         )
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m2.fits'.format(i)), data=m2,
-            header=header, clobber=True
+            header=h2, clobber=True
         )
 
     else:
@@ -315,16 +370,21 @@ def write_results(_results, _input_file, _output_file, lorentzian=False):
             HDUl = pyfits.HDUList()
             HDUl.append(pyfits.PrimaryHDU(header))
             HDUl.append(pyfits.ImageHDU(data=m0, name='Gaussian_Peak'))
-            HDUl.append(pyfits.ImageHDU(data=m1, name='Gaussian_Center'))
-            HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV'))
+            HDUl.append(pyfits.ImageHDU(data=m1, name='Gaussian_Center',
+                                        header=h1))
+            HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV',
+                                        header=h2))
             HDUl.writeto(_output_file, clobber=True)
         else:
             HDUl = pyfits.HDUList()
             HDUl.append(pyfits.PrimaryHDU(header))
             HDUl.append(pyfits.ImageHDU(data=m0, name='Lorentzian_Peak'))
-            HDUl.append(pyfits.ImageHDU(data=m1, name='Lorentzian_Center'))
-            HDUl.append(pyfits.ImageHDU(data=m2, name='Lorentzian_STDDEV'))
+            HDUl.append(pyfits.ImageHDU(data=m1, name='Lorentzian_Center',
+                                        header=h1))
+            HDUl.append(pyfits.ImageHDU(data=m2, name='Lorentzian_STDDEV',
+                                        header=h2))
             HDUl.writeto(_output_file, clobber=True)
+
 
 class FitGaussian:
 
