@@ -58,7 +58,9 @@ def main():
     log.debug(' [{0}] Script Start'.format(tstart.strftime('%H:%M:%S')))
 
     # Perform the 2D-Map Extraction ---
-    results = perform_2dmap_extraction(args.filename, log, args.pool_size)
+    results = perform_2dmap_extraction(
+        args.filename, log, args.pool_size, lorentzian=args.lorentzian
+    )
 
     # Write the results to a FITS file ---
     write_results(results, args.filename, args.output)
@@ -72,7 +74,7 @@ def main():
     log.info('All done.')
     
 
-def perform_2dmap_extraction(_input_filename, log, n=4):
+def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
     """
     Perform the 2D-Map extraction using `multiprocessing` and
     `astropy.modeling`.
@@ -85,7 +87,8 @@ def perform_2dmap_extraction(_input_filename, log, n=4):
             A logger instance
         n : int
             The number of simultaneous processes that will be executed.
-
+        lorentzian : bool
+            Perform Lorentzian fit instead of Gaussian fit?
     Returns
     -------
         results : numpy.ndarray
@@ -93,6 +96,11 @@ def perform_2dmap_extraction(_input_filename, log, n=4):
              - m0: the Gaussian amplitude,
              - m1: the Gaussian center.
              - m2: the Gaussian width.
+            or
+            A (X x Y x 3) array containining:
+             - m0: the Lorentzian amplitude,
+             - m1: the Lorentzian center.
+             - m2: the Lorentzian width. 
     """
     
     if not isinstance(_input_filename, str):
@@ -112,13 +120,16 @@ def perform_2dmap_extraction(_input_filename, log, n=4):
                         'reading.'.format(_input_filename))
 
     # Load data ---
-    log.info(' Loading data from: {0}s'.format(_input_filename))
+    log.info(' Loading data from: {0:s}'.format(_input_filename))
     header = pyfits.getheader(_input_filename)
     x = np.arange(header['NAXIS1'])
     y = np.arange(header['NAXIS2'])
     
     # Using astropy fitter and model ---
-    fitter = FitGaussian(_input_filename)
+    if lorentzian:
+        fitter = FitLorentzian(_input_filename)
+    else:
+        fitter = FitGaussian(_input_filename)
     p = Pool(n)
     results = None
 
@@ -223,6 +234,10 @@ def parse_arguments():
         'filename', type=str, help="Input data-cube name."
     )
     parser.add_argument(
+        '-l', '--lorentzian', action="store_true",
+        help='Use a Lorentzian fit instead of Gaussian fit.'
+    )
+    parser.add_argument(
         '-o', '--output', default=None, type=str,
         help='Number of the output file. Each map is saved inside a different '
              'extention. If not given, a new file is created for each 2d-map.'
@@ -240,7 +255,7 @@ def parse_arguments():
     return args
 
 
-def write_results(_results, _input_file, _output_file):
+def write_results(_results, _input_file, _output_file, lorentzian=False):
     """
     Write the results to one or more FITS file.
 
@@ -258,6 +273,8 @@ def write_results(_results, _input_file, _output_file):
         and a single file is used to store each results. '.m0' contains the
         Gaussian peak value, '.m1' contains the Gaussian center and '.m2'
         contains the Gaussian stddev.
+    lorentzian : bool
+        Use Lorentzian instead of Gaussian
     """
 
     header = pyfits.getheader(_input_file)
@@ -269,34 +286,45 @@ def write_results(_results, _input_file, _output_file):
     m1 = _results[:, 1] # Mean
     m2 = _results[:, 2] # STDDEV
 
-    m0 = m0.reshape((x, y))
-    m1 = m1.reshape((x, y))
-    m2 = m2.reshape((x, y))
+    m0 = m0.reshape((x, y)).T
+    m1 = m1.reshape((x, y)).T
+    m2 = m2.reshape((x, y)).T
+
+    if lorentzian:
+        i = 'l'
+    else:
+        i = 'g'
 
     if _output_file is None:
 
         pyfits.writeto(
-            _input_file.replace('.fits', '.m0.fits'), data=m0, header=header,
-            clobber=True
+            _input_file.replace('.fits', '.{:s}m0.fits'.format(i)), data=m0,
+            header=header, clobber=True
         )
         pyfits.writeto(
-            _input_file.replace('.fits', '.m1.fits'), data=m1, header=header,
-            clobber=True
+            _input_file.replace('.fits', '.{:s}m1.fits'.format(i)), data=m1,
+            header=header, clobber=True
         )
         pyfits.writeto(
-            _input_file.replace('.fits', '.m2.fits'), data=m2, header=header,
-            clobber=True
+            _input_file.replace('.fits', '.{:s}m2.fits'.format(i)), data=m2,
+            header=header, clobber=True
         )
 
     else:
-
-        HDUl = pyfits.HDUList()
-        HDUl.append(pyfits.PrimaryHDU(header))
-        HDUl.append(pyfits.ImageHDU(data=m0, name='Gaussian_Peak'))
-        HDUl.append(pyfits.ImageHDU(data=m1, name='Gaussian_Center'))
-        HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV'))
-        HDUl.writeto(_output_file, clobber=True)
-
+        if lorentzian:
+            HDUl = pyfits.HDUList()
+            HDUl.append(pyfits.PrimaryHDU(header))
+            HDUl.append(pyfits.ImageHDU(data=m0, name='Gaussian_Peak'))
+            HDUl.append(pyfits.ImageHDU(data=m1, name='Gaussian_Center'))
+            HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV'))
+            HDUl.writeto(_output_file, clobber=True)
+        else:
+            HDUl = pyfits.HDUList()
+            HDUl.append(pyfits.PrimaryHDU(header))
+            HDUl.append(pyfits.ImageHDU(data=m0, name='Lorentzian_Peak'))
+            HDUl.append(pyfits.ImageHDU(data=m1, name='Lorentzian_Center'))
+            HDUl.append(pyfits.ImageHDU(data=m2, name='Lorentzian_STDDEV'))
+            HDUl.writeto(_output_file, clobber=True)
 
 class FitGaussian:
 
@@ -344,6 +372,53 @@ class FitGaussian:
         g = fitter(g, self._z, s)
 
         return [g.amplitude.value, g.mean.value, g.stddev.value]
+
+class FitLorentzian:
+
+    def __init__(self, filename):
+        """
+        Parameter
+        ---------
+            filename : str
+                Relative or absolute path to the file that contains a data-cube
+                from where the 2D maps will be extracted through gaussian
+                fitting.
+        """
+        self._filename = filename
+        self._g = None
+
+    def __call__(self, indexes):
+        """
+        Parameter
+        ---------
+            indexes : tuple
+                Contains two integers that correspond to the X and Y indexes
+                that will be used to extract the spectrum from the data-cube and
+                fits a gaussian to this extracted spectrum.
+        Returns
+        -------
+            results : list
+                A list containing the numerical values of the three gaussian
+                parameters met in the fitting processes `peak`, `mean` and
+                `stddev`.
+        """
+        i, j = indexes
+        data = pyfits.getdata(self._filename, memmap=True)
+        s = data[:, j, i]
+
+        h = pyfits.getheader(self._filename)
+        self._z = \
+            (np.arange(s.size) - h['CRPIX3'] - 1) * h['CDELT3'] + h['CRVAL3']
+
+        del data
+        del h
+
+        l = models.Lorentz1D(
+            amplitude=s.max(), x_0=self._z[s.argmax()], fwhm=2.0)
+        fitter = fitting.LevMarLSQFitter()
+        l = fitter(l, self._z, s)
+
+        return [l.amplitude.value, l.x_0.value, l.fwhm.value]
 
 
 if __name__ == '__main__':

@@ -521,8 +521,6 @@ class SAMI_XJoin:
                         'Not doing anything')
             return fits_file[0].data
 
-        log.info(' > %s' % filename)
-
         # Correct for binning
         bin_size = np.array(fits_file[1].header['CCDSUM'].split(' '),
                             dtype=int)
@@ -666,6 +664,8 @@ class SAMI_XJoin:
             except KeyError:
                 pass
 
+            log.info(' %s -> %s' % (filename, prefix + filename))
+
             header.add_history('Extensions joined using "sami_xjoin"')
             path, filename = os.path.split(filename)
             pyfits.writeto(os.path.join(path, prefix + filename), data,
@@ -680,9 +680,9 @@ class SAMI_XJoin:
         """
         msg = (
             "\n SAMI - Join Extensions"
-            " by Bruno Quint (bquint@astro.iag.usp.br)"
-            " Mar 2015 - Version 0.4"
-            "\n Starting program.")
+            " by Bruno Quint (bquint@ctio.noao.edu)"
+            " 2016 - Version 1.0"
+            "\n Starting program. \n")
         log.info(msg)
 
     @staticmethod
