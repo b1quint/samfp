@@ -54,8 +54,13 @@ def files_to_database(path, keys, cursor):
                           'Found {:s} instead'.format(keys.__class__))
 
     if not isinstance(cursor, lite.Cursor):
+<<<<<<< HEAD
         raise (TypeError, '"cursor" should be a sqlite.Cursor object. '
                           'Found {:s} instead.'.format(cursor.__class__))
+=======
+        raise (TypeError, '"cursor" should be a sqlite. Cursor object. '
+                          'Found {:s} instead.'.format(str(cursor.__class__)))
+>>>>>>> master
 
     list_of_files = glob(os.path.join(path, '*', '*.fits'))
     list_of_files.sort()

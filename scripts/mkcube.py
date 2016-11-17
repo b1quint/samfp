@@ -85,8 +85,8 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
         raise (
             IOError, 'Width mismatch for %d files' % len(df['ncols'].unique()))
 
-    nrows = df['nrows'].unique() // binning[0]
-    ncols = df['ncols'].unique() // binning[1]
+    nrows = int(df['nrows'].unique() // binning[0])
+    ncols = int(df['ncols'].unique() // binning[1])
     nchan = len(df['z'].unique())
 
     nrows = int(nrows)
