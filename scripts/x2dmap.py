@@ -72,7 +72,7 @@ def main():
     log.debug(' [{0}] Script fineshed.'.format(tend.strftime('%H:%M:%S')))
     log.debug(' Total time elapsed: {:s}'.format(str(delta_t)))
     log.info('All done.')
-    
+
 
 def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
     """
@@ -102,15 +102,15 @@ def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
              - m1: the Lorentzian center.
              - m2: the Lorentzian width. 
     """
-    
+
     if not isinstance(_input_filename, str):
         raise (TypeError, '_input_filename expected to be string. '
                           '{}s found.'.format(_input_filename.__class__))
-    
+
     if not isinstance(log, logging.Logger):
         raise (TypeError, '`log` expected to be a logging.Logger instance. '
                           '{}s found.'.format(log.__class__))
-    
+
     if not isinstance(n, int):
         raise (TypeError, '`n` expected to be a `int` instance. '
                           '{}s found.'.format(n.__class__))
@@ -124,7 +124,7 @@ def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
     header = pyfits.getheader(_input_filename)
     x = np.arange(header['NAXIS1'])
     y = np.arange(header['NAXIS2'])
-    
+
     # Using astropy fitter and model ---
     if lorentzian:
         fitter = FitLorentzian(_input_filename)
@@ -282,9 +282,9 @@ def write_results(_results, _input_file, _output_file, lorentzian=False):
     x = int(header['NAXIS1'])
     y = int(header['NAXIS2'])
 
-    m0 = _results[:, 0] # Amplitude
-    m1 = _results[:, 1] # Mean
-    m2 = _results[:, 2] # STDDEV
+    m0 = _results[:, 0]  # Amplitude
+    m1 = _results[:, 1]  # Mean
+    m2 = _results[:, 2]  # STDDEV
 
     m0 = m0.reshape((x, y)).T
     m1 = m1.reshape((x, y)).T
@@ -326,8 +326,8 @@ def write_results(_results, _input_file, _output_file, lorentzian=False):
             HDUl.append(pyfits.ImageHDU(data=m2, name='Lorentzian_STDDEV'))
             HDUl.writeto(_output_file, clobber=True)
 
-class FitGaussian:
 
+class FitGaussian:
     def __init__(self, filename):
         """
         Parameter
@@ -373,8 +373,8 @@ class FitGaussian:
 
         return [g.amplitude.value, g.mean.value, g.stddev.value]
 
-class FitLorentzian:
 
+class FitLorentzian:
     def __init__(self, filename):
         """
         Parameter

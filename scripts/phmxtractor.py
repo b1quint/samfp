@@ -97,7 +97,7 @@ def main():
     # Extracting phase-map -----------------------------
     PhaseMapFP(
         args.filename, correlation=args.correlation, show=args.show,
-       verbose=v, ref=args.ref, output=args.output
+        verbose=v, ref=args.ref, output=args.output
     )
 
     # All done! ---------------------------------------------------------------
@@ -196,9 +196,8 @@ def safe_save(name, extension=None, overwrite=False, verbose=False):
 
 
 class MyLogFormatter(logging.Formatter):
-
-    err_fmt  = "ERROR: %(msg)s"
-    dbg_fmt  = " DBG: %(module)s: %(lineno)d: %(msg)s"
+    err_fmt = "ERROR: %(msg)s"
+    dbg_fmt = " DBG: %(module)s: %(lineno)d: %(msg)s"
     info_fmt = " %(msg)s"
     warn_fmt = " %(msg)s"
 
@@ -381,10 +380,10 @@ class PhaseMap:
             plt.plot(zz, fit_func(pars, zz), 'g-', lw=2, alpha=0.3)
             plt.axvline(pars[1] - fwhm_gauss / 2, ls='--', c='green', lw=2)
             plt.axvline(pars[1] + fwhm_gauss / 2, ls='--', c='green', lw=2,
-                           label='Gauss Fit = %.1f %s' % (fwhm_gauss, self.units))
+                        label='Gauss Fit = %.1f %s' % (fwhm_gauss, self.units))
             plt.axvline(zz[np.argmax(ss(zz))] + fwhm_measured / 2, ls='--', c='red', lw=2)
             plt.axvline(zz[np.argmax(ss(zz))] - fwhm_measured / 2, ls='--', c='red', lw=2,
-                           label='Definition = %.1f %s' % (fwhm_measured, self.units))
+                        label='Definition = %.1f %s' % (fwhm_measured, self.units))
             plt.legend(loc='best')
             plt.grid()
             plt.tight_layout()
@@ -579,10 +578,10 @@ class PhaseMapFP(PhaseMap):
 
         if self.verbose:
             log.info(" Ideal number of channels: %.1f channels"
-                  % round(2 * self.finesse))
+                     % round(2 * self.finesse))
             log.info(" Ideal sampling: %.1f %s / channel"
-                  % (self.free_spectral_range / round(2 * self.finesse),
-                     self.units))
+                     % (self.free_spectral_range / round(2 * self.finesse),
+                        self.units))
 
         if correlation:
             self.extract_from = self.use_correlation()
@@ -763,8 +762,8 @@ class PhaseMapFP(PhaseMap):
                 ax2.set_ylabel("Error Histogram")
                 fig.add_axes(ax2)
 
-            cond_x = np.where(error_x <= 3 * np.abs(np.median(xl[xl!=0])), True, False)
-            cond_y = np.where(error_y <= 3 * np.abs(np.median(yl[yl!=0])), True, False)
+            cond_x = np.where(error_x <= 3 * np.abs(np.median(xl[xl != 0])), True, False)
+            cond_y = np.where(error_y <= 3 * np.abs(np.median(yl[yl != 0])), True, False)
 
             x = x[cond_x]
             y = y[cond_y]
@@ -776,11 +775,11 @@ class PhaseMapFP(PhaseMap):
 
                     # If the cube was binned this will be useful
                     ref_x = (ref_x - self.header['CRPIX1'] + 1) * \
-                        self.header['CDELT1'] + self.header['CRVAL1']
+                            self.header['CDELT1'] + self.header['CRVAL1']
 
                     # If the cube was binned this will be useful
                     ref_y = (ref_y - self.header['CRPIX2']) * \
-                        self.header['CDELT2'] + self.header['CRVAL2']
+                            self.header['CDELT2'] + self.header['CRVAL2']
 
                 except KeyError:
                     pass
@@ -978,7 +977,7 @@ class PhaseMapFP(PhaseMap):
             plt.plot(z, s(z), 'k-', lw=2, label='3rd deg spline fitting')
             plt.xlabel("z [%s]" % self.units)
             plt.axvline(x=(self.z[fsr_index]), ls='--', c='gray',
-                           label='Free-Spectral-Range \nat z = %.1f' % fsr)
+                        label='Free-Spectral-Range \nat z = %.1f' % fsr)
             plt.legend(loc='best')
             plt.xlim(self.z[0], self.z[-1])
             plt.gca().yaxis.set_ticklabels([])
@@ -1032,9 +1031,9 @@ class PhaseMapFP(PhaseMap):
 
         return
 
+
 # ==============================================================================
 if __name__ == '__main__':
-
     log_fmt = MyLogFormatter()
     log_handler = logging.StreamHandler()
     log_handler.setLevel(logging.DEBUG)

@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#-*- codign: utf8 -*-
+# -*- codign: utf8 -*-
 """
     2014.04.16 15:51 - Fixed keyword to access phase-map sampling.
     2014.08.25 18:30 - Fixed ref_x/ref_y
@@ -16,7 +16,6 @@ import os
 
 
 class PhaseMapFit:
-
     def __init__(self, log=None):
         self.log = self.get_logger() if log is None else log
 
@@ -29,7 +28,6 @@ class PhaseMapFit:
 
         self.log.info("Parabola is %s" % ('up' if sign > 0 else 'down'))
         return sign
-
 
     def get_map_dimensions(self, header):
         """
@@ -72,7 +70,6 @@ class PhaseMapFit:
         log.addHandler(ch)
 
         return log
-
 
     def get_reference_pixel(self, header):
         """
@@ -203,8 +200,8 @@ class PhaseMapFit:
 
         # Plot the gradient
         if args.show_plots:
-            plt.figure(figsize=(16,7))
-            plt.subplot(2,2,3)
+            plt.figure(figsize=(16, 7))
+            plt.subplot(2, 2, 3)
             plt.plot(r[1:], dz, 'b-')
             plt.gca().yaxis.set_label_position("right")
             plt.axvline(r[where], color='black', lw=2, ls='--')
@@ -216,7 +213,7 @@ class PhaseMapFit:
             plt.grid()
 
         if args.show_plots:
-            plt.subplot(2,2,1)
+            plt.subplot(2, 2, 1)
             plt.plot(r[:where], z[:where], 'b.', alpha=0.25, label='Not to be fixed')
             plt.plot(r[where:], z[where:], 'r.', alpha=0.25, label='Data to be fixed')
             plt.axvline(r[where], color='black', lw=2, ls='--')
@@ -232,9 +229,9 @@ class PhaseMapFit:
         delta = 10
         z = (z + sign * delta + sign * FSR) % FSR + sign * FSR - sign * delta
         if args.show_plots:
-            ax_fit = plt.subplot(2,2,2)
+            ax_fit = plt.subplot(2, 2, 2)
             ax_fit.plot(r, z, 'r.',
-                     alpha=0.25, label='Fixed data')
+                        alpha=0.25, label='Fixed data')
             ax_fit.yaxis.set_label_position("right")
             ax_fit.set_xlabel('Radius [px]')
             ax_fit.set_ylabel('Peak displacement \n [%s]' % unit)
@@ -326,7 +323,6 @@ class PhaseMapFit:
 
 
 def get_colormap():
-
     from matplotlib import colors
 
     cdict = {'red': ((0.0, 1.0, 1.0),
@@ -334,18 +330,18 @@ def get_colormap():
                      (0.5, 0.0, 0.0),
                      (0.75, 0.0, 0.0),
                      (1.0, 0.9, 0.9)),
-            'green': ((0.0, 0.9, 0.9),
-                     (0.25, 0.0, 0.0),
-                     (0.5, 0.0, 0.0),
-                     (0.75, 0.0, 0.0),
-                     (1.0, 0.9, 0.9)),
-            'blue': ((0.0, 0.9, 0.9),
-                     (0.25, 0.0, 0.0),
-                     (0.5, 0.0, 0.0),
-                     (0.75, 1.0, 1.0),
-                     (1.0, 1.0, 1.0))}
+             'green': ((0.0, 0.9, 0.9),
+                       (0.25, 0.0, 0.0),
+                       (0.5, 0.0, 0.0),
+                       (0.75, 0.0, 0.0),
+                       (1.0, 0.9, 0.9)),
+             'blue': ((0.0, 0.9, 0.9),
+                      (0.25, 0.0, 0.0),
+                      (0.5, 0.0, 0.0),
+                      (0.75, 1.0, 1.0),
+                      (1.0, 1.0, 1.0))}
 
-    return colors.LinearSegmentedColormap('heaven_hell',cdict,256)
+    return colors.LinearSegmentedColormap('heaven_hell', cdict, 256)
 
 
 class bcolors:
@@ -357,6 +353,7 @@ class bcolors:
     ENDC = '\033[0m'
     DIM = '\e[2m'
     ENDDIM = '\e[22m'
+
     def disable(self):
         self.HEADER = ''
         self.OKBLUE = ''
@@ -365,10 +362,10 @@ class bcolors:
         self.FAIL = ''
         self.ENDC = ''
 
-class MyLogFormatter(logging.Formatter):
 
-    err_fmt  = "ERROR: %(msg)s"
-    dbg_fmt  = " DBG: %(module)s: %(lineno)d: %(msg)s"
+class MyLogFormatter(logging.Formatter):
+    err_fmt = "ERROR: %(msg)s"
+    dbg_fmt = " DBG: %(module)s: %(lineno)d: %(msg)s"
     info_fmt = " %(msg)s"
     warn_fmt = " %(msg)s"
 
@@ -409,19 +406,19 @@ if __name__ == '__main__':
         description="Fits an existing phase-map.")
 
     parser.add_argument('filename', type=str,
-        help="Input phase-map name.")
+                        help="Input phase-map name.")
     parser.add_argument('-d', '--debug', action='store_true',
-        help="Run program quietly.")
+                        help="Run program quietly.")
     parser.add_argument('-i', '--interactions', default=5, type=int,
-        help="Number of interactions in the process [5]")
+                        help="Number of interactions in the process [5]")
     parser.add_argument('-n', '--npoints', default=50, type=int,
-        help="Number of points that will be used to fit the phase-map [50]")
+                        help="Number of points that will be used to fit the phase-map [50]")
     parser.add_argument('-o', '--output', type=str, default=None,
-        help="Name of the output phase-map file.")
+                        help="Name of the output phase-map file.")
     parser.add_argument('-q', '--quiet', action='store_true',
-        help="Run program quietly.")
+                        help="Run program quietly.")
     parser.add_argument('-s', '--show_plots', action='store_true',
-        help="Show plots.")
+                        help="Show plots.")
 
     args = parser.parse_args()
 
@@ -435,6 +432,5 @@ if __name__ == '__main__':
 
     phmfit.log.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     phmfit.run(args.filename,
-        interactions=args.interactions, n_points=args.npoints,
-        show=args.show_plots)
-
+               interactions=args.interactions, n_points=args.npoints,
+               show=args.show_plots)

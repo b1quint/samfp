@@ -22,7 +22,6 @@ __date__ = '2016.08.09'
 
 
 def main():
-
     # Parse Arguments ---
     args = parse_arguments()
 
@@ -172,6 +171,7 @@ class DF_Feeder:
     Data-Frame feeder. This class is simply a workaround to make the proccess
     of reading the FITS files faster.
     """
+
     def __init__(self, data_frame):
         """
         Parameters
@@ -200,6 +200,7 @@ class DF_Feeder:
 
         s = pd.Series(info, index=keys, name=filename)
         return s
+
 
 if __name__ == '__main__':
     main()

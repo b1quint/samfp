@@ -55,7 +55,7 @@ def files_to_database(path, keys, cursor):
 
     if not isinstance(cursor, lite.Cursor):
         raise (TypeError, '"cursor" should be a sqlite.Cursor object. '
-                          'Found {:s} instead.'.format(cursor.__class__) )
+                          'Found {:s} instead.'.format(cursor.__class__))
 
     list_of_files = glob(os.path.join(path, '*', '*.fits'))
     list_of_files.sort()
@@ -104,7 +104,6 @@ def file_to_database(filename, keys, cursor):
 
     log.debug(s)
     cur.execute(s)
-
 
 
 def fix_header(filename):
@@ -162,7 +161,7 @@ def fix_headers(path):
 
 def pickable_file_to_database(args):
     print(args)
-    #file_to_database(args['file'], args['keys'], args['cursor'])
+    # file_to_database(args['file'], args['keys'], args['cursor'])
 
 
 if __name__ == '__main__':
@@ -237,9 +236,7 @@ if __name__ == '__main__':
     # fix_headers(root_dir)
     files_to_database(root_dir, keys, con)
 
-
     cur.execute('SELECT * FROM my_table;')
-
 
     if con:
         con.close()

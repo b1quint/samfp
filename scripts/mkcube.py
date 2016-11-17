@@ -79,7 +79,7 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
 
     if len(df['nrows'].unique()) is not 1:
         raise (
-        IOError, 'Height mismatch for %d files' % len(df['nrows'].unique()))
+            IOError, 'Height mismatch for %d files' % len(df['nrows'].unique()))
 
     if len(df['ncols'].unique()) is not 1:
         raise (
@@ -99,7 +99,7 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
 
     z_array = df['z'].unique()
     z_array.sort()
-    z_array = z_array[::-1] # Reverse array so lambda increases inside the cube
+    z_array = z_array[::-1]  # Reverse array so lambda increases inside the cube
 
     combine_algorithm = combine_algorithm.lower()
     if combine_algorithm in ['mean', 'average']:
@@ -150,9 +150,9 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     pyfits.writeto(output, cube, hdr, clobber=True)
 
     log.debug(pd.DataFrame(data={'x': z,
-                             'y': z_array,
-                             'fit_y': np.polyval(p, z),
-                             'round_fit': np.round(np.polyval(p, z))}))
+                                 'y': z_array,
+                                 'fit_y': np.polyval(p, z),
+                                 'round_fit': np.round(np.polyval(p, z))}))
     log.debug(p)
 
     return
@@ -198,7 +198,7 @@ def safesave(name, overwrite=False, verbose=False):
             sys.exit()
 
         else:
-            overwrite = input("   '%s' file exist. Overwrite? (y/[n])"% name)
+            overwrite = input("   '%s' file exist. Overwrite? (y/[n])" % name)
             if v:
                 print(" Writing data-cube to %s" % name)
 
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Build a data-cube from image files.")
 
-    parser.add_argument('-a','--algorithm', metavar='algorithm', type=str,
+    parser.add_argument('-a', '--algorithm', metavar='algorithm', type=str,
                         default='average',
                         help="Algorithm used when combining images per "
                              "frame (average | median | sum)")
@@ -222,10 +222,10 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--debug', action='store_true',
                         help="Run debug mode.")
 
-    parser.add_argument('-o','--output', metavar='output', type=str,
+    parser.add_argument('-o', '--output', metavar='output', type=str,
                         default="cube.fits", help="Name of the output cube.")
 
-    parser.add_argument('-q','--quiet', action='store_true',
+    parser.add_argument('-q', '--quiet', action='store_true',
                         help="Run quietly.")
 
     parser.add_argument('files', metavar='files', type=str, nargs='+',
@@ -243,5 +243,3 @@ if __name__ == '__main__':
               output=parsed_args.output,
               combine_algorithm=parsed_args.algorithm,
               binning=parsed_args.binning)
-    
-    
