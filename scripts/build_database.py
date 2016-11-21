@@ -13,17 +13,19 @@
 """
 
 import argparse
+import glob
 import logging as log
-import sqlite3 as lite
+import os.path
+import sqlite3
 
 from astropy.io import fits as pyfits
-
 
 class DBBuilder:
     def __init__(self, _input, debug=False, verbose=True):
 
         self.set_verbose(verbose)
         self.set_debug(debug)
+        print(log.getLogger().getEffectiveLevel())
 
         self._input = input
 
@@ -33,9 +35,48 @@ class DBBuilder:
 
         self.print_header()
         files = self.get_list_of_files(_input)
+        self.build_database(files)
 
     @staticmethod
-    def get_files_from_directory(path):
+    def build_database(files, database='temp.db'):
+        """
+        Let us finally build a data-base to store all the images and their
+        informations.
+
+        Parameters
+        ----------
+        files : list
+            List of files that will be added to the data-base
+        database : str
+            The name of the file that will store the database information.
+            By default, this is set to 'temp.db'
+        """
+
+
+        # conn = sqlite3.connect(database)
+        # c = conn.cursor()
+
+        # Create table
+        # c.execute('CREATE TABLE samfp_db '
+        #           '(date text, filename text, filter text)')
+
+        for f in files:
+            try:
+                h = pyfits.getheader(f)
+                #c.execute('INSERT INTO samfp_db VALUES ({})'.format(**h))
+            except IOError:
+                log.warning(
+                    ' could not read file: {:s} '.format(f)
+                )
+            except KeyError as e:
+                log.warning(
+                    ' {:s} was not found in file {:s}'.format(e.args[0], f)
+                )
+
+
+
+    @staticmethod
+    def get_files_from_directory(path, recursive=True):
         """
         This method delivers a list of files that are found inside the given
         'path' directory.
@@ -44,17 +85,18 @@ class DBBuilder:
         ----------
         path : str
             The root directory that contains 'fits' images, cubes or whatever.
+        recursive : bool
+            If True, this method looks one folder deeper for fits files.
 
         Returns
         -------
         output : list
             A list of the 'fits' files found inside that path.
         """
-        from os.path import join
-        from glob import glob
-
         log.info(' Loading files within directory: {:s}'.format(path))
-        output = glob(join(path, '*.fits'))
+        output = glob.glob(
+            os.path.join(path, '**', '*.fits')
+        )
 
         return output
 
@@ -108,7 +150,7 @@ class DBBuilder:
         from glob import glob
 
         log.info(' Loading files matching pattern: {:s}'.format(pattern))
-        output = glob(pattern)
+        output = glob.glob(pattern)
 
         return output
 
@@ -128,9 +170,7 @@ class DBBuilder:
         output : list
             A list containing the corresponding list of images.
         """
-        from os.path import isdir
-
-        if isdir(_input):
+        if os.path.isdir(_input):
             output = self.get_files_from_directory(_input)
         elif '@' in _input:
             output = self.get_files_from_list(_input)
@@ -150,7 +190,6 @@ class DBBuilder:
             " 2016 - Version 0.0"
             "\n Starting program. \n")
         log.info(msg)
-
     @staticmethod
     def set_debug(debug):
         """
@@ -162,7 +201,7 @@ class DBBuilder:
         """
         if debug:
             log.basicConfig(level=log.DEBUG, format='%(message)s')
-            log.debug('Setting up debug mode.')
+            log.debug('Setting debug mode.')
 
     @staticmethod
     def set_verbose(verbose):
@@ -177,33 +216,6 @@ class DBBuilder:
             log.basicConfig(level=log.INFO, format='%(message)s')
         else:
             log.basicConfig(level=log.WARNING, format='%(message)s')
-
-    @staticmethod
-    def get_files(_input):
-
-        log.debug()
-
-    @staticmethod
-    def walk(path):
-        """
-
-        Parameters
-        ----------
-            path : str
-                Root path that will be used to look for fits files.
-
-        Returns
-        -------
-            list_of_files : list
-                A complete list of files
-        """
-        from glob import glob
-        from sys import version_info
-
-        if version_info >= (3, 5):
-            log.debug('Running Python Version >= 3.5')
-        else:
-            log.debug('Running Python Version < 3.5')
 
 
 if __name__ == '__main__':
