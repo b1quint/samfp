@@ -36,7 +36,20 @@ class DBBuilder:
 
     @staticmethod
     def get_files_from_directory(path):
+        """
+        This method delivers a list of files that are found inside the given
+        'path' directory.
 
+        Parameters
+        ----------
+        path : str
+            The root directory that contains 'fits' images, cubes or whatever.
+
+        Returns
+        -------
+        output : list
+            A list of the 'fits' files found inside that path.
+        """
         from os.path import join
         from glob import glob
 
@@ -47,13 +60,25 @@ class DBBuilder:
 
     @staticmethod
     def get_files_from_list(_list):
+        """
+        This method delivers a list of files that are read from an ASCII file.
+        This method is called when the filename is preceeded with a '@'
+        character just like IRAF.
 
-        from os.path import split
+        Parameters
+        ----------
+        _list : str
+            The name of the ASCII file that contains a list of files to be
+            read preceeded by '@'.
+
+        Returns
+        -------
+        output : list
+            A list of files found inside the '_list'.
+        """
 
         log.info(' Loading files withing list: {:s}'.format(_list))
         _list = _list.replace('@', '')
-
-        path, filenames = split(_list)
 
         f = open(_list, 'r')
         output = f.read()
@@ -64,6 +89,21 @@ class DBBuilder:
 
     @staticmethod
     def get_files_from_pattern(pattern):
+        """
+        This method return a list of files matching the pattern. It is actually
+        just a wrap for the 'glob' function with a more readable name to make
+        the script consistent.
+
+        Parameters
+        ----------
+        pattern : str
+            The pattern that is used to find files.
+
+        Returns
+        -------
+        output : list
+            A list of files matching the pattern given by 'pattern'.
+        """
 
         from glob import glob
 
