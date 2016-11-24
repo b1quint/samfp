@@ -25,8 +25,6 @@ class DBBuilder:
 
         self.set_verbose(verbose)
         self.set_debug(debug)
-        print(log.getLogger().getEffectiveLevel())
-
         self._input = input
 
         self.main(_input)
@@ -53,17 +51,26 @@ class DBBuilder:
         """
 
 
-        # conn = sqlite3.connect(database)
-        # c = conn.cursor()
+        conn = sqlite3.connect(database)
+        c = conn.cursor()
 
         # Create table
-        # c.execute('CREATE TABLE samfp_db '
-        #           '(date text, filename text, filter text)')
+        c.execute('CREATE TABLE IF NOT EXISTS samfp_db '
+                  '(date text, time text, filename text, '
+                  'obstype text, object text, ra text, dec text)')
 
         for f in files:
             try:
                 h = pyfits.getheader(f)
-                #c.execute('INSERT INTO samfp_db VALUES ({})'.format(**h))
+                c.execute('INSERT INTO samfp_db VALUES '
+                          '('
+                          '"{DATE-OBS:s}",'
+                          '"{TIME-OBS:s}",'
+                          '"{FILENAME:s}",'
+                          '"{OBSTYPE:s}",'
+                          '"{OBJECT:s}",'
+                          '"{RA:s}",'
+                          '"{DEC:s}")'.format(**h))
             except IOError:
                 log.warning(
                     ' could not read file: {:s} '.format(f)
@@ -72,6 +79,8 @@ class DBBuilder:
                 log.warning(
                     ' {:s} was not found in file {:s}'.format(e.args[0], f)
                 )
+
+        conn.close()
 
 
 
@@ -201,6 +210,7 @@ class DBBuilder:
         """
         if debug:
             log.basicConfig(level=log.DEBUG, format='%(message)s')
+            log.getLogger().setLevel(log.DEBUG)
             log.debug('Setting debug mode.')
 
     @staticmethod
