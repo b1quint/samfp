@@ -111,14 +111,21 @@ class SAMI_XJoin:
     --------
         LACosmic - http://www.astro.yale.edu/dokkum/lacosmic/
     """
-    def __init__(self, list_of_files, bias_file=None, clean=False,
+
+    def __init__(self, bias_file=None, clean=False,
                  cosmic_rays=False, dark_file=None, debug=False,
                  flat_file=None, glow_file=None, time=False, verbose=False):
+
         self.set_verbose(verbose)
         self.set_debug(debug)
-        self.main(list_of_files, bias_file=bias_file, clean=clean,
-                  cosmic_rays=cosmic_rays, dark_file=dark_file,
-                  flat_file=flat_file, glow_file=glow_file, time=time)
+
+        self.bias_file = bias_file
+        self.clean = clean
+        self.cosmic_rays = cosmic_rays
+        self.dark_file = dark_file
+        self.flat_file = flat_file
+        self.glow_file = glow_file
+        self.time = time
 
         return
 
@@ -555,6 +562,54 @@ class SAMI_XJoin:
 
         return new_data
 
+    def join_and_process(self, data, header):
+
+        prefix = "xj"
+
+        # Removing bad column and line
+        data = self.remove_central_bad_columns(data)
+
+        # BIAS subtraction
+        data, header, prefix = self.bias_subtraction(
+            data, header, prefix, self.bias_file
+        )
+
+        # DARK subtraction
+        data, header, prefix = self.dark_subtraction(
+            data, header, prefix, self.dark_file
+        )
+
+        # Remove cosmic rays and hot pixels
+        data, header, prefix = self.remove_cosmic_rays(
+            data, header, prefix, self.cosmic_rays
+        )
+
+        # Remove lateral glows
+        data, header, prefix = self.remove_glows(
+            data, header, prefix, self.glow_file
+        )
+
+        # FLAT division
+        data, header, prefix = self.divide_by_flat(
+            data, header, prefix, self.flat_file
+        )
+
+        # Normalize by the EXPOSURE TIME
+        data, header, prefix = self.divide_by_exposuretime(
+            data, header, prefix, self.time
+        )
+
+        # Clean known bad columns and lines
+        data, header, prefix = self.clean_hot_columns_and_lines(
+            data, header, prefix, self.clean
+        )
+
+        # Writing file
+        try:
+            del header['NEXTEND']
+        except KeyError:
+            pass
+
     def main(self, list_of_files, bias_file=None, clean=False,
              cosmic_rays=False, dark_file=None, flat_file=None,
              glow_file=None, time=False):
@@ -829,6 +884,60 @@ class SAMI_XJoin:
 
         return data
 
+    def run(self, list_of_files):
+        """
+            Main method used to:
+                1. Join data
+                2. Read header
+                3. Remove central bad columns and lines
+                4. Subtract BIAS
+                5. Subtract DARK
+                6. Remove cosmic rays and hot pixels
+                7. Remove lateral glows
+                8. Divide by FLAT
+                9. Divide by exposure time
+                10. Clean hot columns and lines
+
+            Parameters
+            ----------
+                list_of_files : list
+                    A list of input files
+                """
+
+        self.print_header()
+        log.info(' Processing data')
+        list_of_files = sorted(list_of_files)
+
+        for filename in list_of_files:
+
+            # Get joined data
+            try:
+                data = self.get_joined_data(filename)
+            except IOError:
+                log.warning('%s file does not exists' % filename)
+                continue
+
+            # Build header
+            header = self.get_header(filename)
+
+            # Join and process data
+            data, header, prefix = self.join_and_process(data, header)
+
+            # Writing file
+            try:
+                del header['NEXTEND']
+            except KeyError:
+                pass
+
+            log.info(' %s -> %s' % (filename, prefix + filename))
+
+            header.add_history('Extensions joined using "sami_xjoin"')
+            path, filename = os.path.split(filename)
+            pyfits.writeto(os.path.join(path, prefix + filename), data,
+                           header, clobber=True)
+
+        log.info("\n All done!")
+
 
 def str2pixels(my_string):
     """
@@ -853,6 +962,7 @@ def str2pixels(my_string):
 
 
 if __name__ == '__main__':
+
     # Parsing Arguments ---
     parser = argparse.ArgumentParser(
         description="Join extensions existent in a single FITS file."
@@ -883,7 +993,9 @@ if __name__ == '__main__':
 
     pargs = parser.parse_args()
 
-    SAMI_XJoin(pargs.files, bias_file=pargs.bias, clean=pargs.clean,
-               cosmic_rays=pargs.rays, dark_file=pargs.dark, debug=pargs.debug,
-               flat_file=pargs.flat, glow_file=pargs.glow, time=pargs.exptime,
-               verbose=not pargs.quiet)
+    xjoin = SAMI_XJoin(
+        bias_file=pargs.bias, clean=pargs.clean, cosmic_rays=pargs.rays,
+        dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,
+        glow_file=pargs.glow, time=pargs.exptime, verbose=not pargs.quiet
+    )
+    xjoin.run(pargs.files)
