@@ -32,36 +32,35 @@
     were implemented here.
 """
 
-from __future__ import division, print_function
+from __future__ import division as _division
+from __future__ import print_function
 
-import astropy.io.fits as pyfits
-import argparse
+import astropy.io.fits as _pyfits
 import logging as log
-import numpy as np
-import os
+import numpy as _np
 
-from ccdproc import cosmicray_lacosmic
+from ccdproc import cosmicray_lacosmic as _cosmicray_lacosmic
 
 try:
     # noinspection PyUnresolvedReferences,PyUnboundLocalVariable
-    xrange
+    _xrange = xrange
 except NameError:
     # noinspection PyShadowingBuiltins
-    xrange = range
+    _xrange = range
 
 # Piece of code from cosmics.py
 # We define the laplacian kernel to be used
-laplkernel = np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]])
+_laplkernel = _np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]])
 
 # Other kernels :
-growkernel = np.ones((3, 3))
+_growkernel = _np.ones((3, 3))
 
 # dilation structure for some morphological operations
-dilstruct = np.ones((5, 5))
-dilstruct[0, 0] = 0
-dilstruct[0, 4] = 0
-dilstruct[4, 0] = 0
-dilstruct[4, 4] = 0
+_dilstruct = _np.ones((5, 5))
+_dilstruct[0, 0] = 0
+_dilstruct[0, 4] = 0
+_dilstruct[4, 0] = 0
+_dilstruct[4, 4] = 0
 
 
 # noinspection PyPep8Naming
@@ -148,8 +147,10 @@ class SAMI_XJoin:
                 bias_file: str | None
                     Master Bias filename. If None is given, nothing is done.
         """
+        from os.path import abspath
+
         if bias_file is not None:
-            bias = pyfits.getdata(os.path.abspath(bias_file))
+            bias = _pyfits.getdata(abspath(bias_file))
             data -= bias
             header['BIASFILE'] = bias_file
             header.add_history('Bias subtracted')
@@ -185,7 +186,7 @@ class SAMI_XJoin:
             SAMI_XJoin.clean_line
             SAMI_XJoin.clean_lines
         """
-        if not isinstance(_data, np.ndarray):
+        if not isinstance(_data, _np.ndarray):
             raise (TypeError, 'Please, use a np.array as input')
 
         if _data.ndim is not 2:
@@ -194,8 +195,8 @@ class SAMI_XJoin:
 
         t1 = _data[y0:yf, x0 - n:x0]
         t2 = _data[y0:yf, x0 + 1:x0 + n]
-        t = np.hstack((t1, t2))
-        _data[y0:yf, x0] = np.median(t, axis=1)
+        t = _np.hstack((t1, t2))
+        _data[y0:yf, x0] = _np.median(t, axis=1)
 
         return _data
 
@@ -214,7 +215,7 @@ class SAMI_XJoin:
             SAMI_XJoin.clean_line
             SAMI_XJoin.clean_lines
         """
-        if not isinstance(_data, np.ndarray):
+        if not isinstance(_data, _np.ndarray):
             raise (TypeError, 'Please, use a np.array as input')
         if _data.ndim is not 2:
             raise (TypeError, 'Data contains %d dimensions while it was '
@@ -265,7 +266,7 @@ class SAMI_XJoin:
                 SAMI_XJoin.clean_columns
                 SAMI_XJoin.clean_lines
         """
-        if not isinstance(_data, np.ndarray):
+        if not isinstance(_data, _np.ndarray):
             raise (TypeError, 'Please, use a np.array as input')
         if _data.ndim is not 2:
             raise (TypeError, 'Data contains %d dimensions while it was '
@@ -273,8 +274,8 @@ class SAMI_XJoin:
 
         t1 = _data[y - n:y, x0:xf]
         t2 = _data[y + 1:y + n, x0:xf]
-        t = np.vstack((t1, t2))
-        _data[y, x0:xf] = np.median(t, axis=0)
+        t = _np.vstack((t1, t2))
+        _data[y, x0:xf] = _np.median(t, axis=0)
         return _data
 
     def clean_lines(self, _data):
@@ -292,7 +293,7 @@ class SAMI_XJoin:
             SAMI_XJoin.clean_columns
             SAMI_XJoin.clean_line
         """
-        if not isinstance(_data, np.ndarray):
+        if not isinstance(_data, _np.ndarray):
             raise (TypeError, 'Please, use a np.array as input')
         if _data.ndim is not 2:
             raise (TypeError, 'Data contains %d dimensions while it was '
@@ -340,14 +341,14 @@ class SAMI_XJoin:
                 SAMI_XJoin.clean_line
                 SAMI_XJoin.clean_lines
         """
-        if not isinstance(data, np.ndarray):
+        if not isinstance(data, _np.ndarray):
             raise (TypeError, 'Please, use a np.array as input')
 
         if data.ndim is not 2:
             raise (TypeError, 'Data contains %d dimensions while it was '
                               'expected 2 dimensions.')
 
-        if not isinstance(header, pyfits.Header):
+        if not isinstance(header, _pyfits.Header):
             raise (TypeError, 'Expected header has invalid type.')
 
         if not isinstance(prefix, str):
@@ -385,14 +386,14 @@ class SAMI_XJoin:
                 dark_file: str | None
                     Master Dark filename. If None is given, nothing is done.
         """
-        if not isinstance(data, np.ndarray):
+        if not isinstance(data, _np.ndarray):
             raise (TypeError, 'Please, use a np.array as input')
 
         if data.ndim is not 2:
             raise (TypeError, 'Data contains %d dimensions while it was '
                               'expected 2 dimensions.')
 
-        if not isinstance(header, pyfits.Header):
+        if not isinstance(header, _pyfits.Header):
             raise (TypeError, 'Expected header has invalid type.')
 
         if not isinstance(prefix, str):
@@ -400,7 +401,7 @@ class SAMI_XJoin:
                    prefix.__class__)
 
         if dark_file is not None:
-            dark = pyfits.getdata(dark_file)
+            dark = _pyfits.getdata(dark_file)
             data -= dark
             header['DARKFILE'] = dark_file
             prefix = 'd' + prefix
@@ -427,14 +428,14 @@ class SAMI_XJoin:
                 flat_file: str | None
                     Master flat filename. If None is given, nothing is done.
         """
-        if not isinstance(data, np.ndarray):
+        if not isinstance(data, _np.ndarray):
             raise (TypeError, 'Please, use a np.array as input')
 
         if data.ndim is not 2:
             raise (TypeError, 'Data contains %d dimensions while it was '
                               'expected 2 dimensions.')
 
-        if not isinstance(header, pyfits.Header):
+        if not isinstance(header, _pyfits.Header):
             raise (TypeError, 'Expected header has invalid type.')
 
         if not isinstance(prefix, str):
@@ -442,7 +443,7 @@ class SAMI_XJoin:
                    prefix.__class__)
 
         if flat_file is not None:
-            flat = pyfits.getdata(flat_file)
+            flat = _pyfits.getdata(flat_file)
             data /= flat
             header['FLATFILE'] = flat_file
             header.add_history('Flat normalized')
@@ -491,13 +492,15 @@ class SAMI_XJoin:
             filename : str
                 Path to the file.
         """
+        from os.path import exists
+
         if not isinstance(filename, str):
             raise (TypeError, 'Expected string. Found %s' % filename.__class__)
 
-        if not os.path.exists(filename):
+        if not exists(filename):
             raise (IOError, '%s file not found.' % filename)
 
-        fits_file = pyfits.open(filename)
+        fits_file = _pyfits.open(filename)
         h0 = fits_file[0].header
         h0.append('UNITS')
         h0.set('UNITS', value='COUNTS', comment='Pixel intensity units.')
@@ -514,14 +517,16 @@ class SAMI_XJoin:
             filename : str
                 Path to the file.
         """
+        from os.path import exists
+
         if not isinstance(filename, str):
             raise (TypeError, 'Expected string. Found %s' % filename.__class__)
 
-        if not os.path.exists(filename):
+        if not exists(filename):
             raise (IOError, '%s file not found.' % filename)
 
-        fits_file = pyfits.open(filename)
-        w, h = str2pixels(fits_file[1].header['DETSIZE'])
+        fits_file = _pyfits.open(filename)
+        w, h = _str2pixels(fits_file[1].header['DETSIZE'])
 
         if len(fits_file) is 1:
             log.warning('%s file contains a single extension. ' % fits_file +
@@ -529,34 +534,34 @@ class SAMI_XJoin:
             return fits_file[0].data
 
         # Correct for binning
-        bin_size = np.array(fits_file[1].header['CCDSUM'].split(' '),
-                            dtype=int)
+        bin_size = _np.array(fits_file[1].header['CCDSUM'].split(' '),
+                             dtype=int)
         bw, bh = w[1] // bin_size[0], h[1] // bin_size[1]
 
         # Create empty full frame
-        new_data = np.empty((bh, bw), dtype=float)
+        new_data = _np.empty((bh, bw), dtype=float)
 
         # Process each extension
         for i in range(1, 5):
-            tx, ty = str2pixels(fits_file[i].header['TRIMSEC'])
-            bx, by = str2pixels(fits_file[i].header['BIASSEC'])
+            tx, ty = _str2pixels(fits_file[i].header['TRIMSEC'])
+            bx, by = _str2pixels(fits_file[i].header['BIASSEC'])
 
             data = fits_file[i].data
             trim = data[ty[0] - 1:ty[1], tx[0] - 1:tx[1]]
             bias = data[by[0] - 1:by[1], bx[0] - 1:bx[1]]
 
             # Collapse the bias columns to a single column.
-            bias = np.median(bias, axis=1)
+            bias = _np.median(bias, axis=1)
 
             # Fit and remove OVERSCAN
-            x = np.arange(bias.size) + 1
-            bias_fit_pars = np.polyfit(x, bias, 2)  # Last par = inf
-            bias_fit = np.polyval(bias_fit_pars, x)
+            x = _np.arange(bias.size) + 1
+            bias_fit_pars = _np.polyfit(x, bias, 2)  # Last par = inf
+            bias_fit = _np.polyval(bias_fit_pars, x)
             bias_fit = bias_fit.reshape((bias_fit.size, 1))
-            bias_fit = np.repeat(bias_fit, trim.shape[1], axis=1)
+            bias_fit = _np.repeat(bias_fit, trim.shape[1], axis=1)
 
             trim = trim - bias_fit
-            dx, dy = str2pixels(fits_file[i].header['DETSEC'])
+            dx, dy = _str2pixels(fits_file[i].header['DETSEC'])
             dx, dy = dx // bin_size[0], dy // bin_size[1]
             new_data[dy[0]:dy[1], dx[0]:dx[1]] = trim
 
@@ -657,6 +662,7 @@ class SAMI_XJoin:
                 Divide each pixel's values by the exposure time and update
                 header.
         """
+        from os.path import join, split
 
         self.print_header()
         log.info(' Processing data')
@@ -722,9 +728,9 @@ class SAMI_XJoin:
             log.info(' %s -> %s' % (filename, prefix + filename))
 
             header.add_history('Extensions joined using "sami_xjoin"')
-            path, filename = os.path.split(filename)
-            pyfits.writeto(os.path.join(path, prefix + filename), data,
-                           header, clobber=True)
+            path, filename = split(filename)
+            _pyfits.writeto(join(path, prefix + filename), data,
+                            header, clobber=True)
 
         log.info("\n All done!")
 
@@ -760,7 +766,7 @@ class SAMI_XJoin:
                 Flag to indicate if cosmic rays removal should be performed.
         """
         if cosmic_rays:
-            data, _ = cosmicray_lacosmic(data, gain=2.6, readnoise=10.0,
+            data, _ = _cosmicray_lacosmic(data, gain=2.6, readnoise=10.0,
                                          sigclip=2.5, sigfrac=0.3, objlim=5.0)
             data /= 2.6
 
@@ -794,27 +800,27 @@ class SAMI_XJoin:
         if glow_file is not None:
             # Create four different regions.
             regions = [
-                [np.median(data[539:589, 6:56]),  # Top Left
-                 np.median(data[539:589, 975:1019])],  # Top Right
-                [np.median(data[449:506, 6:56]),  # Bottom Left
-                 np.median(data[449:506, 975:1019])]  # Bottom Right
+                [_np.median(data[539:589, 6:56]),  # Top Left
+                 _np.median(data[539:589, 975:1019])],  # Top Right
+                [_np.median(data[449:506, 6:56]),  # Bottom Left
+                 _np.median(data[449:506, 975:1019])]  # Bottom Right
             ]
-            min_std_region = np.argmin(regions) % 2
+            min_std_region = _np.argmin(regions) % 2
 
             # The upper reg has background lower or equal to the lower reg
             midpt1 = regions[0][min_std_region]
             midpt2 = regions[1][min_std_region]
             diff = midpt2 - midpt1
 
-            dark = pyfits.getdata(glow_file)
+            dark = _pyfits.getdata(glow_file)
             dark = self.clean_columns(dark)
             dark = self.clean_lines(dark)
 
             dark_regions = [
-                [np.median(dark[539:589, 6:56]),  # Top Left
-                 np.median(dark[539:589, 975:1019])],  # Top Right
-                [np.median(dark[449:506, 6:56]),  # Bottom Left
-                 np.median(dark[449:506, 975:1019])]  # Bottom Right
+                [_np.median(dark[539:589, 6:56]),  # Top Left
+                 _np.median(dark[539:589, 975:1019])],  # Top Right
+                [_np.median(dark[449:506, 6:56]),  # Bottom Left
+                 _np.median(dark[449:506, 975:1019])]  # Bottom Right
             ]
 
             dark_midpt1 = dark_regions[0][min_std_region]
@@ -903,6 +909,7 @@ class SAMI_XJoin:
                 list_of_files : list
                     A list of input files
                 """
+        from os.path import join, split
 
         self.print_header()
         log.info(' Processing data')
@@ -932,14 +939,14 @@ class SAMI_XJoin:
             log.info(' %s -> %s' % (filename, prefix + filename))
 
             header.add_history('Extensions joined using "sami_xjoin"')
-            path, filename = os.path.split(filename)
-            pyfits.writeto(os.path.join(path, prefix + filename), data,
-                           header, clobber=True)
+            path, filename = split(filename)
+            _pyfits.writeto(join(path, prefix + filename), data,
+                            header, clobber=True)
 
         log.info("\n All done!")
 
 
-def str2pixels(my_string):
+def _str2pixels(my_string):
     """
     Parse a string containing [XX:XX, YY:YY] to pixels.
 
@@ -955,13 +962,23 @@ def str2pixels(my_string):
     y = y.split(':')
 
     # "-1" fix from IDL to Python
-    x = np.array(x, dtype=int)
-    y = np.array(y, dtype=int)
+    x = _np.array(x, dtype=int)
+    y = _np.array(y, dtype=int)
 
     return x, y
 
 
-if __name__ == '__main__':
+def _parse_arguments():
+    """
+    Parse the argument given by the user in the command line.
+
+    Returns
+    -------
+        pargs : Namespace
+        A namespace containing all the parameters that will be used for SAMI
+        XJoin.
+    """
+    import argparse
 
     # Parsing Arguments ---
     parser = argparse.ArgumentParser(
@@ -991,8 +1008,11 @@ if __name__ == '__main__':
     parser.add_argument('files', metavar='files', type=str, nargs='+',
                         help="input filenames.")
 
-    pargs = parser.parse_args()
+    return parser.parse_args()
 
+
+if __name__ == '__main__':
+    pargs = _parse_arguments()
     xjoin = SAMI_XJoin(
         bias_file=pargs.bias, clean=pargs.clean, cosmic_rays=pargs.rays,
         dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,

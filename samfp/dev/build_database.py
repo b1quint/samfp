@@ -12,13 +12,15 @@
     SOAR Telescope - 2016.10.01
 """
 
-import argparse
-import glob
+import argparse as _argparse
+import glob as _glob
 import logging as log
 import os.path
-import sqlite3
+import pandas as _pd
+import sqlite3 as _sqlite3
 
-from astropy.io import fits as pyfits
+from astropy.io import fits as _pyfits
+
 
 class DBBuilder:
     def __init__(self, _input, debug=False, verbose=True):
@@ -50,38 +52,30 @@ class DBBuilder:
             By default, this is set to 'temp.db'
         """
 
+        columns = ['DATE-OBS',
+                   'TIME-OBS',
+                   'FILENAME',
+                   'OBSTYPE',
+                   'OBJECT',
+                   'RA',
+                   'DEC'
+                   ]
 
-        conn = sqlite3.connect(database)
-        c = conn.cursor()
-
-        # Create table
-        c.execute('CREATE TABLE IF NOT EXISTS samfp_db '
-                  '(date text, time text, filename text, '
-                  'obstype text, object text, ra text, dec text)')
-
-        for f in files:
+        df = _pd.DataFrame(columns=columns)
+        for i in range(len(files)):
             try:
-                h = pyfits.getheader(f)
-                c.execute('INSERT INTO samfp_db VALUES '
-                          '('
-                          '"{DATE-OBS:s}",'
-                          '"{TIME-OBS:s}",'
-                          '"{FILENAME:s}",'
-                          '"{OBSTYPE:s}",'
-                          '"{OBJECT:s}",'
-                          '"{RA:s}",'
-                          '"{DEC:s}")'.format(**h))
-            except IOError:
-                log.warning(
-                    ' could not read file: {:s} '.format(f)
-                )
+                h = _pyfits.getheader(files[i])
+                df.loc[i] = [h[c] for c in columns]
             except KeyError as e:
                 log.warning(
-                    ' {:s} was not found in file {:s}'.format(e.args[0], f)
+                    ' {:s} was not found in file {:s}'.format(
+                        e.args[0], files[i]
+                    )
                 )
 
+        conn = _sqlite3.connect(database)
+        df.to_sql('sam_fp', conn, if_exists='replace')
         conn.close()
-
 
 
     @staticmethod
@@ -103,9 +97,9 @@ class DBBuilder:
             A list of the 'fits' files found inside that path.
         """
         log.info(' Loading files within directory: {:s}'.format(path))
-        output = glob.glob(
-            os.path.join(path, '**', '*.fits')
-        )
+        
+        output = _glob.glob(os.path.join(path, '*.fits')) + \
+            _glob.glob(os.path.join(path, '**', '*.fits'))
 
         return output
 
@@ -155,11 +149,8 @@ class DBBuilder:
         output : list
             A list of files matching the pattern given by 'pattern'.
         """
-
-        from glob import glob
-
         log.info(' Loading files matching pattern: {:s}'.format(pattern))
-        output = glob.glob(pattern)
+        output = _glob.glob(pattern)
 
         return output
 
@@ -229,7 +220,7 @@ class DBBuilder:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Fix the header SAMI's ")
+    parser = _argparse.ArgumentParser(description="Fix the header SAMI's ")
 
     parser.add_argument(
         'input',

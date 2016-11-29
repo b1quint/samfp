@@ -5,4 +5,4 @@
 """
 
 
-from xjoin import SAMI_XJoin
+from .xjoin import SAMI_XJoin
