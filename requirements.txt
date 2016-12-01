@@ -1,10 +1,7 @@
-numpy
-astropy
-matplotlib
-photutils
-scipy
-photutils
-matplotlib
 astropy
 ccdproc
+matplotlib
+numpy
+photutils
 pandas
+scipy

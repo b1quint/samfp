@@ -569,6 +569,11 @@ class SAMI_XJoin:
 
     def join_and_process(self, data, header):
 
+        # If the number of extensions is just 1, then the file is already
+        # processed.
+        if header['NEXTEND'] == 1:
+            return data, header, ''
+
         prefix = "xj"
 
         # Removing bad column and line
@@ -611,9 +616,11 @@ class SAMI_XJoin:
 
         # Writing file
         try:
-            del header['NEXTEND']
+            header['NEXTEND'] = 1
         except KeyError:
             pass
+
+        return data, header, prefix
 
     def main(self, list_of_files, bias_file=None, clean=False,
              cosmic_rays=False, dark_file=None, flat_file=None,
@@ -1018,4 +1025,5 @@ if __name__ == '__main__':
         dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,
         glow_file=pargs.glow, time=pargs.exptime, verbose=not pargs.quiet
     )
+
     xjoin.run(pargs.files)
