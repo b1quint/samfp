@@ -20,7 +20,7 @@ import pandas as _pd
 import sqlite3 as _sqlite3
 
 from astropy.io import fits as _pyfits
-
+from samfp.globals import csv_columns
 
 class DBBuilder:
     def __init__(self, _input, debug=False, verbose=True):
@@ -38,7 +38,7 @@ class DBBuilder:
         self.build_database(files)
 
     @staticmethod
-    def build_database(files, database='temp.db'):
+    def build_database(files, database='temp.csv'):
         """
         Let us finally build a data-base to store all the images and their
         informations.
@@ -49,33 +49,27 @@ class DBBuilder:
             List of files that will be added to the data-base
         database : str
             The name of the file that will store the database information.
-            By default, this is set to 'temp.db'
+            By default, this is set to 'temp.csv'
         """
+        files.sort()
 
-        columns = ['DATE-OBS',
-                   'TIME-OBS',
-                   'FILENAME',
-                   'OBSTYPE',
-                   'OBJECT',
-                   'RA',
-                   'DEC'
-                   ]
-
-        df = _pd.DataFrame(columns=columns)
+        df = _pd.DataFrame(columns=csv_columns)
         for i in range(len(files)):
-            try:
-                h = _pyfits.getheader(files[i])
-                df.loc[i] = [h[c] for c in columns]
-            except KeyError as e:
+            p, f = os.path.split(files[i])
+            f = f if '.fits' in f else f + '.fits'
+            absfilename = os.path.abspath(os.path.join(p, f))
+            h = _pyfits.getheader(absfilename)
+            h['FILENAME'] = absfilename
+            if 'NEXTEND' not in h:
                 log.warning(
                     ' {:s} was not found in file {:s}'.format(
-                        e.args[0], files[i]
+                        'NEXTEND', files[i]
                     )
                 )
+                h.set('NEXTEND', '1')
+            df.loc[i] = [h[c] for c in csv_columns]
 
-        conn = _sqlite3.connect(database)
-        df.to_sql('sam_fp', conn, if_exists='replace')
-        conn.close()
+        df.to_csv(database)
 
 
     @staticmethod
@@ -240,6 +234,12 @@ if __name__ == '__main__':
         '-q', '--quiet',
         action='store_true',
         help="Run the script without printing anything."
+    )
+
+    parser.add_argument(
+        '-o', '--output',
+        type=str, default='table.csv',
+        help='Name of the output CSV file.'
     )
 
     args = parser.parse_args()
