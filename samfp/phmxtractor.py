@@ -661,7 +661,15 @@ class PhaseMapFP(PhaseMap):
             if self.verbose:
                 log.info(" Reference pixel NOT found in header.")
                 log.info(" Trying to find the center of the rings.")
-            ref_x, ref_y = self.find_rings_center()
+                ref_x, ref_y = self.find_rings_center()
+
+            # try:
+            #     ref_x, ref_y = self.find_rings_center()
+            # except ValueError:
+            #     log.warn('Could not find the center of the rings. Using '
+            #              'center of image')
+            #     ref_x = self.header['NAXIS1'] // 2
+            #     ref_y = self.header['NAXIS2'] // 2
 
         return ref_x, ref_y
 
@@ -716,12 +724,20 @@ class PhaseMapFP(PhaseMap):
             ref_x = min(ref_x, self.header['NAXIS1'] - 1)
 
             # First Version -- Get a slice from cube
-            temp_x = self.data[:(fsr // 4 * 3), ref_y, x]
-            temp_y = self.data[:(fsr // 4 * 3), y, ref_x]
+            temp_x = self.data[:, ref_y, x]
+            temp_y = self.data[:, y, ref_x]
 
             # First Version -- Extract a parabola or a set of parabolas
             temp_x = np.argmax(temp_x, axis=0)
             temp_y = np.argmax(temp_y, axis=0)
+
+            # Try to fix bug
+            temp_x = np.where(
+                temp_x < self.depth - temp_x, temp_x, temp_x - self.depth
+            )
+            temp_y = np.where(
+                temp_y < self.depth - temp_y, temp_y, temp_y - self.depth
+            )
 
             # First Version -- First derivative
             xl = np.diff(temp_x)
@@ -748,7 +764,7 @@ class PhaseMapFP(PhaseMap):
                 ax1.plot(x, scipy.polyval(px, x), 'b-', lw=2)
                 ax1.plot(y, temp_y, 'r.', alpha=0.25)
                 ax1.plot(y, scipy.polyval(py, y), 'r-', lw=2)
-                ax1.yaxis.set_ticklabels([])
+                #ax1.yaxis.set_ticklabels([])
                 ax1.axvline(ref_x, ls='--', c='blue', label='x')
                 ax1.axvline(ref_y, ls='--', c='red', label='y')
                 ax1.legend(loc='best')
