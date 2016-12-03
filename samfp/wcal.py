@@ -5,12 +5,6 @@
 
     This script calculates the wavelength calibration using a Terminal Interface
     with the User.
-
-    Todo
-    ----
-    -   Look in the header for other options of FP_ZFSR.
-    -   Look in the header for other options of FP_ZSTEP.
-    -
 """
 from __future__ import division, print_function
 
@@ -28,7 +22,38 @@ __author__ = 'Bruno Quint'
 
 
 class WavelengthCalibration:
+    """
+    Wavelength calibration
+
+    This class holds methods and properties needed to perform a wavelength
+    calibration on a phase-corrected data-cube. For that, it will use
+    theoretical equations and assume that the FP has a nominal gap size.
+    """
+    def __call__(self, filename, output=None):
+        """
+        One this class is called, the 'run' method is invoked.
+        Please, refer to its documentation for details.
+
+        Parameters
+        ----------
+        filename : str
+            Input filename.
+        output : str
+            Output filename (optional).
+        """
+        self.run(filename, output)
+        return
+
     def __init__(self, verbose=False, debug=False):
+        """
+        Class constructor. For now, it will only receive the paramaters
+        related to feedback that is given to the user via terminal.
+
+        Parameters
+        ----------
+        verbose : bool
+        debug : bool
+        """
 
         self._log = log
         self.set_verbose(verbose)
@@ -36,15 +61,23 @@ class WavelengthCalibration:
 
         return
 
-    def center_peak(self, data, center):
+    @staticmethod
+    def center_peak(data, center):
         """
-        Based on the most probable center position, rolls the line so it lies in
-        the center of the data-cube.
+        Based on the most probable center position, rolls the line so it lies
+        in the center of the data-cube.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The data-cube represented in a numpy.ndarray form.
+        center : int
+            The argument of the channel that contains the most probable
+            center of the strongest feature.
         """
         cube_center = data.shape[0] // 2
         shift_size = cube_center - center
         data = np.roll(data, shift_size, axis=0)
-
         return data
 
     def debug(self, message):
@@ -134,25 +167,35 @@ class WavelengthCalibration:
         """
         Read the central wavelength from a header or from the user input.
 
-        :param header:
-        :return central_wavelength: systemic central wavelength.
-        :rtype central_wavelength: float
+        Parameters
+        ----------
+            header : astropy.io.fits.Header
+                A FITS header.
+            key : str
+                A key that, in theory, has the observed wavelength.
+
+        Returns
+        -------
+            central_wavelength : float
+                Systemic central wavelength in meters.
         """
-        log = self.log
 
         try:
             central_wavelength = float(header[key])
         except KeyError:
-            log.warning('%s card was not found in the header.' % key)
+            self.warning('%s card was not found in the header.' % key)
             central_wavelength = input(' Please, enter the systemic observed '
                                        'wavelength: \n >')
         except TypeError:
-            log.warning('Header was not passed to "WCal.get_central_wavelength"'
-                        ' method')
-            central_wavelength = input(' Please, enter the systemic observed '
-                                       'wavelength: \n > ')
+            self.warning(
+                'Header was not passed to "WCal.get_central_wavelength" method'
+            )
+            central_wavelength = input(
+                ' Please, enter the systemic observed wavelength: \n > '
+            )
+            central_wavelength = float(central_wavelength)
 
-        return central_wavelength
+        return central_wavelength * 1e-10
 
     def get_logger(self):
         """Create and return a customized logger object.
@@ -179,24 +222,22 @@ class WavelengthCalibration:
         :return w_step: wavelength increment beween channels.
         :rtype w_step: float
         """
-        log = self.log
-
         try:
             gap_size = header[key_gap_size]
         except KeyError:
-            log.warning('%s card was not found in the header.' % key_gap_size)
+            self.warning('%s card was not found in the header.' % key_gap_size)
             gap_size = input('Please, enter the FP nominal gap size in microns:'
                              '\n > ')
         except TypeError:
-            log.warning('Header was not passed to "WCal.get_wavelength_step"'
-                        ' method')
+            self.warning('Header was not passed to "WCal.get_wavelength_step"'
+                         ' method')
             gap_size = input('Please, enter the FP nominal gap size in microns:'
                              '\n > ')
 
         try:
             z_fsr = header[key_zfsr]
         except KeyError:
-            log.warning('%s card was not found in the header.' % key_zfsr)
+            self.warning('%s card was not found in the header.' % key_zfsr)
             z_fsr = input('Please, enter the Free-Spectral-Range in bcv:'
                           '\n > ')
         except TypeError:
@@ -217,8 +258,20 @@ class WavelengthCalibration:
             z_step = input('Please, enter the step between channels in bcv'
                            '\n > ')
 
-        w_fsr = w_central / (gap_size * (1 + 1 / gap_size ** 2))
+        gap_size = gap_size * 1e-6
+        self.info('Gap size e = {:.1f} um'.format(gap_size * 1e6))
+
+        w_order = 2 * gap_size / w_central
+        self.info('Interference order p({:.02f} = {:.2f}'.format(
+            w_central, w_order))
+
+        self.info('Z Free-Spectral-Range = {:.02f} bcv'.format(z_fsr))
+        w_fsr = w_central / (w_order * (1 + 1 / w_order ** 2))
+        self.info('W Free-Spectral-Range = {:.02f} A'.format(w_fsr * 1e10))
+
         w_step = w_fsr / z_fsr * z_step
+        self.info('Queesgate constant = {:.02f} A / bcv'.format(w_fsr / z_fsr * 1e10))
+        self.info('Step = {:.02f} A / channel'.format(w_step * 1e10))
 
         return w_step
 
@@ -237,6 +290,67 @@ class WavelengthCalibration:
 
         return data, hdr
 
+    def main(self, filename, output=None):
+        """
+        This is the main method that can be called via .main() or
+        via (). It colapses part of the data-cube, finds the most
+        strong spectral signal and put it at the center of
+        the data-cube. Then, needs the numerical parameters
+        to calculate the proper wavelength calibration.
+
+        Parameters
+        ----------
+        filename : str
+            Input filename.
+
+        output : str
+            Output filename (optional).
+        """
+        from os.path import exists
+        from astropy.io.fits import getdata, getheader, writeto
+
+        # Make sure that input file exists and can be read ---
+        if not exists(filename):
+            raise(IOError, 'Input file not found: {:s}'.format(filename))
+
+        # Load data ---
+        self.info('Loading file: {:s}'.format(filename))
+        data = getdata(filename)
+        hdr = getheader(filename)
+
+        # Find strongest signal ---
+        self.info('Find current peak position...')
+        current_peak_position = self.find_current_peak_position(data)
+
+        # Roll cube to put the peak at the center of the cube ---
+        self.info('Rolling the cube to put peak at the center...')
+        data = self.center_peak(data, current_peak_position)
+
+        # Get systemic wavelength ---
+        self.info('Getting systemic wavelength...')
+        w_center = self.get_central_wavelength(hdr)
+
+        # Get increment wavelength ---
+        self.info('Getting increment wavelength...')
+        w_step = self.get_wavelength_step(w_center, hdr)
+
+        # Update header ---
+        hdr = self.update_header(hdr, w_center, w_step)
+
+        # Write file ---
+        if output is None:
+            output = filename.replace('.fits', '.wcal.fits')
+
+        self.info('Writing output file: {:s}'.format(output))
+        writeto(output, data, hdr, clobber=True)
+
+        # Leaving the program ---
+        self.info('Total ellapsed time: \n'
+                  'All done.\n')
+
+        return
+
+
     def print_header(self):
         """
         Simply print a header for the script.
@@ -247,23 +361,37 @@ class WavelengthCalibration:
         self.info(msg)
         return
 
-    def run(self, filename, output=None):
+    def update_header(self, header, w_center, w_step):
+        """
+        Update the header so it contains the wavelength calibration.
+        This part still have to be updated to follow the 4.0 version
+        of the FITS standards (see link bellow).
 
-        data, hdr = self.load_data(filename)
-        cpp = self.find_current_peak_position(data)
-        data = self.center_peak(data, cpp)
+        http://fits.gsfc.nasa.gov/standard40/fits_standard40draft1.pdf
 
-        w_center = self.get_central_wavelength(hdr)
-        w_step = self.get_wavelength_step(w_center, hdr)
+        Parameters
+        ----------
+        header : astropy.io.fits.Header
+            Header of the data-cube that will be updated.
+        w_center : float
+            Wavelength at the center of the data-cube.
+        w_step : float
+            Wavelength increment between channels.
 
-        hdr['CRPIX3'] = data.shape[0] / 2 + 1
-        hdr['CRVAL3'] = w_center
-        hdr['C3_3'] = w_step
-        hdr['CR3_3'] = hdr['CDELT3'] = hdr['C3_3']
-        hdr['CUNIT3'] = 'angstroms'
+        Returns
+        -------
+        header : astropy.io.fits.Header
+            An updated header.
+        """
+        header.add_blank(before='END')
+        header.add_blank('--- Wavelength Calibration ---', before='END')
+        header.set('CRPIX3', int(header['NAXIS3']) / 2 + 1, before='END')
+        header.set('CRVAL3', w_center, before='END')
+        header.set('CDELT3', w_step, before='END')
+        header.set('CUNIT3', 'meters', before='END')
+        header.set('RESTWAV', w_center)
 
-        pyfits.writeto(filename.replace('.fits', '.wcal.fits'), data, hdr,
-                       clobber=True)
+        return header
 
     def set_log_level(self, level):
         """
@@ -365,4 +493,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     wcal = WavelengthCalibration(verbose=not args.quiet, debug=args.debug)
-    wcal.run(args.filename, output=args.output)
+    wcal(args.filename, output=args.output)
