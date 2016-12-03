@@ -16,19 +16,24 @@ from __future__ import division, print_function
 
 import argparse
 import astropy.io.fits as pyfits
-import logging
+import logging as log
 import numpy as np
 import time
 
+from scipy import signal
 from scipy import ndimage, stats
 from numpy import ma
 
 __author__ = 'Bruno Quint'
 
 
-class WCal:
-    def __init__(self, log=None):
-        self.log = self.get_logger() if log is None else log
+class WavelengthCalibration:
+    def __init__(self, verbose=False, debug=False):
+
+        self._log = log
+        self.set_verbose(verbose)
+        self.set_debug(debug)
+
         return
 
     def center_peak(self, data, center):
@@ -42,34 +47,51 @@ class WCal:
 
         return data
 
+    def debug(self, message):
+        """Print a debug message using the log system."""
+        self._log.debug(message)
+        return
+
     def find_current_peak_position(self, data):
         """
         Finds the current average peak position.
-        :param data: a phase-corrected datacube.
-        :type data: numpy.ndarray
 
-        :return peak_position: the central channel.
-        :rtype peak_position: int
+        Parameters
+        ----------
+            data : numpy.ndarray
+            A phase-corrected datacube.
+
+        Returns
+        -------
+            peak_position : int
+            The argument of the highest local maximum.
         """
-        log = self.log
-        log.info('Finding current peak position.')
+        self.info('Finding current peak position.')
         data = data.sum(axis=2)
         data = data.sum(axis=1)
-        peak_position = np.argmax(data)
+        data = np.where(data < 0.75 * data.max(), 0, data)
+        peaks = signal.argrelmax(data, axis=0, order=4)
+        self.debug('Encountered {:d} peaks: '.format(len(peaks)))
+        #for i in range(len(peaks)):
+        #    self.debug(' Peak #{:d} = channels'.format(peaks[i]))
 
-        around_peak = np.arange(5) - 2
-        around_peak = np.delete(around_peak, 2)
-        around_peak += peak_position
-        around_peak = np.where(around_peak < 0, 0, around_peak)
-        around_peak = np.where(around_peak > data.size - 1, data.size - 1, around_peak)
+        #peak_position = np.argmax(data)
 
-        is_peak = True
-        for i in range(around_peak.size):
-            p = data[around_peak[i]] < data[peak_position]
-            is_peak *= p
-            log.debug('Comparing %d and %d frames - %s' % (peak_position, around_peak[i], 'True' if p else 'False'))
-
-        return peak_position
+        # around_peak = np.arange(5) - 2
+        # around_peak = np.delete(around_peak, 2)
+        # around_peak += peak_position
+        # around_peak = np.where(around_peak < 0, 0, around_peak)
+        # around_peak = np.where(around_peak > data.size - 1, data.size - 1,
+        #                        around_peak)
+        #
+        # is_peak = True
+        # for i in range(around_peak.size):
+        #     p = data[around_peak[i]] < data[peak_position]
+        #     is_peak *= p
+        #     log.debug('Comparing %d and %d frames - %s' % (
+        #     peak_position, around_peak[i], 'True' if p else 'False'))
+        #
+        # return peak_position
 
         # depth = data.shape[0]
 
@@ -136,15 +158,15 @@ class WCal:
         """Create and return a customized logger object.
 
         :return log: the logger object.
-        :rtype log: logging.Logger
+        :rtype log: log.Logger
         """
         lf = MyLogFormatter()
 
-        ch = logging.StreamHandler()
+        ch = self.log.StreamHandler()
         ch.setFormatter(lf)
 
-        logging.captureWarnings(True)
-        log = logging.getLogger("phasemap_fit")
+        self.log.captureWarnings(True)
+        log = self.log.getLogger("phasemap_fit")
         log.addHandler(ch)
 
         return log
@@ -200,15 +222,34 @@ class WCal:
 
         return w_step
 
-    def run(self, filename):
+    def info(self, message):
+        """Print an info message using the log system."""
+        self._log.info(message)
+        return
 
-        log = self.log
+    def load_data(self, input_filename):
+        """Load the input data and header."""
 
-        log.info('Loading %s' % filename)
-        data = pyfits.getdata(filename)
-        hdr = pyfits.getheader(filename)
-        log.info('Done')
+        self.info('Loading %s' % input_filename)
+        data = pyfits.getdata(input_filename)
+        hdr = pyfits.getheader(input_filename)
+        self.info('Done')
 
+        return data, hdr
+
+    def print_header(self):
+        """
+        Simply print a header for the script.
+        """
+        msg = "\n " \
+              " Data-Cube Wavelength Calibration\n" \
+              " by Bruno C. Quint (bquint@ctio.noao.edu)\n"
+        self.info(msg)
+        return
+
+    def run(self, filename, output=None):
+
+        data, hdr = self.load_data(filename)
         cpp = self.find_current_peak_position(data)
         data = self.center_peak(data, cpp)
 
@@ -233,15 +274,43 @@ class WCal:
         """
         self.log.setLevel(level)
 
+    def set_debug(self, debug):
+        """
+        Turn on debug mode.
 
-class MyLogFormatter(logging.Formatter):
+        Parameter
+        ---------
+            debug : bool
+        """
+        if debug:
+            self._log.basicConfig(level=self._log.DEBUG, format='%(message)s')
+
+    def set_verbose(self, verbose):
+        """
+        Turn on verbose mode.
+
+        Parameter
+        ---------
+            verbose : bool
+        """
+        if verbose:
+            self._log.basicConfig(level=self._log.INFO, format='%(message)s')
+        else:
+            self._log.basicConfig(level=self._log.WARNING, format='%(message)s')
+
+    def warn(self, message):
+        """Print a warning message using the log system."""
+        self._log.warning(message)
+
+
+class MyLogFormatter(log.Formatter):
     err_fmt = "ERROR: %(msg)s"
     dbg_fmt = " DBG: %(module)s: %(lineno)d: %(msg)s"
     info_fmt = " %(msg)s"
     warn_fmt = " %(msg)s"
 
     def __init__(self, fmt="%(levelno)s: %(msg)s"):
-        logging.Formatter.__init__(self, fmt)
+        log.Formatter.__init__(self, fmt)
 
     def format(self, record):
 
@@ -249,21 +318,21 @@ class MyLogFormatter(logging.Formatter):
         # when the logger formatter was instantiated
         format_orig = self._fmt
 
-        # Replace the original format with one customized by logging level
-        if record.levelno == logging.DEBUG:
+        # Replace the original format with one customized by log level
+        if record.levelno == log.DEBUG:
             self._fmt = MyLogFormatter.dbg_fmt
 
-        elif record.levelno == logging.INFO:
+        elif record.levelno == log.INFO:
             self._fmt = MyLogFormatter.info_fmt
 
-        elif record.levelno == logging.ERROR:
+        elif record.levelno == log.ERROR:
             self._fmt = MyLogFormatter.err_fmt
 
-        elif record.levelno == logging.WARNING:
+        elif record.levelno == log.WARNING:
             self._fmt = MyLogFormatter.warn_fmt
 
         # Call the original formatter class to do the grunt work
-        result = logging.Formatter.format(self, record)
+        result = log.Formatter.format(self, record)
 
         # Restore the original format configured by the user
         self._fmt = format_orig
@@ -272,29 +341,28 @@ class MyLogFormatter(logging.Formatter):
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(
-        description="Fits an existing phase-map.")
+        description="Fits an existing phase-map."
+    )
 
-    parser.add_argument('filename', type=str,
-                        help="Input phase-map name.")
-    parser.add_argument('-d', '--debug', action='store_true',
-                        help="Run program in debug mode.")
-    parser.add_argument('-o', '--output', type=str, default=None,
-                        help="Name of the output phase-map file.")
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help="Run program quietly.")
+    parser.add_argument(
+        'filename', type=str,
+        help="Input phase-map name."
+    )
+    parser.add_argument(
+        '-D', '--debug', action='store_true',
+        help="Run program in debug mode."
+    )
+    parser.add_argument(
+        '-o', '--output', type=str, default=None,
+        help="Name of the output phase-map file."
+    )
+    parser.add_argument(
+        '-q', '--quiet', action='store_true',
+        help="Run program quietly."
+    )
 
     args = parser.parse_args()
 
-    main = WCal()
-
-    if args.quiet:
-        main.set_log_level(level=logging.ERROR)
-
-    if args.debug:
-        main.set_log_level(level=logging.DEBUG)
-    else:
-        main.set_log_level(level=logging.INFO)
-
-    main.run(args.filename)
+    wcal = WavelengthCalibration(verbose=not args.quiet, debug=args.debug)
+    wcal.run(args.filename, output=args.output)
