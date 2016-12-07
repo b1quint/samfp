@@ -41,7 +41,7 @@ class WavelengthCalibration:
         output : str
             Output filename (optional).
         """
-        self.run(filename, output)
+        self.main(filename, output)
         return
 
     def __init__(self, verbose=False, debug=False):
@@ -54,10 +54,12 @@ class WavelengthCalibration:
         verbose : bool
         debug : bool
         """
-
         self._log = log
+        print(self._log.getLogger().getEffectiveLevel())
         self.set_verbose(verbose)
+        print(self._log.getLogger().getEffectiveLevel())
         self.set_debug(debug)
+        print(self._log.getLogger().getEffectiveLevel())
 
         return
 
@@ -103,65 +105,14 @@ class WavelengthCalibration:
         data = data.sum(axis=2)
         data = data.sum(axis=1)
         data = np.where(data < 0.75 * data.max(), 0, data)
-        peaks = signal.argrelmax(data, axis=0, order=4)
+        peaks = signal.argrelmax(data, axis=0, order=5)[0]
         self.debug('Encountered {:d} peaks: '.format(len(peaks)))
-        #for i in range(len(peaks)):
-        #    self.debug(' Peak #{:d} = channels'.format(peaks[i]))
 
-        #peak_position = np.argmax(data)
+        peaks_values = data[peaks]
+        max_peaks_arg = np.argmax(peaks_values)
+        peak = peaks[max_peaks_arg]
 
-        # around_peak = np.arange(5) - 2
-        # around_peak = np.delete(around_peak, 2)
-        # around_peak += peak_position
-        # around_peak = np.where(around_peak < 0, 0, around_peak)
-        # around_peak = np.where(around_peak > data.size - 1, data.size - 1,
-        #                        around_peak)
-        #
-        # is_peak = True
-        # for i in range(around_peak.size):
-        #     p = data[around_peak[i]] < data[peak_position]
-        #     is_peak *= p
-        #     log.debug('Comparing %d and %d frames - %s' % (
-        #     peak_position, around_peak[i], 'True' if p else 'False'))
-        #
-        # return peak_position
-
-        # depth = data.shape[0]
-
-        # data = ndimage.median_filter(data, size=[3, 1, 1])
-        # data = ma.MaskedArray(data, mask=np.zeros_like(data))
-        #
-        # peaks = np.argmax(data, axis=0)
-        #
-        # for i in range(interactions):
-        #
-        #     peak_neighbors = (peaks
-        #         + np.arange(5, dtype=int)[:, np.newaxis, np.newaxis] - 2)
-        #
-        #     peak_neighbors = np.where(peak_neighbors > 0, peak_neighbors, 0)
-        #     peak_neighbors = np.where(peak_neighbors < depth - 1,
-        #                               peak_neighbors, depth - 1)
-        #
-        #     peak_neighbors = np.delete(peak_neighbors, 2, 0)
-        #
-        # for i in range(5):
-        #     print(i)
-        #     print(data.take(peak_neighbors[i]).astype(int))
-        #     cond += np.where(temp < max_frame, 1, 0)
-        # print(cond.astype(int))
-
-        # peaks = ma.MaskedArray(data.argmax(0), mask=cond)
-        # print(peaks)
-        # data = ma.MaskedArray(data, mask=cond * np.ones_like(data))
-        # peaks = peaks.ravel()
-        # new_peak = int(stats.mstats.mode(peaks).mode[0])
-
-        # if new_peak == peak:
-        #     peak = new_peak
-        #     log.debug('Final peak found at %d' % peak)
-        #     break
-        # peak = new_peak
-        # log.debug('New peak found at %d' % peak)
+        return peak
 
     def get_central_wavelength(self, header=None, key='FP_WOBS'):
         """
@@ -183,11 +134,11 @@ class WavelengthCalibration:
         try:
             central_wavelength = float(header[key])
         except KeyError:
-            self.warning('%s card was not found in the header.' % key)
+            self.warn('%s card was not found in the header.' % key)
             central_wavelength = input(' Please, enter the systemic observed '
                                        'wavelength: \n >')
         except TypeError:
-            self.warning(
+            self.warn(
                 'Header was not passed to "WCal.get_central_wavelength" method'
             )
             central_wavelength = input(
@@ -215,7 +166,7 @@ class WavelengthCalibration:
         return log
 
     def get_wavelength_step(self, w_central, header=None, key_gap_size='FP_GAP',
-                            key_zfsr='PHMFSR', key_z_step='PHMSAMP'):
+                            key_zfsr='PHMFSR', key_z_step='CDELT3'):
         """
         Calculates the wavelength step between channels.
 
@@ -225,11 +176,11 @@ class WavelengthCalibration:
         try:
             gap_size = header[key_gap_size]
         except KeyError:
-            self.warning('%s card was not found in the header.' % key_gap_size)
+            self.warn('%s card was not found in the header.' % key_gap_size)
             gap_size = input('Please, enter the FP nominal gap size in microns:'
                              '\n > ')
         except TypeError:
-            self.warning('Header was not passed to "WCal.get_wavelength_step"'
+            self.warn('Header was not passed to "WCal.get_wavelength_step"'
                          ' method')
             gap_size = input('Please, enter the FP nominal gap size in microns:'
                              '\n > ')
@@ -237,7 +188,7 @@ class WavelengthCalibration:
         try:
             z_fsr = header[key_zfsr]
         except KeyError:
-            self.warning('%s card was not found in the header.' % key_zfsr)
+            self.warn('%s card was not found in the header.' % key_zfsr)
             z_fsr = input('Please, enter the Free-Spectral-Range in bcv:'
                           '\n > ')
         except TypeError:
@@ -262,8 +213,8 @@ class WavelengthCalibration:
         self.info('Gap size e = {:.1f} um'.format(gap_size * 1e6))
 
         w_order = 2 * gap_size / w_central
-        self.info('Interference order p({:.02f} = {:.2f}'.format(
-            w_central, w_order))
+        self.info('Interference order p({:.02f}) = {:.2f}'.format(
+            w_central * 1e10, w_order))
 
         self.info('Z Free-Spectral-Range = {:.02f} bcv'.format(z_fsr))
         w_fsr = w_central / (w_order * (1 + 1 / w_order ** 2))
@@ -350,7 +301,6 @@ class WavelengthCalibration:
 
         return
 
-
     def print_header(self):
         """
         Simply print a header for the script.
@@ -383,13 +333,13 @@ class WavelengthCalibration:
         header : astropy.io.fits.Header
             An updated header.
         """
-        header.add_blank(before='END')
-        header.add_blank('--- Wavelength Calibration ---', before='END')
-        header.set('CRPIX3', int(header['NAXIS3']) / 2 + 1, before='END')
-        header.set('CRVAL3', w_center, before='END')
-        header.set('CDELT3', w_step, before='END')
-        header.set('CUNIT3', 'meters', before='END')
-        header.set('RESTWAV', w_center)
+        header.add_blank(before=-1)
+        header.add_blank('--- Wavelength Calibration ---', before=-1)
+        header.set('CRPIX3', int(header['NAXIS3']) / 2 + 1, before=-1)
+        header.set('CRVAL3', w_center * 1e10, before=-1)
+        header.set('CDELT3', w_step * 1e10, before=-1)
+        header.set('CUNIT3', 'angstrom', before=-1)
+        header.set('RESTWAV', w_center * 1e10, before=-1)
 
         return header
 
@@ -410,8 +360,10 @@ class WavelengthCalibration:
         ---------
             debug : bool
         """
+        print(debug)
         if debug:
-            self._log.basicConfig(level=self._log.DEBUG, format='%(message)s')
+            self._log.basicConfig(level=10, format='%(message)s')
+        self.debug('Debug mode ON.')
 
     def set_verbose(self, verbose):
         """
@@ -425,6 +377,7 @@ class WavelengthCalibration:
             self._log.basicConfig(level=self._log.INFO, format='%(message)s')
         else:
             self._log.basicConfig(level=self._log.WARNING, format='%(message)s')
+        return
 
     def warn(self, message):
         """Print a warning message using the log system."""

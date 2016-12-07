@@ -5,12 +5,14 @@ csv_columns = [
     'FILENAME',
     'OBSTYPE',
     'OBJECT',
+    'NOTES',
+    'EXPTIME',
     'RA',
     'DEC',
+    'FILTERS',
+    'FILTER1',
     'AIRMASS',
     'DECPANGL',
     'RAPANGL',
-    'NEXTEND',
-    'FILTERS',
-    'FILTER1',
+    'NEXTEND'
 ]

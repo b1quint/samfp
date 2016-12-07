@@ -30,6 +30,8 @@ import scipy
 import scipy.interpolate as interpolate
 import sys
 
+from scipy import signal
+
 log = logging.getLogger('phasemap_extractor')
 
 
@@ -728,8 +730,10 @@ class PhaseMapFP(PhaseMap):
             temp_y = self.data[:, y, ref_x]
 
             # First Version -- Extract a parabola or a set of parabolas
-            temp_x = np.argmax(temp_x, axis=0)
-            temp_y = np.argmax(temp_y, axis=0)
+            #temp_x = np.argmax(temp_x, axis=0)
+            #temp_y = np.argmax(temp_y, axis=0)
+            temp_x = signal.argrelmax(temp_x, axis=0)[0]
+            temp_y = signal.argrelmax(temp_y, axis=0)[0]
 
             # Try to fix bug
             temp_x = np.where(

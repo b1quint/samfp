@@ -138,7 +138,7 @@ def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
     results = None
 
     log.info(' Extracting 2D Maps...'.format(_input_filename))
-    loading =  Process(target=stand_by, name="stand_by", args=[log.level])
+    loading = Process(target=stand_by, name="stand_by", args=[log.level])
     loading.start()
     try:
         results = p.map_async(fitter, itertools.product(x, y)).get(99999999)
