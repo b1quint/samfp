@@ -92,8 +92,10 @@ class DBBuilder:
         """
         log.info(' Loading files within directory: {:s}'.format(path))
         
-        output = _glob.glob(os.path.join(path, '*.fits')) + \
-            _glob.glob(os.path.join(path, '**', '*.fits'))
+        output = _glob.glob(os.path.join(path, '*.fits'))
+        output += _glob.glob(os.path.join(path, '*.fits.bz2'))
+        output += _glob.glob(os.path.join(path, '**', '*.fits'))
+        output += _glob.glob(os.path.join(path, '**', '*.fits.bz2'))
 
         return output
 
