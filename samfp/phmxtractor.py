@@ -31,6 +31,8 @@ import scipy.interpolate as interpolate
 import sys
 
 from scipy import signal
+from scipy import ndimage
+from multiprocessing import Pool
 
 log = logging.getLogger('phasemap_extractor')
 
@@ -561,22 +563,28 @@ class PhaseMapFP(PhaseMap):
         if self.verbose:
             log.info("\n Extracting phase-map from a Fabry-Perot data-cube.")
 
-        # Measure the free-spectral-range
-        self.free_spectral_range, self.fsr_channel = \
-            self.get_free_spectral_range()
+        # Measure the free-spectral-range --------------------------------------
+        fsr = self.get_free_spectral_range()
+        self.free_spectral_range, self.fsr_channel = fsr
 
-        # Getting reference spectrum
+        # Getting reference spectrum -------------------------------------------
         if ref is None:
-            self.ref_x, self.ref_y = self.find_reference_pixel()
-        else:
-            self.ref_x, self.ref_y = ref[:]
+            ref = self.find_reference_pixel()
+
+        self.ref_x, self.ref_y = ref[:]
         self.ref_s = self.get_reference_spectrum()
 
-        # Calculate the FWHM
+        # Calculate the FWHM ---------------------------------------------------
         self.fwhm = self.get_fwhm()
 
-        # Calculate the finesse
+        # Calculate the finesse ------------------------------------------------
         self.finesse = self.get_finesse()
+
+        # Get the correlation cube ---------------------------------------------
+        if correlation:
+            self.extract_from = self.use_correlation()
+        else:
+            self.extract_from = self.input_file
 
         if self.verbose:
             log.info(" Ideal number of channels: %.1f channels"
@@ -584,11 +592,6 @@ class PhaseMapFP(PhaseMap):
             log.info(" Ideal sampling: %.1f %s / channel"
                      % (self.free_spectral_range / round(2 * self.finesse),
                         self.units))
-
-        if correlation:
-            self.extract_from = self.use_correlation()
-        else:
-            self.extract_from = self.input_file
 
         self.phase_map = self.extract_phase_map()
         self.save()
@@ -695,21 +698,17 @@ class PhaseMapFP(PhaseMap):
                 Y position of the center of the rings.
         """
         now = time.time()
-
-        # Renaming some variables
-        width = self.width
-        height = self.height
-        fsr = int(self.fsr_channel)
-
-        log.debug('FSR Used to find rings center = %d' % fsr)
+        depth, height, width = self.data.shape
 
         # Choosing the points
         x = (np.linspace(0.05, 0.95, 500) * width).astype(int)
         y = (np.linspace(0.05, 0.95, 500) * height).astype(int)
 
+        # First guess is that the reference pixel is at the center
         ref_x = self.header['NAXIS1'] // 2
         ref_y = self.header['NAXIS2'] // 2
 
+        # Storing reference pixels for comparison between interactions
         log.info(" Start center finding.")
         old_ref_x = ref_x
         old_ref_y = ref_y
@@ -717,31 +716,25 @@ class PhaseMapFP(PhaseMap):
         if self.show:
             plt.figure()
 
+        # Starting interactions
         for i in range(n_interactions):
 
             ref_y = max(ref_y, 0)
-            ref_y = min(ref_y, self.header['NAXIS2'] - 1)
+            ref_y = min(ref_y, height - 1)
 
             ref_x = max(ref_x, 0)
-            ref_x = min(ref_x, self.header['NAXIS1'] - 1)
+            ref_x = min(ref_x, width - 1)
 
-            # First Version -- Get a slice from cube
+            # Get a slice from cube ---
             temp_x = self.data[:, ref_y, x]
             temp_y = self.data[:, y, ref_x]
 
-            # First Version -- Extract a parabola or a set of parabolas
-            #temp_x = np.argmax(temp_x, axis=0)
-            #temp_y = np.argmax(temp_y, axis=0)
-            temp_x = signal.argrelmax(temp_x, axis=0)[0]
-            temp_y = signal.argrelmax(temp_y, axis=0)[0]
+            p = Pool(16)
+            px = PeakFinder(temp_x)
+            py = PeakFinder(temp_y)
 
-            # Try to fix bug
-            temp_x = np.where(
-                temp_x < self.depth - temp_x, temp_x, temp_x - self.depth
-            )
-            temp_y = np.where(
-                temp_y < self.depth - temp_y, temp_y, temp_y - self.depth
-            )
+            temp_x = p.map(px, range(x.size))
+            temp_y = p.map(py, range(y.size))
 
             # First Version -- First derivative
             xl = np.diff(temp_x)
@@ -761,7 +754,7 @@ class PhaseMapFP(PhaseMap):
                 plt.title("Finding center of the rings")
                 plt.clf()
                 fig = plt.gcf()
-                gs = gridspec.GridSpec(2, 1, height_ratios=[6, 1])
+                gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
 
                 ax1 = plt.subplot(gs[0])
                 ax1.plot(x, temp_x, 'b.', alpha=0.25)
@@ -775,11 +768,9 @@ class PhaseMapFP(PhaseMap):
                 ax1.grid()
                 ax1.set_ylabel("Iteration number %d" % (i + 1))
 
-                ax2 = plt.subplot(gs[1])
-                ax2.hist(error_x, bins=50, alpha=0.25, color='b', range=(-0.5, 5))
-                ax2.hist(error_y, bins=50, alpha=0.25, color='r', range=(-0.5, 5))
-                ax2.yaxis.set_ticklabels([])
-                ax2.set_ylabel("Error Histogram")
+                ax2 = plt.subplot(gs[1], sharex=ax1)
+                ax2.plot(x, temp_x - scipy.polyval(px, x), 'o', color='b', alpha=0.25)
+                ax2.plot(y, temp_y - scipy.polyval(py, y), 'o', color='r', alpha=0.25)
                 fig.add_axes(ax2)
 
             cond_x = np.where(error_x <= 3 * np.abs(np.median(xl[xl != 0])), True, False)
@@ -1051,8 +1042,22 @@ class PhaseMapFP(PhaseMap):
 
         return
 
+class PeakFinder:
 
-# ==============================================================================
+    def __init__(self, data):
+        assert data.ndim == 2
+        self.data = data
+
+    def __call__(self, i):
+        data = self.data[:, i]
+        data -= np.median(data)
+        data = np.where(data > 0.70 * np.max(data), data, 0)
+        n = int(data.shape[0] * 0.2)
+        peaks = signal.argrelmax(data, axis=0, order=n)[0]
+        peak = np.min(peaks)
+        return peak
+
+
 if __name__ == '__main__':
     log_fmt = MyLogFormatter()
     log_handler = logging.StreamHandler()
