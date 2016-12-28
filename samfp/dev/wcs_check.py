@@ -2,19 +2,21 @@
 # -*- coding: utf8 -*-
 from __future__ import division, print_function
 
-__author__ = 'Bruno Quint'
+import glob
+import os
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from astropy.wcs import WCS
 
-import glob
-import os
+__author__ = 'Bruno Quint'
 
-path = '/home/bquint/Data/2016-11-30/RED'
+path = '/home/bquint/Data/2016-12-01/RED'
 pattern = 'amzf*.fits'
 
 list_of_files = glob.glob(os.path.join(path, pattern))
+list_of_files.sort()
 
 for f in list_of_files:
     h = fits.getheader(f)
@@ -22,6 +24,9 @@ for f in list_of_files:
     h['FILENAME'] = f
 
     c = SkyCoord(ra=h['CRVAL1'] * u.deg, dec=h['CRVAL2'] * u.deg)
+
+    wcs = WCS(h)
+    c = c.from_pixel(h['NAXIS1'] // 2, h['NAXIS2'] // 2, wcs=wcs, origin=1)
     s = c.to_string('hmsdms')
     h['COORDS'] = c.to_string('hmsdms')
     h['COORDS'] = h['COORDS'].replace('h', ':')
