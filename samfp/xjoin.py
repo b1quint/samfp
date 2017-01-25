@@ -40,6 +40,8 @@ import logging as log
 import numpy as _np
 
 from ccdproc import cosmicray_lacosmic as _cosmicray_lacosmic
+from numpy import random
+from scipy import stats
 
 try:
     # noinspection PyUnresolvedReferences,PyUnboundLocalVariable
@@ -444,7 +446,7 @@ class SAMI_XJoin:
 
         if flat_file is not None:
             flat = _pyfits.getdata(flat_file)
-            data /= flat
+            data /=  _normalize_data(flat)
             header['FLATFILE'] = flat_file
             header.add_history('Flat normalized')
             prefix = 'f' + prefix
@@ -951,6 +953,28 @@ class SAMI_XJoin:
                             header, clobber=True)
 
         log.info("\n All done!")
+
+def _normalize_data(data):
+    """
+    This method is intended to normalize flat data before it is applied to the
+    images that are being reduced. A total of 1000 random points are used to
+    estimate the median level that will be used for normalization.
+
+    Parameter
+    ---------
+    data : numpy.ndarray
+        Data that will be normalized
+
+    Returns
+    -------
+    norm_data : numpy.ndarray
+        Normalized data.
+
+    """
+    sample = random.randint(0, high=data.size - 1, size=1000)
+    mode = stats.mode(data.ravel()[sample])[0]
+
+    return data / mode
 
 
 def _str2pixels(my_string):
