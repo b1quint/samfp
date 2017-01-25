@@ -12,7 +12,7 @@ from astropy.wcs import WCS
 
 __author__ = 'Bruno Quint'
 
-path = '/home/bquint/Data/2016-12-01/RED'
+path = '/home/bquint/Data/2016-12-02/RED'
 pattern = 'amzf*.fits'
 
 list_of_files = glob.glob(os.path.join(path, pattern))
@@ -22,6 +22,7 @@ for f in list_of_files:
     h = fits.getheader(f)
     h['EQUINOX'] = 2000.
     h['FILENAME'] = f
+    h['OBJECT'] = h['OBJECT'].replace(' ', '_')
 
     c = SkyCoord(ra=h['CRVAL1'] * u.deg, dec=h['CRVAL2'] * u.deg)
 
@@ -36,11 +37,11 @@ for f in list_of_files:
     h['RA_FOUND'] = h['COORDS'].split(' ')[0]
     h['DEC_FOUND'] = h['COORDS'].split(' ')[1]
 
-    s = "{FILENAME:60s}\t\t" \
-        "{OBJECT:15s}\t\t" \
-        "{RA:15s}\t" \
-        "{DEC:15s}\t" \
-        "{RA_FOUND:15s}\t" \
-        "{DEC_FOUND:15s}".format(**h)
+    s = "{FILENAME:60s},\t\t" \
+        "{OBJECT:20s},\t\t" \
+        "{RA:12s},\t" \
+        "{DEC:13s},\t" \
+        "{RA_FOUND:12s},\t" \
+        "{DEC_FOUND:13s}".format(**h)
 
     print(s)
