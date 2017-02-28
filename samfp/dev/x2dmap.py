@@ -21,6 +21,7 @@ from multiprocessing import Pool, Process
 import astropy.io.fits as pyfits
 import numpy as np
 from astropy.modeling import models, fitting
+from scipy.signal import argrelmax
 
 __author__ = 'Bruno C. Quint'
 __date__ = '2016.08.09'
@@ -59,12 +60,12 @@ def main():
 
     # Perform the 2D-Map Extraction ---
     results = perform_2dmap_extraction(
-        args.filename, log, args.pool_size, lorentzian=args.lorentzian
+        args.filename, log, args.pool_size, gaussian=args.gaussian
     )
 
     # Write the results to a FITS file ---
     write_results(
-        results, args.filename, args.output, lorentzian=args.lorentzian,
+        results, args.filename, args.output, gaussian=args.gaussian,
         wavelength=args.wavelength
     )
 
@@ -78,7 +79,7 @@ def main():
     log.info('All done.')
 
 
-def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
+def perform_2dmap_extraction(_input_filename, log, n=4, gaussian=False):
     """
     Perform the 2D-Map extraction using `multiprocessing` and
     `astropy.modeling`.
@@ -91,20 +92,20 @@ def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
             A logger instance
         n : int
             The number of simultaneous processes that will be executed.
-        lorentzian : bool
-            Perform Lorentzian fit instead of Gaussian fit?
+        gaussian : bool
+            Perform Gaussian fit instead of Lorentzian fit?
     Returns
     -------
         results : numpy.ndarray
             A (X x Y x 3) array containining:
+             - m0: the Lorentzian amplitude,
+             - m1: the Lorentzian center.
+             - m2: the Lorentzian width.
+            or
+            A (X x Y x 3) array containining:
              - m0: the Gaussian amplitude,
              - m1: the Gaussian center.
              - m2: the Gaussian width.
-            or
-            A (X x Y x 3) array containining:
-             - m0: the Lorentzian amplitude,
-             - m1: the Lorentzian center.
-             - m2: the Lorentzian width. 
     """
 
     if not isinstance(_input_filename, str):
@@ -130,10 +131,10 @@ def perform_2dmap_extraction(_input_filename, log, n=4, lorentzian=False):
     y = np.arange(header['NAXIS2'])
 
     # Using astropy fitter and model ---
-    if lorentzian:
-        fitter = FitLorentzian(_input_filename)
-    else:
+    if gaussian:
         fitter = FitGaussian(_input_filename)
+    else:
+        fitter = FitLorentzian(_input_filename)
     p = Pool(n)
     results = None
 
@@ -242,8 +243,8 @@ def parse_arguments():
         'filename', type=str, help="Input data-cube name."
     )
     parser.add_argument(
-        '-l', '--lorentzian', action="store_true",
-        help='Use a Lorentzian fit instead of Gaussian fit.'
+        '-g', '--gaussian', action="store_true",
+        help='Use a Gaussian fit instead of Lorentzian fit.'
     )
     parser.add_argument(
         '-o', '--output', default=None, type=str,
@@ -289,8 +290,9 @@ def stand_by(level=logging.NOTSET):
 
     return
 
-def write_results(_results, _input_file, _output_file, lorentzian=False,
+def write_results(_results, _input_file, _output_file, gaussian=False,
                   wavelength=None):
+
     """
     Write the results to one or more FITS file.
 
@@ -308,8 +310,8 @@ def write_results(_results, _input_file, _output_file, lorentzian=False,
         and a single file is used to store each results. '.m0' contains the
         Gaussian peak value, '.m1' contains the Gaussian center and '.m2'
         contains the Gaussian stddev.
-    lorentzian : bool
-        Use Lorentzian instead of Gaussian
+    Gaussian : bool
+        Use Gaussian instead of Lorentzian
     wavelength : float / None
         If the wavelength is given, this method automatically convert the maps
         from Angstrom to km/s.
@@ -329,13 +331,23 @@ def write_results(_results, _input_file, _output_file, lorentzian=False,
     m1 = m1.reshape((x, y)).T
     m2 = m2.reshape((x, y)).T
 
+    m0 = np.array(m0, dtype=np.float32)
+    m1 = np.array(m1, dtype=np.float32)
+    m2 = np.array(m2, dtype=np.float32)
+
     h1 = header
     h2 = header
 
-    if lorentzian:
-        i = 'l'
+    h1.append("M1_MEAN", np.mean(m1))
+    h1.append("M1_STDEV", np.std(m1))
+
+    h2.append("M2_MEAN", np.mean(m2))
+    h2.append("M2_STDEV", np.std(m2))
+
+    if gaussian:
+        i = 'G'
     else:
-        i = 'g'
+        i = 'L'
 
     if wavelength is not None:
 
@@ -354,19 +366,19 @@ def write_results(_results, _input_file, _output_file, lorentzian=False,
 
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m0.fits'.format(i)), data=m0,
-            header=header, clobber=True
+            header=header, overwrite=True
         )
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m1.fits'.format(i)), data=m1,
-            header=h1, clobber=True
+            header=h1, overwrite=True
         )
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m2.fits'.format(i)), data=m2,
-            header=h2, clobber=True
+            header=h2, overwrite=True
         )
 
     else:
-        if lorentzian:
+        if gaussian:
             HDUl = pyfits.HDUList()
             HDUl.append(pyfits.PrimaryHDU(header))
             HDUl.append(pyfits.ImageHDU(data=m0, name='Gaussian_Peak'))
@@ -374,7 +386,7 @@ def write_results(_results, _input_file, _output_file, lorentzian=False,
                                         header=h1))
             HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV',
                                         header=h2))
-            HDUl.writeto(_output_file, clobber=True)
+            HDUl.writeto(_output_file, overwrite=True)
         else:
             HDUl = pyfits.HDUList()
             HDUl.append(pyfits.PrimaryHDU(header))
@@ -383,7 +395,7 @@ def write_results(_results, _input_file, _output_file, lorentzian=False,
                                         header=h1))
             HDUl.append(pyfits.ImageHDU(data=m2, name='Lorentzian_STDDEV',
                                         header=h2))
-            HDUl.writeto(_output_file, clobber=True)
+            HDUl.writeto(_output_file, overwrite=True)
 
 
 class FitGaussian:
@@ -444,7 +456,7 @@ class FitLorentzian:
                 fitting.
         """
         self._filename = filename
-        self._g = None
+        #self._g = None
 
     def __call__(self, indexes):
         """
@@ -472,8 +484,18 @@ class FitLorentzian:
         del data
         del h
 
+        std = np.std(s)
+        arg_max = argrelmax(s, axis=0, order=5, mode='wrap')[0]
+        arg_max = arg_max[s[arg_max] > 2 * std]
+
+        if len(arg_max) == 0:
+            return [0, 0, 0]
+
+        amplitude = s[arg_max]
+        x_0 = self._z[arg_max]
+
         l = models.Lorentz1D(
-            amplitude=s.max(), x_0=self._z[s.argmax()], fwhm=2.0)
+            amplitude=amplitude, x_0=x_0, fwhm=2.0)
         fitter = fitting.LevMarLSQFitter()
         l = fitter(l, self._z, s)
 
