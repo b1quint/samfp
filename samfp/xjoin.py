@@ -115,7 +115,7 @@ class SAMI_XJoin:
 
     def __init__(self, bias_file=None, clean=False,
                  cosmic_rays=False, dark_file=None, debug=False,
-                 flat_file=None, glow_file=None, norm_flat=True,
+                 flat_file=None, glow_file=None, norm_flat=False,
                  time=False, verbose=False):
 
         self.set_verbose(verbose)
@@ -927,7 +927,7 @@ class SAMI_XJoin:
         log.info(' Processing data')
         list_of_files = sorted(list_of_files)
 
-        if self.norm_flat:
+        if self.norm_flat and (self.flat_file is not None):
             log.info(" Normalizing flat")
 
             flat_hdr = _pyfits.getheader(self.flat_file)
@@ -946,7 +946,10 @@ class SAMI_XJoin:
             try:
                 data = self.get_joined_data(filename)
             except IOError:
-                log.warning('%s file does not exists' % filename)
+                log.warning(' %s file does not exists' % filename)
+                continue
+            except IndexError:
+                log.warning(' %s file may be already joined. Skipping it.' % filename)
                 continue
 
             # Build header
