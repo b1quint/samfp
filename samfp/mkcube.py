@@ -143,6 +143,17 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     hdr.set('CR3_3', delta_z, 'Average increment in Z')
     hdr.set('C3_3', delta_z, 'Average increment in Z')
 
+    # Saving filenames in the header ---
+    hdr.add_history('Cube mounted using `mkcube`')
+    for i in range(z_array.size):
+        files = df[df['z'] == z_array[i]]['filename'].tolist()
+        for j in range(len(files)):
+            hdr.append(('CHAN_%03d' % (i + 1), files[j],
+                        'z = %+04d' % z_array[i]))
+    hdr.add_blank('', after='CHAN_%03d' % (i + 1))
+    hdr.add_blank('', before='CHAN_001')
+    hdr.add_blank('--- Channels and Files ---', before='CHAN_001')
+
     filename = output
     output = safesave(output, verbose=True)
 
