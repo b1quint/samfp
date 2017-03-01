@@ -2,32 +2,35 @@
 # -*- coding: utf8 -*-
 from __future__ import division, print_function
 
-__author__ = 'Bruno Quint'
-
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
-from astropy.visualization import LogStretch, ZScaleInterval
+from astropy.visualization import LogStretch, PercentileInterval
 from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.wcs import WCS
 from photutils import DAOStarFinder
 from photutils import CircularAperture
+from scipy import ndimage
+
+__author__ = 'Bruno Quint'
 
 
 def main():
 
-    path = '/home/bquint/Data/2016-11-29/RED'
-    filename = 'mzfSO2016B-015_1129.164.fits'
-    radius = 10
+    # Initial setup ---
+    path = '/Users/Bruno/PycharmProjects/samfp/sample_data/'
+    filename = 'mzfSO2016B-015_1129.140.fits'
+    radius = 15
     threshold = 5.
 
+    # Read data and blur it ---
     data = fits.getdata(os.path.join(path, filename))
-    header = fits.getheader(os.path.join(path, filename))
 
     # Read and fix header before using it ---
+    header = fits.getheader(os.path.join(path, filename))
     header['equinox'] = 2000.
     header['RADESYSa'] = header['RADECSYS']
     del header['RADECSYS']
@@ -80,7 +83,7 @@ def main():
     positions = (sources['xcentroid'], sources['ycentroid'])
     apertures = CircularAperture(positions, r=radius)
 
-    norm = ImageNormalize(interval=ZScaleInterval, stretch=LogStretch())
+    norm = ImageNormalize(interval=PercentileInterval(90), stretch=LogStretch())
     wcs = WCS(header)
     plt.subplot(111, projection=wcs)
     plt.imshow(data, norm=norm, origin='lower', cmap='gray')
