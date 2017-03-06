@@ -277,6 +277,7 @@ class PhaseMapFit:
         Z = np.polyval(p, R)
         Z = Z - Z[ref_y, ref_x]
 
+        h['PHMTYPE'] = 'parabola fit'
         fname = h['PHMREFF']
         fname = os.path.splitext(fname)[0]
         pyfits.writeto(fname + '--fit_phmap.fits', Z, h, clobber=True)

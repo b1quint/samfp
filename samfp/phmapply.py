@@ -206,10 +206,18 @@ def main():
         print(' Displacemente to be applied: {:d}'.format(imax - collapsed_cube.size // 2))
         data_cube.data = np.roll(data_cube.data, - (imax - collapsed_cube.size // 2), axis=0)
 
+    # Saving more information in the phase-corrected cube ---------------------
+    keys = ['PHMREFX', 'PHMREFY', 'PHMREFF', 'PHMTYPE', 'PHMUNIT', 'PHMFSR', 'PHMSAMP']
+    _ = [data_cube.header.append(key, phase_map.header[key]) for key in keys]
+
+    data_cube.header.add_history(
+        'Phase-map corrected using {:s}'.format(map_file)
+    )
+
     # Saving corrected data-cube ----------------------------------------------
     if v:
         print("\n Writing output to file %s." % out_file)
-    data_cube.writeto(out_file, clobber=True)
+    data_cube.writeto(out_file, overwrite=True)
     if v:
         print(" Done.")
         # noinspection PyUnboundLocalVariable
@@ -217,39 +225,6 @@ def main():
         print("\n Total time ellapsed: {0:02d}:{1:02d}:{2:02d}".format(
             int(end // 3600), int(end % 3600 // 60), int(end % 60)))
         print(" All done!\n")
-
-
-# Method shiftSpectrum ========================================================
-# def shiftSpectrum(spec, dz, n_points=100):
-#     dzSign = -np.sign(dz)
-#     dz = abs(dz)
-#     dz_points = int(dz * n_points)
-#     if dz_points is 0: return spec
-#
-#     # Get the spectrum from cube
-#     z = np.arange(spec.size)
-#     spline = UnivariateSpline(z, spec, s=0.0)
-#
-#     # Re-sample spectrum
-#     newZ = np.linspace(z[0], z[-1], z.size * n_points)
-#     newSpec = spline(newZ)
-#
-#     # Add padded borders
-#     newSpec = np.append(np.zeros(dz_points), newSpec)
-#     newSpec = np.append(newSpec, np.zeros(dz_points))
-#
-#     # Shifting spectrum
-#     newSpec = np.roll(newSpec, int(dzSign * dz_points))
-#
-#     # Cutting Spectrum
-#     newSpec = newSpec[dz_points:-dz_points]
-#
-#     # Down-sampling
-#     spline = UnivariateSpline(newZ, newSpec, s=0.0)
-#     spec = spline(z)
-#
-#     return spec
-
 
 # Method shift_spectrum ========================================================
 def shift_spectrum(spec, dz, fsr=-1, sample=1.0, n_points=100):
