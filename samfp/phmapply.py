@@ -207,9 +207,13 @@ def main():
         data_cube.data = np.roll(data_cube.data, - (imax - collapsed_cube.size // 2), axis=0)
 
     # Saving more information in the phase-corrected cube ---------------------
-    keys = ['PHMREFX', 'PHMREFY', 'PHMREFF', 'PHMTYPE', 'PHMUNIT', 'PHMFSR', 'PHMSAMP']
-    _ = [data_cube.header.append(key, phase_map.header[key]) for key in keys]
 
+    keys = ['PHMREFX', 'PHMREFY', 'PHMREFF', 'PHMTYPE', 'PHMUNIT', 'PHMFSR', 'PHMSAMP']
+    for k in keys:
+        data_cube.header.append(card=(k, phase_map.header[k]))
+
+    data_cube.header.add_blank(before=keys[0])
+    data_cube.header.add_blank('--- phmxtractor parameters ---', before=keys[0])
     data_cube.header.add_history(
         'Phase-map corrected using {:s}'.format(map_file)
     )
@@ -217,7 +221,12 @@ def main():
     # Saving corrected data-cube ----------------------------------------------
     if v:
         print("\n Writing output to file %s." % out_file)
-    data_cube.writeto(out_file, overwrite=True)
+
+    try:
+        data_cube.writeto(out_file, overwrite=True)
+    except TypeError:
+        data_cube.writeto(out_file, clobber=True)
+
     if v:
         print(" Done.")
         # noinspection PyUnboundLocalVariable

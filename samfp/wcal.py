@@ -12,11 +12,8 @@ import argparse
 import astropy.io.fits as pyfits
 import logging as log
 import numpy as np
-import time
 
 from scipy import signal
-from scipy import ndimage, stats
-from numpy import ma
 
 __author__ = 'Bruno Quint'
 
@@ -31,7 +28,7 @@ class WavelengthCalibration:
     """
     def __call__(self, filename, output=None):
         """
-        One this class is called, the 'run' method is invoked.
+        One this class is called, the 'main' method is invoked.
         Please, refer to its documentation for details.
 
         Parameters
@@ -178,12 +175,12 @@ class WavelengthCalibration:
         except KeyError:
             self.warn('%s card was not found in the header.' % key_gap_size)
             gap_size = input('Please, enter the FP nominal gap size in microns:'
-                             '\n > ')
+                             '\n >  ')
         except TypeError:
             self.warn('Header was not passed to "WCal.get_wavelength_step"'
                          ' method')
             gap_size = input('Please, enter the FP nominal gap size in microns:'
-                             '\n > ')
+                             '\n >  ')
 
         try:
             z_fsr = header[key_zfsr]
@@ -195,19 +192,19 @@ class WavelengthCalibration:
             log.warning('Header was not passed to "WCal.get_wavelength_step"'
                         ' method')
             z_fsr = input('Please, enter the Free-Spectral-Range in bcv:'
-                          '\n > ')
+                          '\n >  ')
 
         try:
             z_step = header[key_z_step]
         except KeyError:
             log.warning('%s card was not found in the header.' % key_z_step)
             z_step = input('Please, enter the step between channels in bcv'
-                           '\n > ')
+                           '\n >  ')
         except TypeError:
             log.warning('Header was not passed to "WCal.get_wavelength_step"'
                         ' method')
             z_step = input('Please, enter the step between channels in bcv'
-                           '\n > ')
+                           '\n >  ')
 
         gap_size = gap_size * 1e-6
         self.info('Gap size e = {:.1f} um'.format(gap_size * 1e6))
@@ -293,7 +290,14 @@ class WavelengthCalibration:
             output = filename.replace('.fits', '.wcal.fits')
 
         self.info('Writing output file: {:s}'.format(output))
-        writeto(output, data, hdr, clobber=True)
+
+        # Wrap-up to make sure that writeto will be available in the next
+        # versions
+        try:
+            writeto(output, data, hdr, overwrite=True)
+        except TypeError:
+            writeto(output, data, hdr, clobber=True)
+
 
         # Leaving the program ---
         self.info('Total ellapsed time: \n'
