@@ -1099,6 +1099,7 @@ class PeakFinder:
         return peak
 
 
+
 if __name__ == '__main__':
     log_fmt = MyLogFormatter()
     log_handler = logging.StreamHandler()
