@@ -735,7 +735,7 @@ class PhaseMapFP(PhaseMap):
             temp_y = self.data[:, y, ref_x]
 
             # Create a pool to find the Z position in each row/column
-            p = Pool(16)
+            p = Pool(1)
             px = PeakFinder(temp_x)
             py = PeakFinder(temp_y)
 
@@ -1090,7 +1090,12 @@ class PeakFinder:
         data = np.where(data > 0.70 * np.max(data), data, 0)
         n = int(data.shape[0] * 0.2)
         peaks = signal.argrelmax(data, axis=0, order=n)[0]
-        peak = np.min(peaks)
+
+        try:
+            peak = np.min(peaks)
+        except ValueError:
+            peak = 0
+
         return peak
 
 
