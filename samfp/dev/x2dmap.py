@@ -22,6 +22,7 @@ import astropy.io.fits as pyfits
 import numpy as np
 from astropy.modeling import models, fitting
 from scipy.signal import argrelmax
+from scipy.ndimage import median_filter
 
 __author__ = 'Bruno C. Quint'
 __date__ = '2016.08.09'
@@ -60,12 +61,12 @@ def main():
 
     # Perform the 2D-Map Extraction ---
     results = perform_2dmap_extraction(
-        args.filename, log, args.pool_size, gaussian=args.gaussian
+        args.filename, log, args.pool_size, args.algorithm
     )
 
     # Write the results to a FITS file ---
     write_results(
-        results, args.filename, args.output, gaussian=args.gaussian,
+        results, args.filename, args.output, args.algorithm,
         wavelength=args.wavelength
     )
 
@@ -79,7 +80,7 @@ def main():
     log.info('All done.')
 
 
-def perform_2dmap_extraction(_input_filename, log, n=4, gaussian=False):
+def perform_2dmap_extraction(_input_filename, log, n=4, algorithm='direct'):
     """
     Perform the 2D-Map extraction using `multiprocessing` and
     `astropy.modeling`.
@@ -127,14 +128,19 @@ def perform_2dmap_extraction(_input_filename, log, n=4, gaussian=False):
     # Load data ---
     log.info(' Loading data from: {0:s}'.format(_input_filename))
     header = pyfits.getheader(_input_filename)
-    x = np.arange(header['NAXIS1'])
-    y = np.arange(header['NAXIS2'])
+    x = np.arange(header['NAXIS1'], dtype=int)
+    y = np.arange(header['NAXIS2'], dtype=int)
 
     # Using astropy fitter and model ---
-    if gaussian:
+    if algorithm in 'direct':
+        fitter = DirectMeasure(_input_filename)
+    elif algorithm in 'lorentzian':
+        fitter = FitLorentzian(_input_filename)
+    elif algorithm in 'gaussian':
         fitter = FitGaussian(_input_filename)
     else:
-        fitter = FitLorentzian(_input_filename)
+        raise (IOError, 'Wrong algorithm input: {:s}'.format(algorithm))
+
     p = Pool(n)
     results = None
 
@@ -236,15 +242,16 @@ def parse_arguments():
                     "file. Each maps is saved in a different extension."
     )
     parser.add_argument(
+        '-a', '--algorithm', type=str, default='direct', nargs='?',
+        const='direct', help="Use [lorentzian|gaussian|direct] to find" +
+                             "the maps. 'direct' is the default"
+    )
+    parser.add_argument(
         '-d', '--debug', action='store_true',
         help="Enable debug mode."
     )
     parser.add_argument(
         'filename', type=str, help="Input data-cube name."
-    )
-    parser.add_argument(
-        '-g', '--gaussian', action="store_true",
-        help='Use a Gaussian fit instead of Lorentzian fit.'
     )
     parser.add_argument(
         '-o', '--output', default=None, type=str,
@@ -290,7 +297,8 @@ def stand_by(level=logging.NOTSET):
 
     return
 
-def write_results(_results, _input_file, _output_file, gaussian=False,
+
+def write_results(_results, _input_file, _output_file, algorithm='direct',
                   wavelength=None):
 
     """
@@ -344,10 +352,15 @@ def write_results(_results, _input_file, _output_file, gaussian=False,
     h2.append("M2_MEAN", np.mean(m2))
     h2.append("M2_STDEV", np.std(m2))
 
-    if gaussian:
+    # Using astropy fitter and model ---
+    if algorithm in 'direct':
+        i = 'D'
+    elif algorithm in 'lorentzian':
+        i = 'L'
+    elif algorithm in 'gaussian':
         i = 'G'
     else:
-        i = 'L'
+        raise (IOError, 'Wrong algorithm input: {:s}'.format(algorithm))
 
     if wavelength is not None:
 
@@ -378,22 +391,33 @@ def write_results(_results, _input_file, _output_file, gaussian=False,
         )
 
     else:
-        if gaussian:
+        if algorithm in 'direct':
             HDUl = pyfits.HDUList()
             HDUl.append(pyfits.PrimaryHDU(header))
-            HDUl.append(pyfits.ImageHDU(data=m0, name='Gaussian_Peak'))
-            HDUl.append(pyfits.ImageHDU(data=m1, name='Gaussian_Center',
+            HDUl.append(pyfits.ImageHDU(data=m0, name='Direct_Peak'))
+            HDUl.append(pyfits.ImageHDU(data=m1, name='Center',
                                         header=h1))
-            HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV',
+            HDUl.append(pyfits.ImageHDU(data=m2, name='STDDEV',
                                         header=h2))
             HDUl.writeto(_output_file, overwrite=True)
-        else:
+
+        elif algorithm in 'lorentzian':
             HDUl = pyfits.HDUList()
             HDUl.append(pyfits.PrimaryHDU(header))
             HDUl.append(pyfits.ImageHDU(data=m0, name='Lorentzian_Peak'))
             HDUl.append(pyfits.ImageHDU(data=m1, name='Lorentzian_Center',
                                         header=h1))
             HDUl.append(pyfits.ImageHDU(data=m2, name='Lorentzian_STDDEV',
+                                        header=h2))
+            HDUl.writeto(_output_file, overwrite=True)
+
+        elif algorithm in 'gaussian':
+            HDUl = pyfits.HDUList()
+            HDUl.append(pyfits.PrimaryHDU(header))
+            HDUl.append(pyfits.ImageHDU(data=m0, name='Gaussian_Peak'))
+            HDUl.append(pyfits.ImageHDU(data=m1, name='Gaussian_Center',
+                                        header=h1))
+            HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV',
                                         header=h2))
             HDUl.writeto(_output_file, overwrite=True)
 
@@ -485,11 +509,13 @@ class FitLorentzian:
         del h
 
         std = np.std(s)
-        arg_max = argrelmax(s, axis=0, order=5, mode='wrap')[0]
+        temp_s = median_filter(s, 5)
+
+        arg_max = argrelmax(temp_s, axis=0, order=5, mode='wrap')[0]
         arg_max = arg_max[s[arg_max] > 2 * std]
 
         if len(arg_max) == 0:
-            return [0, 0, 0]
+            return [-np.inf, -np.inf, -np.inf]
 
         amplitude = s[arg_max]
         x_0 = self._z[arg_max]
@@ -500,6 +526,71 @@ class FitLorentzian:
         l = fitter(l, self._z, s)
 
         return [l.amplitude.value, l.x_0.value, l.fwhm.value]
+
+
+class DirectMeasure:
+    def __init__(self, filename):
+        """
+        Parameter
+        ---------
+            filename : str
+                Relative or absolute path to the file that contains a data-cube
+                from where the 2D maps will be extracted through gaussian
+                fitting.
+        """
+        self._filename = filename
+
+    def __call__(self, indexes):
+        """
+        Parameter
+        ---------
+            indexes : tuple
+                Contains two integers that correspond to the X and Y indexes
+                that will be used to extract the spectrum from the data-cube and
+                fits a gaussian to this extracted spectrum.
+        Returns
+        -------
+            results : list
+                A list containing the numerical values of the three gaussian
+                parameters met in the fitting processes `peak`, `mean` and
+                `stddev`.
+        """
+        i, j = indexes
+        data = pyfits.getdata(self._filename, memmap=True)
+        s = data[:, j, i]
+
+        h = pyfits.getheader(self._filename)
+        self._z = \
+            (np.arange(s.size) - h['CRPIX3'] - 1) * h['CDELT3'] + h['CRVAL3']
+
+        del data
+        del h
+
+        std = np.std(s)
+        temp_s = median_filter(s, 5)
+
+        arg_max = argrelmax(temp_s, axis=0, order=5, mode='wrap')[0]
+        arg_max = arg_max[s[arg_max] > 2 * std]
+
+        if len(arg_max) == 0:
+            return [0, 0, 0]
+
+        # Calculate center using barycenter ---
+        s -= np.median(s)
+        p = s / s.sum()
+        x_0 = np.sum(self._z * p)
+
+        # Calculate dispersion ---
+        if np.sum((self._z - x_0) ** 2 * p) < 0:
+            return [0, 0, 0]
+
+        stddev = np.sqrt(np.sum((self._z - x_0) ** 2 * p))
+
+        # Calculate the amplitude ---
+        cond = np.where(np.abs(self._z - x_0) <= stddev, True, False)
+        amp = np.sum(s[cond])
+
+        return [amp, x_0, stddev]
 
 
 if __name__ == '__main__':
