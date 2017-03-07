@@ -512,18 +512,23 @@ class FitLorentzian:
         temp_s = median_filter(s, 5)
 
         arg_max = argrelmax(temp_s, axis=0, order=5, mode='wrap')[0]
-        arg_max = arg_max[s[arg_max] > 2 * std]
+        # arg_max = arg_max[s[arg_max] > 2 * std]
 
         if len(arg_max) == 0:
-            return [-np.inf, -np.inf, -np.inf]
+            return [0, 0, 0]
+        elif len(arg_max) > 1:
+            arg_max = arg_max[0]
 
         amplitude = s[arg_max]
         x_0 = self._z[arg_max]
 
         l = models.Lorentz1D(
-            amplitude=amplitude, x_0=x_0, fwhm=2.0)
+            amplitude=amplitude, x_0=x_0, fwhm=5.0)
         fitter = fitting.LevMarLSQFitter()
         l = fitter(l, self._z, s)
+
+        if  fitter.fit_info['ierr'] not in [1, 2, 3, 4]:
+            return [-1000, -1000, -1000]
 
         return [l.amplitude.value, l.x_0.value, l.fwhm.value]
 
@@ -572,11 +577,10 @@ class DirectMeasure:
         arg_max = argrelmax(temp_s, axis=0, order=5, mode='wrap')[0]
         arg_max = arg_max[s[arg_max] > 2 * std]
 
-        if len(arg_max) == 0:
+        if len(arg_max) != 1:
             return [0, 0, 0]
 
         # Calculate center using barycenter ---
-        s -= np.median(s)
         p = s / s.sum()
         x_0 = np.sum(self._z * p)
 
@@ -584,7 +588,8 @@ class DirectMeasure:
         if np.sum((self._z - x_0) ** 2 * p) < 0:
             return [0, 0, 0]
 
-        stddev = np.sqrt(np.sum((self._z - x_0) ** 2 * p))
+        p += p.min()
+        stddev = np.sqrt(np.sum((self._z - x_0) ** 2 * p) / p.sum())
 
         # Calculate the amplitude ---
         cond = np.where(np.abs(self._z - x_0) <= stddev, True, False)
