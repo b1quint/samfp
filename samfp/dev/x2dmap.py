@@ -21,8 +21,7 @@ from multiprocessing import Pool, Process
 import astropy.io.fits as pyfits
 import numpy as np
 from astropy.modeling import models, fitting
-from scipy.signal import argrelmax
-from scipy.ndimage import median_filter
+from scipy.stats import mode as stats_mode
 
 __author__ = 'Bruno C. Quint'
 __date__ = '2016.08.09'
@@ -144,7 +143,7 @@ def perform_2dmap_extraction(_input_filename, log, n=4, algorithm='direct'):
     p = Pool(n)
     results = None
 
-    log.info(' Extracting 2D Maps...'.format(_input_filename))
+    log.info(' Extracting 2D Maps using: {:s}'.format(algorithm))
     loading = Process(target=stand_by, name="stand_by", args=[log.level])
     loading.start()
     try:
@@ -153,6 +152,8 @@ def perform_2dmap_extraction(_input_filename, log, n=4, algorithm='direct'):
         log.info('\n\nYou pressed Ctrl+C!')
         log.info('Leaving now. Bye!\n')
         pass
+    p.close()
+    p.join()
     loading.terminate()
 
     return np.array(results)
@@ -379,15 +380,15 @@ def write_results(_results, _input_file, _output_file, algorithm='direct',
 
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m0.fits'.format(i)), data=m0,
-            header=header, overwrite=True
+            header=header, clobber=True
         )
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m1.fits'.format(i)), data=m1,
-            header=h1, overwrite=True
+            header=h1, clobber=True
         )
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m2.fits'.format(i)), data=m2,
-            header=h2, overwrite=True
+            header=h2, clobber=True
         )
 
     else:
@@ -399,7 +400,7 @@ def write_results(_results, _input_file, _output_file, algorithm='direct',
                                         header=h1))
             HDUl.append(pyfits.ImageHDU(data=m2, name='STDDEV',
                                         header=h2))
-            HDUl.writeto(_output_file, overwrite=True)
+            HDUl.writeto(_output_file, clobber=True)
 
         elif algorithm in 'lorentzian':
             HDUl = pyfits.HDUList()
@@ -409,7 +410,7 @@ def write_results(_results, _input_file, _output_file, algorithm='direct',
                                         header=h1))
             HDUl.append(pyfits.ImageHDU(data=m2, name='Lorentzian_STDDEV',
                                         header=h2))
-            HDUl.writeto(_output_file, overwrite=True)
+            HDUl.writeto(_output_file, clobber=True)
 
         elif algorithm in 'gaussian':
             HDUl = pyfits.HDUList()
@@ -419,7 +420,7 @@ def write_results(_results, _input_file, _output_file, algorithm='direct',
                                         header=h1))
             HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV',
                                         header=h2))
-            HDUl.writeto(_output_file, overwrite=True)
+            HDUl.writeto(_output_file, clobber=True)
 
 
 class FitGaussian:
@@ -461,10 +462,22 @@ class FitGaussian:
         del data
         del h
 
-        g = models.Gaussian1D(
-            amplitude=s.max(), mean=self._z[s.argmax()], stddev=2.0)
+        channel = np.arange(self._z.size)
+        arg_max = (channel * s).sum() / s.sum()
+        arg_max = round(arg_max, 0)
+        arg_max = int(arg_max)
+        arg_max = min(arg_max, 0)
+        arg_max = max(arg_max, self._z.size - 1)
+
+        amp = s[arg_max]
+        avg = self._z[arg_max]
+
         fitter = fitting.LevMarLSQFitter()
+        g = models.Gaussian1D(amplitude=amp, mean=avg, stddev=2.0)
         g = fitter(g, self._z, s)
+
+        if  fitter.fit_info['ierr'] not in [1, 2, 3, 4]:
+            return [np.nan, np.nan, np.nan]
 
         return [g.amplitude.value, g.mean.value, g.stddev.value]
 
@@ -508,27 +521,22 @@ class FitLorentzian:
         del data
         del h
 
-        std = np.std(s)
-        temp_s = median_filter(s, 5)
-
-        arg_max = argrelmax(temp_s, axis=0, order=5, mode='wrap')[0]
-        # arg_max = arg_max[s[arg_max] > 2 * std]
-
-        if len(arg_max) == 0:
-            return [0, 0, 0]
-        elif len(arg_max) > 1:
-            arg_max = arg_max[0]
+        channel = np.arange(self._z.size)
+        arg_max = (channel * s).sum() / s.sum()
+        arg_max = round(arg_max, 0)
+        arg_max = int(arg_max)
+        arg_max = min(arg_max, 0)
+        arg_max = max(arg_max, self._z.size - 1)
 
         amplitude = s[arg_max]
         x_0 = self._z[arg_max]
 
-        l = models.Lorentz1D(
-            amplitude=amplitude, x_0=x_0, fwhm=5.0)
         fitter = fitting.LevMarLSQFitter()
+        l = models.Lorentz1D(amplitude=amplitude, x_0=x_0, fwhm=5.0)
         l = fitter(l, self._z, s)
 
         if  fitter.fit_info['ierr'] not in [1, 2, 3, 4]:
-            return [-1000, -1000, -1000]
+            return [np.nan, np.nan, np.nan]
 
         return [l.amplitude.value, l.x_0.value, l.fwhm.value]
 
@@ -571,31 +579,22 @@ class DirectMeasure:
         del data
         del h
 
-        std = np.std(s)
-        temp_s = median_filter(s, 5)
-
-        arg_max = argrelmax(temp_s, axis=0, order=5, mode='wrap')[0]
-        arg_max = arg_max[s[arg_max] > 2 * std]
-
-        if len(arg_max) != 1:
-            return [0, 0, 0]
-
         # Calculate center using barycenter ---
         p = s / s.sum()
         x_0 = np.sum(self._z * p)
 
         # Calculate dispersion ---
-        if np.sum((self._z - x_0) ** 2 * p) < 0:
-            return [0, 0, 0]
 
-        p += p.min()
-        stddev = np.sqrt(np.sum((self._z - x_0) ** 2 * p) / p.sum())
+        p_min = np.abs(p.min())
+        p += p_min
+        stddev = np.sqrt(np.sum((self._z - x_0) ** 2 * p))
 
         # Calculate the amplitude ---
+        p -= p_min
         cond = np.where(np.abs(self._z - x_0) <= stddev, True, False)
-        amp = np.sum(s[cond])
+        flux = np.sum(s[cond])
 
-        return [amp, x_0, stddev]
+        return [flux, x_0, stddev]
 
 
 if __name__ == '__main__':

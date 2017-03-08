@@ -7,14 +7,13 @@
 """
 from __future__ import division, print_function
 
+import astropy.visualization as viz
 import datetime
 import logging
 import matplotlib.pyplot as plt
 
 from astropy.io import fits as pyfits
-from astropy.visualization import PercentileInterval
-from astropy.visualization import LinearStretch
-from astropy.visualization.mpl_normalize import ImageNormalize
+from astropy import visualization as viz
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 __author__ = 'Bruno C. Quint'
@@ -48,7 +47,11 @@ def main():
     log.debug(' [{0}] Script Start'.format(tstart.strftime('%H:%M:%S')))
 
     show_image(
-        args.filename, cmap=args.colormap, show=args.show, title=args.title
+        args.filename,
+        cmap=args.colormap,
+        show=args.show,
+        title=args.title,
+        output=args.output
     )
 
     # Now I am good. The script is already done ---
@@ -121,6 +124,10 @@ def parse_arguments():
         help="Enable debug mode."
     )
     parser.add_argument(
+        '-o', '--output', nargs='?', type=str, const="",
+        help="Number of the output file. Keeps the same name if none is given."
+    )
+    parser.add_argument(
         '-q', '--quiet', action='store_true',
         help="Run program quietly. true/[FALSE]"
     )
@@ -128,16 +135,32 @@ def parse_arguments():
         '-s', '--show', action='store_true',
         help="Show image."
     )
+    # parser.add_argument(
+    #     '-S', '--Strech', default=None, type=str,
+    #     help="Type of image strech."
+    # )
     parser.add_argument(
         '-t', '--title', default=None, type=str,
         help="Set image title."
     )
+    parser.add_argument(
+        '--units', type=str, default=None,
+        help="Image units to be changed manually"
+    )
+    # parser.add_argument(
+    #     '--vmax', type=float, default=None,
+    #     help="Maximum value to be shown"
+    # )
+    # parser.add_argument(
+    #     '--vmin', type=float, default=None,
+    #     help="Minimul value to be shown"
+    # )
     args = parser.parse_args()
 
     return args
 
 
-def show_image(filename, cmap=None, show=True, title=None):
+def show_image(filename, cmap=None, output=None, show=True, title=None):
     """
     Shows the 2D image.
 
@@ -170,12 +193,16 @@ def show_image(filename, cmap=None, show=True, title=None):
     else:
         units = '--'
 
+    units = 'counts'
+
     if title is None:
         title = ''
 
-    norm = ImageNormalize(
-        stretch=LinearStretch()
-    )
+    norm = viz.ImageNormalize(
+        d,
+        stretch=viz.LinearStretch(),
+        interval=viz.PercentileInterval(0.99)
+        )
 
     config = {
         'cmap': cmap,
@@ -198,10 +225,19 @@ def show_image(filename, cmap=None, show=True, title=None):
     cbar = plt.colorbar(im, cax=cax)
     cbar.set_label('[{:s}]'.format(units))
 
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
     fig.tight_layout()
 
     if show:
         plt.show()
+
+    if output == "":
+        plt.savefig(filename.replace('.fits', '.png'))
+    elif output is None:
+        pass
+    else:
+        plt.savefig(output)
 
 
 if __name__ == '__main__':
