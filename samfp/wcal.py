@@ -103,7 +103,7 @@ class WavelengthCalibration:
         data = data.sum(axis=1)
         data = np.where(data < 0.75 * data.max(), 0, data)
         peaks = signal.argrelmax(data, axis=0, order=5)[0]
-        self.debug('Encountered {:d} peaks: '.format(len(peaks)))
+        self.info('Encountered {:d} peaks: '.format(len(peaks)))
 
         peaks_values = data[peaks]
         max_peaks_arg = np.argmax(peaks_values)
