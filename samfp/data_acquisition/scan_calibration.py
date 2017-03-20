@@ -6,6 +6,9 @@ from __future__ import print_function
 import socket
 import sys
 
+HOST = "soarhrc.ctio.noao.edu"
+PORT = 8888
+
 
 def send_command(command):
     """
@@ -20,8 +23,8 @@ def send_command(command):
     message (string) : the response from the plugin.
     """
 
-    HOST = "soarhrc.ctio.noao.edu"
-    PORT = 8888
+    global HOST
+    global PORT
 
     s = None
     for res in socket.getaddrinfo(HOST, PORT, socket.AF_UNSPEC, socket.SOCK_STREAM):
@@ -42,13 +45,95 @@ def send_command(command):
         print('could not open socket')
         sys.exit(1)
     s.sendall(command)
-    data = s.recv(1024)
+    message = s.recv(1024)
     s.close()
-    print('Received', repr(data))
+
+    return message
+
+
+def set_comment(comment):
+    """
+    Add a comment to the header. This will be stored in the keyword
+     NOTES.
+
+    Parameters
+    ----------
+    target_name (string) : any comment to be added to the FITS header.
+
+    Returns
+    -------
+    message (string) : DONE if successful.
+    """
+    message = send_command('dhe set image.comment {:s}'.format(comment))
+    return message
+
+
+def set_image_type(image_type):
+    """
+    Set the image type that will be acquired. SAMI accepts several
+    arguments but since I do not know then, here I will fix this to
+    "object".
+
+    Parameters
+    ----------
+    image_type (string) : the image type [DARK|DFLAT|OBJECT|SFLAT|ZERO]
+
+    Returns
+    -------
+    message (string) : DONE if successful.
+    """
+    message = send_command('dhe set image.comment {:s}'.format(image_type))
+    return message
+
+
+def set_path(path):
+    """
+    Set the path to where the images will be saved in SAMI's computer.
+
+    Parameters
+    ----------
+    path (string) : the path
+
+    Returns
+    -------
+    message (string) : DONE if successful.
+    """
+    # TODO - Check if remote path exists
+    message = send_command('dhe set image.dir {:s}'.format(path))
+    return message
+
+
+def set_target_name(target_name):
+    """
+    Set the target name on SAMI's GUI. If the target name has any space it
+    will be replaced by an underscore (_). This information will be stored
+    in the FITS header within the key OBJECT.
+
+    Parameters
+    ----------
+    target_name (string) : the target name
+
+    Returns
+    -------
+    message (string) : DONE if successful.
+    """
+    target_name = target_name.replace(" ", "_")
+    message = send_command('dhe set image.title {:s}'.format(target_name))
+
+    return message
 
 
 if __name__ == "__main__":
 
-    send_command('dhe set image.type object')
-    send_command('dhe set image.title Ne-Lamp')
-    send_command('dhe set image.comment My Comment')
+    msg = set_path("xxx")
+    print(msg)
+
+    msg = set_image_type("object")
+    print(msg)
+
+    msg = set_target_name("Ne Lamp")
+    print(msg)
+
+    msg = set_comment("Cube for calibration")
+    print(msg)
+
