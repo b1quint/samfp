@@ -64,7 +64,7 @@ INITIALISATION OF THE TWO SCRIPT FILES
     """ 2) INITIALISATION OF THE RUNNING DIRECTORY """
 
     #dirtime = time.strftime('%Y%m%d')
-    dirtime = "20160930"
+    dirtime = "20170301"
     if interactive:
         print("\n Data of the observing run. ")
         print(" The date of the run (e.g. 20150130) will be automatically added to the address of the directory you will give now")
@@ -79,12 +79,13 @@ INITIALISATION OF THE TWO SCRIPT FILES
         print(dirtime)
         running = input("\n Give the running directory name where you will put and run the script (e.g. 001): ")
         #running="012"
-        sdir = "/home2/images/" + dirtime + '/' + running
+        sdir = "/home2/images/%s/%03d" % (dirtime, running)
+    print(" Saving new files to: \n %s" % sdir)
 
     """ 3) SCRIPT TO RUN TO COPY THE SCANNING SCRIPT FROM MY COMPUTER TO BTFI COMPUTER """
 
     tt = running
-    ttsh = tt+'.sh'
+    ttsh = '%03d.sh' % tt
     Fichier = open(ttsh,'w')
     Fichier.write("#!/bin/csh -f\n\n")
     Fichier0 = open('scpbtfidr.sh','w')
