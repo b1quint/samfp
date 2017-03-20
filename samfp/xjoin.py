@@ -115,7 +115,8 @@ class SAMI_XJoin:
 
     def __init__(self, bias_file=None, clean=False,
                  cosmic_rays=False, dark_file=None, debug=False,
-                 flat_file=None, glow_file=None, time=False, verbose=False):
+                 flat_file=None, glow_file=None, norm_flat=False,
+                 time=False, verbose=False):
 
         self.set_verbose(verbose)
         self.set_debug(debug)
@@ -125,6 +126,7 @@ class SAMI_XJoin:
         self.cosmic_rays = cosmic_rays
         self.dark_file = dark_file
         self.flat_file = flat_file
+        self.norm_flat = norm_flat
         self.glow_file = glow_file
         self.time = time
 
@@ -446,7 +448,8 @@ class SAMI_XJoin:
 
         if flat_file is not None:
             flat = _pyfits.getdata(flat_file)
-            data /=  _normalize_data(flat)
+            #data /=  _normalize_data(flat)
+            data /= flat
             header['FLATFILE'] = flat_file
             header.add_history('Flat normalized')
             prefix = 'f' + prefix
@@ -739,7 +742,7 @@ class SAMI_XJoin:
             header.add_history('Extensions joined using "sami_xjoin"')
             path, filename = split(filename)
             _pyfits.writeto(join(path, prefix + filename), data,
-                            header, clobber=True)
+                            header, overwrite=True)
 
         log.info("\n All done!")
 
@@ -924,13 +927,29 @@ class SAMI_XJoin:
         log.info(' Processing data')
         list_of_files = sorted(list_of_files)
 
+        if self.norm_flat and (self.flat_file is not None):
+            log.info(" Normalizing flat")
+
+            flat_hdr = _pyfits.getheader(self.flat_file)
+            flat = _pyfits.getdata(self.flat_file)
+            flat = _normalize_data(flat)
+
+            self.flat_file = self.flat_file.replace('.fits', '_n.fits')
+
+            _pyfits.writeto(self.flat_file, flat, flat_hdr, overwrite=True)
+            log.info(" Done\n")
+
+
         for filename in list_of_files:
 
             # Get joined data
             try:
                 data = self.get_joined_data(filename)
             except IOError:
-                log.warning('%s file does not exists' % filename)
+                log.warning(' %s file does not exists' % filename)
+                continue
+            except IndexError:
+                log.warning(' %s file may be already joined. Skipping it.' % filename)
                 continue
 
             # Build header
@@ -950,7 +969,7 @@ class SAMI_XJoin:
             header.add_history('Extensions joined using "sami_xjoin"')
             path, filename = split(filename)
             _pyfits.writeto(join(path, prefix + filename), data,
-                            header, clobber=True)
+                            header, overwrite=True)
 
         log.info("\n All done!")
 
@@ -1027,6 +1046,8 @@ def _parse_arguments():
                         help="Turn on DEBUG mode (overwrite quiet mode).")
     parser.add_argument('-f', '--flat', type=str, default=None,
                         help="Consider FLAT file for division.")
+    parser.add_argument('-n', '--norm', action='store_false',
+                        help="FLAT already normalized.")
     parser.add_argument('-g', '--glow', type=str, default=None,
                         help="Consider DARK file to correct lateral glows.")
     parser.add_argument('-q', '--quiet', action='store_true',
@@ -1047,7 +1068,8 @@ if __name__ == '__main__':
     xjoin = SAMI_XJoin(
         bias_file=pargs.bias, clean=pargs.clean, cosmic_rays=pargs.rays,
         dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,
-        glow_file=pargs.glow, time=pargs.exptime, verbose=not pargs.quiet
+        glow_file=pargs.glow, norm_flat=pargs.norm,
+        time=pargs.exptime, verbose=not pargs.quiet
     )
 
     xjoin.run(pargs.files)

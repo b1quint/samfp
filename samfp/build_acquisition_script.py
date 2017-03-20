@@ -1,17 +1,16 @@
 #!/usr/bin/env python
-#import math
-#math.pi
-import scipy
+
 import scipy.constants as const
 import time
-import datetime
+import os
 import sys
 
 """
-    
+
     THIS PROGRAM COMPUTE A SCANNING SEQUENCE FOR PF/SAM/SOAR
     Philippe Amram
-    last update: 2015, March, 19
+    previous update: 2015, March, 19
+    last update: 2016, September, 30
 
 
 NOTATIONS:
@@ -19,49 +18,59 @@ NOTATIONS:
     gap = the maximum tuning gap
     QGC = Queensgate Constant
     BCV = Binary Control Value
-    
+
     INTERACTIVE
     In interactive mode, interactive = True, in non-interactive mode, interactive = False
 """
 
-print("\n{}".format("-"*100))
-print("\n WELCOME ! ")
-#print(time.gmtime())
-print("    ",time.strftime('%a, %d %b %Y %H:%M:%S GMT'))
-print("\n     This program prepares your script to run on FP/SAMI")
-#print("\n     START OF THE PROGRAM")
-
-#interactive = True
+# Script Configuration --------------------------------------------------------
 interactive = False
 
+# Choose 1 for the Low-Resolution FP p = 134
+# or 2 for the High-Resolution FP p = 609.
+# Only for non-interactive mode.
+which_fp = 2
+
+# Free Spectral Range in BCV units
+free_spectral_range_bcv = 360.
+
+# Source gas
+source = 'Ne'
+
+
+
+# Main Function ---------------------------------------------------------------
 def main():
 
-    """
-   
-CONSTANTS
-   
-    """
-    #celerite_plus=const.physical_constants["speed of light in vacuum"]
-    celerite    = const.physical_constants["speed of light in vacuum"][0] / 1000.       # in km/s
-    #print("celerite = ",celerite)
-    #celerite    = 299792.458
+    global lamb, gap_size
+    print(
+        "\n{}".format("-" * 100) +
+        "\n WELCOME ! " +
+        "{}".format(time.strftime('%a, %d %b %Y %H:%M:%S GMT')) +
+        "\n     This program prepares your script to run on FP/SAMI"
+    )
 
-    lamb_halpha = 6562.78
-    lamb_Ne     = 6598.9529
-    bcv_max     = 4095    # 4096 value starting from 0 up to 4095
+    # CONSTANTS --------------------------------------------------------------
 
-    """
-    
-INITIALISATION OF THE TWO SCRIPT FILES
-    
-    """
+    light_speed = const.physical_constants["speed of light in vacuum"][0]
+    light_speed /= 1000 # convert from m/s to km/s
 
-    """ 1) INITIALISATION OF THE SCANNING SCRIPT """
+    wavelength = {
+        'Ha': 6562.78,
+        'SIIf': 6716.47,
+        'SIIF': 6730.85,
+        'NIIf': 6548.03,
+        'NIIF': 6583.41,
+        'Ne': 6598.9529
+    }
 
+    bcv_max = 4095    # 4096 value starting from 0 up to 4095
+
+    # INITIALISATION OF THE TWO SCRIPT FILES ---------------------------------
+    # 1) INITIALISATION OF THE SCANNING SCRIPT
     tt = time.strftime('%Y-%m-%dT%Hh%Mm%Ss')
-    #time.struct_time(tm_year=2015, tm_mon=1, tm_mday=28, tm_hour=19, tm_min=1, tm_sec=11, tm_wday=2, tm_yday=28, tm_isdst=0)
 
-    """ 2) INITIALISATION OF THE RUNNING DIRECTORY """
+    # 2) INITIALISATION OF THE RUNNING DIRECTORY
 
     #dirtime = time.strftime('%Y%m%d')
     dirtime = "20170301"
@@ -78,20 +87,21 @@ INITIALISATION OF THE TWO SCRIPT FILES
     else:
         print(dirtime)
         running = input("\n Give the running directory name where you will put and run the script (e.g. 001): ")
-        #running="012"
-        sdir = "/home2/images/%s/%03d" % (dirtime, running)
-    print(" Saving new files to: \n %s" % sdir)
+        if type(running) in [int, float]:
+            running = "{:03d}".format(running)
+
+        sdir = os.path.join("/home2/images/SAMFP/", dirtime, running)
 
     """ 3) SCRIPT TO RUN TO COPY THE SCANNING SCRIPT FROM MY COMPUTER TO BTFI COMPUTER """
 
     tt = running
-    ttsh = '%03d.sh' % tt
+    ttsh = tt+'.sh'
     Fichier = open(ttsh,'w')
     Fichier.write("#!/bin/csh -f\n\n")
     Fichier0 = open('scpbtfidr.sh','w')
     Fichier0.write("#!/bin/csh -f\n\n")
     #    Fichier0.write("sshpass -p \"btfi88\" scp {} btfidr@139.229.18.227:/data/{}/{}/\n".format(ttsh,dirtime,running))
-    Fichier0.write("sshpass -p \"btfi88\" scp {} btfidr@139.229.18.227:/data/{}/\n".format(ttsh,dirtime))
+    Fichier0.write("sshpass -p \"btfi88\" scp {} btfidr@139.229.18.227:/data/{}/scripts/\n".format(ttsh,dirtime))
     # btfidr@btfidr:/home2/images/20150317
     Fichier0.close()
 
@@ -101,7 +111,6 @@ FABRY-PEROT TO USE
     
     """
 
-    #dico0 = {'FP':["Thickness =  44 microns; tunable gap = 2 microns; p=134 @ Halpha","Thickness = 200 microns; tunable gap = 2 microns; p=609 @ Halpha"]}
     dico0 = {}
     dico0[1,1] = "Thickness =  44 microns; tunable gap = 2 microns; p=134 @ Halpha"
     dico0[1,2] = "Thickness = 200 microns; tunable gap = 2 microns; p=609 @ Halpha"
@@ -110,9 +119,10 @@ FABRY-PEROT TO USE
         print("\n Please, input the name of the Fabry-Perot you wanted to use: ")
         print("      For TF ({}) put (1) ".format(dico0[1,1]))
         print("      For PF ({}) put (2) ".format(dico0[1,2]))
-        pftf = int(input(" Your choise : "))
+        pftf = int(input(" Your choice : "))
+
     else:
-        pftf = 2
+        pftf = which_fp
 
     if pftf > 2:
         print("      Sorry, you input a value not allowed, choose between (1) and (2), please restart ")
@@ -127,9 +137,11 @@ FABRY-PEROT TO USE
 #epais = p_order * lamb*1e-4 /2
 
     if pftf == 1:
-        epais = 44.
-    if pftf == 2:
-        epais = 200.
+        gap_size = 44.
+        
+    elif pftf == 2:
+        gap_size = 200.
+
 
     """
     
@@ -139,41 +151,38 @@ CALIBRATION OR OBSERVATION
 
     if interactive:
         calibration = int(input("\n Please, input if you make a calibration (0) or an observation (1): "))
-        #calibration = 0
+
         if calibration == 0:
-            lamb = lamb_Ne # Ne I
+            lamb = wavelength['Ne']
             print("     The wavelength of the Neon line will be: {:g}".format(lamb))
     else:
         calibration = int(input("\n Please, input if you make a calibration (0) or an observation (1): "))
-        #calibration = 1
 
     if calibration > 1:
         print("      Sorry, you input a value not allowed, choose between (1) and (2), please restart ")
         sys.exit(0)
                               
     if interactive:
+
         if calibration == 0:
             print("     You requested a calibration.")
-            lamb = lamb_Ne
-        if calibration == 1:
-            print("     You resqueted an observation.")
-            #lamb = lamb_halpha
-            print("\n You have to give the wavelength at rest of the line you will observe.")
-            lamb = float(input(" Please, input this wavelength (in Angstrom, it should be a float, e.g. Hapha = 6562.78) : "))
-            #lamb = lamb_halpha
+            lamb = wavelength['Ne']
 
-    if not interactive:
+        else:
+            print(
+                "\n You resqueted an observation."
+                "\n You have to give the wavelength at rest of the line you will observe."
+            )
+            temp = input("\n > ")
+            lamb = float(temp)
+
+    else:
+
         if calibration == 0:
-            lamb = lamb_Ne # Ne I
-            #lamb = 5460.742 # Green Hg
-            #lamb = 4358.343 # Indigo Hg
-            #lamb = 6506.5281 # Ne I
-            #lamb = 6532.8822 # Ne I
-        if calibration == 1:
-            #lamb = 6590.4
-            #lamb = 6571.64
-            lamb = lamb_halpha
-            #lamb = 7000.
+            lamb = wavelength['Ne']
+
+        else:
+            lamb = wavelength[source]
 
     if lamb < 0:
         print("      Sorry, you input a value not allowed because {} should be greater than 0, please restart ".format(lamb))
@@ -195,8 +204,6 @@ CALIBRATION OR OBSERVATION
             print("     Your input is: {} ".format(object_name))
             vitesse = float(input("\n Please, input the radial velocity of the galaxy (in km/s): "))
             print("     Your input is: {} km/s".format(vitesse))
-            #object_name = "Cartwheel"
-            #vitesse = 9050 # km/s
 
     """
     
@@ -213,20 +220,20 @@ INITIAL PARAMETER COMPUTATION
         porder = 2. * ee * 1E+4 / ll
         return porder
         
-    lamb = (vitesse / celerite + 1) * lamb_rest
+    lamb = (vitesse / light_speed + 1) * lamb_rest
 
-    p_order         = P_ORDER(epais,lamb)
-    p_order_halpha  = P_ORDER(epais,lamb_halpha)
-    p_order_Ne      = P_ORDER(epais,lamb_Ne)
+    p_order = P_ORDER(gap_size, lamb)
+    p_order_halpha = P_ORDER(gap_size, wavelength['Ha'])
+    p_order_Ne = P_ORDER(gap_size, wavelength['Ne'])
 
-    p_order0        = int(p_order)
-    e_fsr           = epais /p_order
+    p_order0 = int(p_order)
+    e_fsr = gap_size /p_order
 
-    fsr_lamb        = ISL(lamb,p_order)
-    fsr_lamb_Ne     = ISL(lamb_Ne,p_order_Ne)
-    fsr_lamb_Ha     = ISL(lamb_halpha,p_order_halpha)
+    fsr_lamb = ISL(lamb,p_order)
+    fsr_lamb_Ne = ISL(wavelength['Ne'], p_order_Ne)
+    fsr_lamb_Ha = ISL(wavelength['Ha'], p_order_halpha)
 
-    fsr_kms         = celerite * fsr_lamb / lamb
+    fsr_kms = light_speed * fsr_lamb / lamb
 
     Fichier.write("# General parameters:\n")
     Fichier.write("#      - You requested to use the following FP: {} \n".format(dico0[1,pftf]))
@@ -241,12 +248,12 @@ INITIAL PARAMETER COMPUTATION
     if calibration == 1 :
         Fichier.write("#      - The wavelength (redshifted)                      = {:g} angstroms\n".format(lamb))
     Fichier.write("# Interference order:\n")
-    Fichier.write("#      - The interference order @ {:g}                 = {:g} \n".format(lamb_halpha,p_order_halpha))
-    Fichier.write("#      - The interference order @ {:g}                 = {:g} \n".format(lamb_Ne,p_order_Ne))
+    Fichier.write("#      - The interference order @ {:g}                 = {:g} \n".format(wavelength['Ha'],p_order_halpha))
+    Fichier.write("#      - The interference order @ {:g}                 = {:g} \n".format(wavelength['Ne'],p_order_Ne))
     Fichier.write("#      - The interference order @ {:g}                 = {:g} \n".format(lamb,p_order))
     Fichier.write("# Free Spectral Range :\n")
-    Fichier.write("#      - The FSR @ {:g} in wavelength                  = {:g} Angstrom\n".format(lamb_Ne,fsr_lamb_Ne))
-    Fichier.write("#      - The FSR @ {:g} in wavelength                  = {:g} Angstrom\n".format(lamb_halpha,fsr_lamb_Ha))
+    Fichier.write("#      - The FSR @ {:g} in wavelength                  = {:g} Angstrom\n".format(wavelength['Ne'],fsr_lamb_Ne))
+    Fichier.write("#      - The FSR @ {:g} in wavelength                  = {:g} Angstrom\n".format(wavelength['Ha'],fsr_lamb_Ha))
     Fichier.write("#      - The FSR @ {:g} in thickness                   = {:g} microns \n".format(lamb,e_fsr))
     Fichier.write("#      - The FSR @ {:g} in wavelength                  = {:g} Angstrom\n".format(lamb,fsr_lamb))
     Fichier.write("#      - The FSR @ {:g} in km/s                        = {:g} km/s\n".format(lamb,fsr_kms))
@@ -280,6 +287,17 @@ QUEENSGATE CONSTANT
             QGC = 9.40  # oversampling
             QGC = 9.30  # close to be perfect
 
+#dico0[1,1] = "Thickness =  44 microns; tunable gap = 2 microns; p=134 @ Halpha"
+#dico0[1,2] = "Thickness = 200 microns; tunable gap = 2 microns; p=609 @ Halpha"
+
+    """ 4096 BCV values are available with the CS100, ranging from -2047 to +2048, thus for both interferometer which have a tunable gap of 2 microns, 1 BCV should be equal to 2 microns/4096 = 0.49 nm = 4.9 A.
+        On the other hand, by definition, QCG = 2 * 1 BCV = 9.8 A/BCV
+        Obviously  fsr_bcv_lamb_QGC = lambda / Q
+                                    = 6563 / 9.8 
+                                    = 670 BCV 
+        but we in fact measure half of it = 335 BCV, this could be due to a bit which is not working any more and so, one BCV is indeed 2 BCV...
+    """
+    
     if QGC_or_not == 2:
         if interactive:
             print("\n You first must choose the wavelength at which the gap in BCV will be given.")
@@ -292,14 +310,14 @@ QUEENSGATE CONSTANT
             #fsr_bcv_lamb_QGC = 352.75
             print("     Your input is: {}".format(fsr_bcv_lamb_QGC))
         else:
-            fsr_bcv_lamb_QGC = 357.72
-            lamb_QGC = lamb_Ne
+            fsr_bcv_lamb_QGC = free_spectral_range_bcv
+            lamb_QGC = wavelength['Ne']
         QGC = lamb_QGC / fsr_bcv_lamb_QGC
         print("     A queensgate has been computed : {}".format(QGC))
 
     fsr_bcv_lamb    = lamb / QGC
-    fsr_bcv_lamb_Ha = lamb_halpha / QGC
-    fsr_bcv_lamb_Ne = lamb_Ne / QGC
+    fsr_bcv_lamb_Ha = wavelength['Ha'] / QGC
+    fsr_bcv_lamb_Ne = wavelength['Ne'] / QGC
 
     """
     
@@ -322,15 +340,15 @@ NUMBER OF CHANNELS TO SCAN
         else:
             finesse = 17.75
             finesse = 30.46
-            finesse = 20.8
+#            finesse = 20.8
         if finesse <= 1:
             print("      Sorry, you input a value not allowed because {:g} should be greater than 1, please restart ".format(finesse))
             sys.exit(0)
         if interactive:
             sampling = float(input("\n Please, input the sampling, Shannon indicates that the sampling could be 2 (could be a float): "))
         else:
-            sampling = 2.
-        if (sampling) <= 1:
+            sampling = 2.0
+        if sampling <= 1:
             print("      Sorry, you input a value not allowed because {:g} should be greater or equal to one, please restart ".format(sampling))
             sys.exit(0)
         """ Integer value + 1 to avoid undersampling """
@@ -342,9 +360,8 @@ NUMBER OF CHANNELS TO SCAN
         else:
             nchan = 38
 
-#    bcv_step = fsr_bcv_lamb / nchan / 2
     bcv_step = fsr_bcv_lamb / nchan
-    if (bcv_step) < 2:
+    if bcv_step < 2:
         print("\n     Sorry, your scanning step in BCV ={:g} is too small, it should not be lower than 2.".format(bcv_step))
         if nchan_manuel == 1:
             print("     This could be due to the finesse (={:g}) or/and the sampling (={:g}) too high.".format(finesse,sampling))
@@ -355,8 +372,8 @@ NUMBER OF CHANNELS TO SCAN
 
     Fichier.write("#      - The queensgate constant QGC                      = {:g} Angstrom\n".format(QGC))
     Fichier.write("#      - The FSR in BCV @ {:g}A                        = {:g}\n".format(lamb,fsr_bcv_lamb))
-    Fichier.write("#      - The FSR in BCV @ {:g}A                        = {:g}\n".format(lamb_halpha,fsr_bcv_lamb_Ha))
-    Fichier.write("#      - The FSR in BCV @ {:g}A                        = {:g}\n".format(lamb_Ne,fsr_bcv_lamb_Ne))
+    Fichier.write("#      - The FSR in BCV @ {:g}A                        = {:g}\n".format(wavelength['Ha'],fsr_bcv_lamb_Ha))
+    Fichier.write("#      - The FSR in BCV @ {:g}A                        = {:g}\n".format(wavelength['Ne'],fsr_bcv_lamb_Ne))
     Fichier.write("# Finesse & Scanning:\n")
     if nchan_manuel == 1:
         Fichier.write("#      - You gave a real finesse                         = {:g}\n".format(finesse))
@@ -368,6 +385,11 @@ NUMBER OF CHANNELS TO SCAN
         Fichier.write("#      - The number of channels to scan for one FSR      = {:g}\n".format(nchan))
     Fichier.write("#      - The average number of BCV for one FSR             = {:g}\n".format(bcv_step))
 
+    """ For technical reasons I added the parameter delta_iBCV_max (29/09/2016), it seems indeed that the f. CS100 does not respect the order when we resquest to jump a large BCV range at once, thus I introduced a pause of 1 second (sleep 1) each time it moves delta_iBCV_max BCV """
+        
+    delta_iBCV_max=3
+    Fichier.write("#      - The maximum number of BCV that the CS100 can jump at once = {:g}\n".format(delta_iBCV_max))
+    
     """
     
 SCAN MORE THAN ONE FSR ?
@@ -379,18 +401,22 @@ SCAN MORE THAN ONE FSR ?
         print(" NOTE: The number of channel to scan for more than one FSR will be larger and computed automatically.")
         overlap = float(input(" Please, input the number of FSR you want to scan (could be a float, \"1\" means you will scan one FSR): "))
     else:
-        overlap = 1.2
+        overlap = 1.1
 
     if overlap < 0:
         print("      Sorry, you input a value not allowed because {:g} should be greater than 0, please restart ".format(overlap))
         sys.exit(0)
 
     if (fsr_bcv_lamb*overlap) > bcv_max:
-        print("     \nSorry, you input a value not allowed because {:g} X {:g} = {:g} is greater than {:g}.".format(int(fsr_bcv_lamb,overlap),int(fsr_bcv_lamb*overlap),bcv_max))
-        print("     Please RESTART from the beginning.")
+        print(
+            "\n Sorry, you input a value not allowed because "
+            "{:d} X {:d} = {:d} is greater than {:d}.".format(
+                int(fsr_bcv_lamb, overlap), int(fsr_bcv_lamb * overlap), bcv_max
+                ) +
+              "\n Please RESTART from the beginning.")
         sys.exit(0)
     else:
-        fsr_bcv_lamb = fsr_bcv_lamb * overlap
+        fsr_bcv_lamb *= overlap
         nchan = int(nchan * overlap)+1
 
     Fichier.write("# Overscanning:\n")
@@ -409,9 +435,7 @@ SCAN MORE THAN ONE FSR ?
     """ TO SCAN IN INCREASING  THE RADIUS OF THE RINGS """
     #nfiniz0 =  int(bcv_max/4)
     #nfiniz = nfiniz0 + int(fsr_bcv_lamb/4.)
-    nfiniz = 768
     nfiniz = 1024
-    nfiniz = 1022
     nfiniz_end = nfiniz - (nchan - 1) * bcv_step
 
     """ Checking using the basic formula """
@@ -424,9 +448,9 @@ SCAN MORE THAN ONE FSR ?
     Fichier.write("#      - The final BCV value should be around (nfiniz_end)  = {:g}\n".format(nfiniz_end))
     
     uneminute = 60. # second
-    if (calibration == 0):
+    if calibration == 0:
         basename = "p609_cal"
-    if (calibration == 1):
+    if calibration == 1:
         basename = "p609_obs"
     if interactive:
         #nsweeps    = int(input(" Please, input how many \"sweeps\" will be done on this scan (nsweeps must be an integer): "))
@@ -456,7 +480,7 @@ SCAN MORE THAN ONE FSR ?
     readout_time = 3.        # 3 seconds = readout time @ binxy = 4 x 4 ???
     exptim_total = (nchan * (exptim + readout_time)) / uneminute
 
-    if (exptim) < 0:
+    if exptim < 0:
         print("      Sorry, you input a value not allowed because {:g} should be greater than 0, please restart ".format(exptim))
         sys.exit(0)
 
@@ -503,37 +527,46 @@ SCAN MORE THAN ONE FSR ?
     ipm = 1
     if ip <= ipm:
         for cnt in range(1,nchan+1,ip):
-            ip=ip+1
-            iBCV0=iBCV
-            #BCV = nfiniz + (cnt-1) * bcv_step
+            ip += 1
+            iBCV0 = iBCV
             BCV = nfiniz - (cnt-1) * bcv_step
             if BCV >= 0:
-                if (int(BCV + 0.5) > int(BCV)):
+                if int(BCV + 0.5) > int(BCV):
                     iBCV = int(BCV)+1
                 else:
                     iBCV = int(BCV)
             else:
-                if (int(BCV - 0.5) < int(BCV)):
+                if int(BCV - 0.5) < int(BCV):
                     iBCV = int(BCV)-1
                 else:
-                        iBCV = int(BCV)
-#           print("BCV=",BCV,"  ibcv=",iBCV)
+                    iBCV = int(BCV)
+            #print("ip=",ip,"  cnt=",cnt," BCV=",BCV,"  iBCV=",iBCV)
+            if cnt == 1 :
+                delta_iBCV = 0
+            else:
+                delta_iBCV = iBCV-iBCV0
+            delta_iBCV_temp=delta_iBCV
+            icompt = 0
+            while abs(delta_iBCV_temp) > delta_iBCV_max:
+                #print("je suis dans la boucle",cnt)
+                icompt += 1
+                #print("delta_iBCV_temp=",delta_iBCV_temp,"  delta_iBCV_max=",delta_iBCV_max)
+                Fichier.write("echo\n")
+                itemp = iBCV0-icompt*delta_iBCV_max
+                #print("iBCV=",iBCV)
+                Fichier.write("echo \"moving FP to BCV {} \"\n".format(itemp))
+                Fichier.write("sami FP moveabs {}\n".format(itemp))
+                Fichier.write("sleep 1\n")
+                delta_iBCV_temp += delta_iBCV_max
             Fichier.write("echo\n")
             Fichier.write("echo \"moving FP to channel {}: BCV={}\"\n".format(cnt,iBCV))
             Fichier.write("sami FP moveabs {}\n".format(iBCV))
-#           Fichier.write("# At channel {}, BCV = {}, iBCV = {}".format(cnt,BCV,iBCV))
-#           Fichier.write("sami fp moveabs $fpiniz\n")
-#           Fichier.write("set sweepid = \"S\"$scnt\n")
             Fichier.write("set sweepid = C%03d\n"%cnt)
             Fichier.write("set cmd = `sami dhe dbs set $sweepkey $sweepid`\n")
             Fichier.write("sami dhe set image.basename $basename\"_\"$sweepid\n")
             Fichier.write("echo \"SWEEP $sweepid\"\n")
             Fichier.write("echo \"taking data...(sweep $sweepid step {})\"\n".format(cnt))
             Fichier.write("sami dhe expose\n")
-            if cnt == 1 :
-                delta_iBCV = 0
-            else:
-                delta_iBCV = iBCV-iBCV0
             dico['channel'].append(cnt)
             dico['step'].append(delta_iBCV)
             dico['BCV'].append(iBCV)

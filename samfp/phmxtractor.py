@@ -1054,8 +1054,14 @@ class PeakFinder:
         data = np.where(data > 0.70 * np.max(data), data, 0)
         n = int(data.shape[0] * 0.2)
         peaks = signal.argrelmax(data, axis=0, order=n)[0]
-        peak = np.min(peaks)
+
+        try:
+            peak = np.min(peaks)
+        except ValueError:
+            peak = 0
+
         return peak
+
 
 
 if __name__ == '__main__':
