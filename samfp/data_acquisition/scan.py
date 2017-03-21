@@ -9,6 +9,7 @@ import sys
 import logging
 
 from time import sleep
+from PyQt5 import QtWidgets
 
 HOST = "soarhrc.ctio.noao.edu"
 PORT = 8888
@@ -17,6 +18,21 @@ logging.basicConfig()
 log = logging.getLogger("samfp.scan")
 log.setLevel(logging.DEBUG)
 
+def main():
+
+    app = QtWidgets.QApplication(sys.argv)
+
+    w = QtWidgets.QWidget()
+    w.resize(250, 150)
+    w.move(300, 300)
+    w.setWindowTitle('Simple')
+    w.show()
+
+    sys.exit(app.exec_())
+
+    #cfg = configparser.RawConfigParser()
+    #cfg.read("scan.ini")
+    #do_scan(cfg)
 
 def do_scan(cfg):
 
@@ -365,10 +381,8 @@ def set_scan_current_z(z=0, key="FAPERSST"):
 
 
 if __name__ == "__main__":
+    main()
 
-    cfg = configparser.RawConfigParser()
-    cfg.read("scan.ini")
-    do_scan(cfg)
 
 
 
