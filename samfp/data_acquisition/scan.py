@@ -6,9 +6,71 @@ from __future__ import print_function
 import configparser
 import socket
 import sys
+import logging
+
+from time import sleep
 
 HOST = "soarhrc.ctio.noao.edu"
 PORT = 8888
+
+logging.basicConfig()
+log = logging.getLogger("samfp.scan")
+log.setLevel(logging.DEBUG)
+
+
+def do_scan(cfg):
+
+    # Set the image properties
+    set_image_basename(str(cfg.get('image', 'basename')))
+    set_comment(str(cfg.get('image', 'comment')))
+    set_image_path(str(cfg.get('image', 'dir')))
+    set_image_type(str(cfg.get('image', 'type')))
+    set_target_name(str(cfg.get('image', 'title')))
+
+    # Set the observation properties
+    set_image_exposure_time(cfg.getfloat('obs', 'exptime'))
+    set_image_nframes(cfg.getint('obs', 'nframes'))
+
+    # Prepare the scan parameters
+    set_scan_id(cfg.get('scan', 'id'))
+
+    # Actually scan
+    number_of_sweeps = cfg.getint('scan', 'nsweeps')
+    number_of_channels = cfg.getint('scan', 'nchannels')
+    stime = cfg.getfloat('scan', 'stime')
+    z = cfg.getint('scan', 'zstart')
+    dz = cfg.getfloat('scan', 'zstep')
+
+    for sweep in range(number_of_sweeps):
+
+        print("Moving FP to the initial Z = {:d}".format(z))
+        z = fp_moveabs(z)
+        set_scan_start(z)
+        set_scan_current_sweep(sweep)
+
+        for channel in range(number_of_channels):
+            z = z + dz
+            fp_moveabs(int(round(z)))
+            set_scan_current_z(int(round(z)))
+
+            if 4095 < z or z < 0:
+                log.warning("Z = {z:d} out of the allowed range [0, 4095]".format(z))
+
+            sleep(stime)
+            expose()
+
+
+def expose():
+    """
+    Tell SAMI to trigger an exposure in the current frame or for the current
+    set of images.
+
+    Returns
+    -------
+    message (string) : DONE if successful.
+    """
+    msg = send_command("dhe expose")
+    return msg
 
 
 def fp_moveabs(z):
@@ -24,7 +86,7 @@ def fp_moveabs(z):
     -------
     z (int) : the current z position if the command was received successfully.
     """
-    if 0 < z or z < 4095:
+    if 4095 < z or z < 0:
         raise ValueError, "z must be between 0 and 4095. Current value: {}".format(z)
 
     msg = send_command("fp moveabs {:d}".format(z))
@@ -72,6 +134,7 @@ def send_command(command):
     message = s.recv(1024)
     s.close()
 
+    log.debug("{command:s} - {message:s}".format(**locals()))
     return message
 
 
@@ -171,12 +234,15 @@ def set_image_type(image_type):
     message (string) : DONE if successful.
     """
     options = ["DARK", "DFLAT", "OBJECT", "SFLAT", "ZERO"]
+
+    log.debug(" Image type: {}".format(image_type))
+
     if image_type.upper() not in options:
-        error_msg = "Image type {}".format(image_type) + \
+        error_msg = "Image type {} ".format(image_type) + \
             "not found within the available options"
         raise ValueError, error_msg
 
-    message = send_command('dhe set image.comment {:s}'.format(image_type))
+    message = send_command('dhe set image.type {:s}'.format(image_type))
     return message
 
 
@@ -264,26 +330,6 @@ def set_scan_start(zstart=0, key="FPZINIT"):
     return message
 
 
-def set_scan_step_size(step_size=0, key="FAPERSST"):
-    """
-    Store the step size in the header of the images. If no argument is
-     given, it clears this value for an empty one. To be used in the end of
-     a scanning script so images that do now belong to a scan don't have
-     it.
-
-    Parameters
-    ----------
-    step_size (float) : the FP step size in BCV units.
-
-    Returns
-    -------
-    message (string) : DONE if successful.
-        """
-    s = 'dhe dbs set {key:s} {step_size:f}'.format(**locals())
-    message = send_command(s)
-    return message
-
-
 def set_scan_current_sweep(sweep=0, key="FAPERSWP"):
     """
     Set the scan current sweep ID to the header to be used later.
@@ -300,35 +346,29 @@ def set_scan_current_sweep(sweep=0, key="FAPERSWP"):
     message = send_command('dhe dbs set {key:s} {sweep:f}'.format(**locals()))
     return message
 
+
+def set_scan_current_z(z=0, key="FAPERSST"):
+    """
+    Set the scan current Z position in BCV.
+
+    Parameters
+    ----------
+    z (int) : the current z value
+    key (string) : keyword where this will be stored
+
+    Returns
+    -------
+    message (string) : DONE if successful.
+    """
+    message = send_command('dhe dbs set {key:s} {z:d}'.format(**locals()))
+    return message
+
+
 if __name__ == "__main__":
 
-    cfg = configparser.ConfigParser()
-
-    # Set the image properties
-    set_image_path()
-    set_image_type()
-    set_target_name()
-    set_comment()
-
-    # Prepare the scan parameters
-    set_scan_id()
-    set_scan_step_size()
-    set_scan_start()
-
-    # Actually scan
-    for sweep in range(number_of_sweeps):
-
-        print("Moving FP to the initial Z = {:d}".format(z))
-        z = fp_moveabs(z)
-        set_scan_start(z)
-        set_scan_current_sweep(sweep)
-
-        for channel in range(number_of_channels):
-            z = round(z + dz, ndigits=0)
-
-
-            z = fp_moveabs()
-
+    cfg = configparser.RawConfigParser()
+    cfg.read("scan.ini")
+    do_scan(cfg)
 
 
 
