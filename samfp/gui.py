@@ -12,10 +12,6 @@ log = logging.getLogger("samfp.scan")
 log.setLevel(logging.DEBUG)
 
 
-class Communicate(QtCore.QObject):
-    closeApp = QtCore.pyqtSignal()
-
-
 class Main(QtGui.QMainWindow):
 
     def __init__(self):
@@ -48,9 +44,6 @@ class Main(QtGui.QMainWindow):
         menu.addAction(load_action)
         menu.addAction(exit_action)
 
-        self.c = Communicate()
-        self.c.closeApp.connect(self.close)
-
         # Create the central widget
         central = CentralWidget()
         self.setCentralWidget(central)
@@ -64,7 +57,6 @@ class Main(QtGui.QMainWindow):
         self.setWindowIcon(QtGui.QIcon('web.png'))
 
         self.show()
-
 
     def center(self):
 
@@ -134,51 +126,38 @@ class CentralWidget(QtGui.QFrame):
         grid = QtGui.QGridLayout()
         grid.setSpacing(5)
 
-        basename = QtGui.QLabel('Basename:')
-        basename_edit = QtGui.QLineEdit()
-        basename_edit.setAlignment(QtCore.Qt.AlignRight)
-        grid.addWidget(basename, 0, 0)
-        grid.addWidget(basename_edit, 0, 1)
+        self.basename = TextField("Basename: ", "samfp_scan")
+        self.path = TextField("Remote path:", "/home2/images/SAMFP/")
+        self.target_name = TextField("Target name:", "NGC0000")
+        self.comment = TextField("Comment:", "---")
+        self.obs_type = ComboBox("Observation type: ",
+                                ["DARK", "DFLAT", "OBJECT", "SFLAT", "ZERO"])
 
-        path = QtGui.QLabel('Remote path:')
-        path_edit = QtGui.QLineEdit()
-        path_edit.setAlignment(QtCore.Qt.AlignRight)
-        grid.addWidget(path, 1, 0)
-        grid.addWidget(path_edit, 1, 1)
+        self.exp_time = TextField("Exposure time [s]:", "1.0")
+        self.frames_per_channel = TextField("Frames per channel:", "1")
 
-        type = QtGui.QLabel('Observation type:')
-        type_combo = QtGui.QComboBox()
-        type_combo.addItems(["DARK", "DFLAT", "OBJECT", "SFLAT", "ZERO"])
-        grid.addWidget(type, 2, 0)
-        grid.addWidget(type_combo, 2, 1)
+        grid.addWidget(self.basename.label, 0, 0)
+        grid.addWidget(self.basename.line_edit, 0, 1)
 
-        target = QtGui.QLabel('Target name:')
-        target_edit = QtGui.QLineEdit()
-        target_edit.setAlignment(QtCore.Qt.AlignRight)
-        grid.addWidget(target, 3, 0)
-        grid.addWidget(target_edit, 3, 1)
+        grid.addWidget(self.path.label, 1, 0)
+        grid.addWidget(self.path.line_edit, 1, 1)
 
-        comment = QtGui.QLabel('Comment:')
-        comment_edit = QtGui.QLineEdit()
-        comment_edit.setAlignment(QtCore.Qt.AlignRight)
-        grid.addWidget(comment, 4, 0)
-        grid.addWidget(comment_edit, 4, 1)
+        grid.addWidget(self.obs_type.label, 2, 0)
+        grid.addWidget(self.obs_type.combo_box, 2, 1)
+
+        grid.addWidget(self.target_name.label, 3, 0)
+        grid.addWidget(self.target_name.line_edit, 3, 1)
+
+        grid.addWidget(self.comment.label, 4, 0)
+        grid.addWidget(self.comment.line_edit, 4, 1)
 
         grid.addWidget(self.HLine(), 5, 0, 1, 2)
 
-        exptime = QtGui.QLabel('Exposure time [s]:')
-        exptime_edit = QtGui.QLineEdit()
-        exptime_edit.setText("{:0.1f}".format(1.0))
-        exptime_edit.setAlignment(QtCore.Qt.AlignRight)
-        grid.addWidget(exptime , 6, 0)
-        grid.addWidget(exptime_edit, 6, 1)
+        grid.addWidget(self.exp_time.label, 6, 0)
+        grid.addWidget(self.exp_time.line_edit, 6, 1)
 
-        nframes = QtGui.QLabel('Frames per channel:')
-        nframes_edit = QtGui.QLineEdit()
-        nframes_edit.setText("{:d}".format(1))
-        nframes_edit.setAlignment(QtCore.Qt.AlignRight)
-        grid.addWidget(nframes, 7, 0)
-        grid.addWidget(nframes_edit, 7, 1)
+        grid.addWidget(self.frames_per_channel.label, 7, 0)
+        grid.addWidget(self.frames_per_channel.line_edit, 7, 1)
 
         notebook = QtGui.QTabWidget()
         grid.addWidget(notebook, 0, 2, 8, 1)
@@ -188,53 +167,81 @@ class CentralWidget(QtGui.QFrame):
 
         self.setLayout(grid)
 
-        self.basename = basename_edit
-        self.comment = comment_edit
-        self.notebook = notebook
-        self.target = target_edit
-        self.type = type_combo
-        self.path = path_edit
-
     def HLine(self):
         toto = QtGui.QFrame()
         toto.setFrameShape(QtGui.QFrame.HLine)
         toto.setFrameShadow(QtGui.QFrame.Sunken)
         return toto
 
+
 class SimpleScan(QtGui.QWidget):
 
     def __init__(self):
-        super(SimpleScan, self).__init__()
-        self.initUI()
 
-    def initUI(self):
+        super(SimpleScan, self).__init__()
 
         grid = QtGui.QGridLayout()
         grid.setSpacing(5)
 
-        id_lbl = QtGui.QLabel("Scan ID:")
-        id_txt = QtGui.QLineEdit(alignment=QtCore.Qt.AlignRight)
-        id_btm = QtGui.QPushButton("Get ID")
-        grid.addWidget(id_lbl, 0, 0)
-        grid.addWidget(id_txt, 0, 1)
-        grid.addWidget(id_btm, 0, 2)
+        self.scan_id = TextField("Scan ID:", "")
+        self.n_channels = TextField("Number of channels:", "1")
+        self.sleep_time = TextField("Sleep time [s]:", "0.0")
+        self.z_start = TextField("Z Start [bcv]:", "0")
+        self.z_step = TextField("Z Step [bcv]:", "0")
 
-        nchannels_lbl = QtGui.QLabel("Number of channels:")
-        nchannels_txt = QtGui.QLineEdit(alignment=QtCore.Qt.AlignRight)
-        nchannels_txt.setText("1")
-        grid.addWidget(nchannels_lbl, 1, 0)
-        grid.addWidget(nchannels_txt, 1, 1)
+        self.scan_id.add_button("Get ID")
+        grid.addWidget(self.scan_id.label, 0, 0)
+        grid.addWidget(self.scan_id.line_edit, 0, 1)
+        grid.addWidget(self.scan_id.button, 0, 2)
 
-        stime_lbl = QtGui.QLabel("Sleep time [s]:")
-        stime_txt = QtGui.QLineEdit("0")
-        stime_txt.setAlignment(QtCore.Qt.AlignRight)
+        grid.addWidget(self.n_channels.label, 1, 0)
+        grid.addWidget(self.n_channels.line_edit, 1, 1)
+
+        grid.addWidget(self.sleep_time.label, 2, 0)
+        grid.addWidget(self.sleep_time.line_edit, 2, 1)
+
+        grid.addWidget(self.z_start.label, 3, 0)
+        grid.addWidget(self.z_start.line_edit, 3, 1)
+
+        grid.addWidget(self.z_step.label, 4, 0)
+        grid.addWidget(self.z_step.line_edit, 4, 1)
 
         grid.setAlignment(QtCore.Qt.AlignTop)
         self.setLayout(grid)
 
-        self.id = id_txt
-        self.nchannels = nchannels_txt
 
+class ComboBox(QtGui.QWidget):
+
+    def __init__(self, label, options):
+
+        super(ComboBox, self).__init__()
+
+        self.label = QtGui.QLabel(label)
+        self.combo_box = QtGui.QComboBox()
+        self.combo_box.addItems(options)
+
+
+class TextField(QtGui.QWidget):
+
+    def __init__(self, label, text):
+        """
+        Initialize field that contains a label (QtGui.QLabel) and a text field
+         (QtGui.QLineEdit).
+
+        Parameters
+        ----------
+        label (string) : the field label
+        text (string) : the text that will be inside the text box
+        """
+        super(TextField, self).__init__()
+
+        self.button = None
+        self.label = QtGui.QLabel(label)
+        self.line_edit = QtGui.QLineEdit(text)
+        self.line_edit.setAlignment(QtCore.Qt.AlignRight)
+
+    def add_button(self, label):
+        self.button = QtGui.QPushButton(label)
 
 if __name__ == '__main__':
 
