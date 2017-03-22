@@ -4,12 +4,10 @@
 from __future__ import print_function
 
 import configparser
+import logging
 import socket
 import sys
-import logging
-
 from time import sleep
-from PyQt5 import QtWidgets
 
 HOST = "soarhrc.ctio.noao.edu"
 PORT = 8888
@@ -20,22 +18,12 @@ log.setLevel(logging.DEBUG)
 
 def main():
 
-    app = QtWidgets.QApplication(sys.argv)
+    cfg = configparser.RawConfigParser()
+    cfg.read("scan.ini")
+    do_scan(cfg)
 
-    w = QtWidgets.QWidget()
-    w.resize(250, 150)
-    w.move(300, 300)
-    w.setWindowTitle('Simple')
-    w.show()
-
-    sys.exit(app.exec_())
-
-    #cfg = configparser.RawConfigParser()
-    #cfg.read("scan.ini")
-    #do_scan(cfg)
 
 def do_scan(cfg):
-
     # Set the image properties
     set_image_basename(str(cfg.get('image', 'basename')))
     set_comment(str(cfg.get('image', 'comment')))
@@ -70,7 +58,8 @@ def do_scan(cfg):
             set_scan_current_z(int(round(z)))
 
             if 4095 < z or z < 0:
-                log.warning("Z = {z:d} out of the allowed range [0, 4095]".format(z))
+                log.warning(
+                    "Z = {z:d} out of the allowed range [0, 4095]".format(z))
 
             sleep(stime)
             expose()
@@ -103,7 +92,8 @@ def fp_moveabs(z):
     z (int) : the current z position if the command was received successfully.
     """
     if 4095 < z or z < 0:
-        raise ValueError, "z must be between 0 and 4095. Current value: {}".format(z)
+        raise ValueError, "z must be between 0 and 4095. Current value: {}".format(
+            z)
 
     msg = send_command("fp moveabs {:d}".format(z))
     if msg.lower() != "done":
@@ -129,7 +119,8 @@ def send_command(command):
     global PORT
 
     s = None
-    for res in socket.getaddrinfo(HOST, PORT, socket.AF_UNSPEC, socket.SOCK_STREAM):
+    for res in socket.getaddrinfo(HOST, PORT, socket.AF_UNSPEC,
+                                  socket.SOCK_STREAM):
         af, sock_type, proto, cannon_name, sa = res
         try:
             s = socket.socket(af, sock_type, proto)
@@ -255,7 +246,7 @@ def set_image_type(image_type):
 
     if image_type.upper() not in options:
         error_msg = "Image type {} ".format(image_type) + \
-            "not found within the available options"
+                    "not found within the available options"
         raise ValueError, error_msg
 
     message = send_command('dhe set image.type {:s}'.format(image_type))
@@ -382,7 +373,3 @@ def set_scan_current_z(z=0, key="FAPERSST"):
 
 if __name__ == "__main__":
     main()
-
-
-
-
