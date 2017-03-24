@@ -35,31 +35,15 @@ class Main(QtGui.QMainWindow):
 
         # Create an action to leave the program
         # TODO Get icons for these
-        load_action = QtGui.QAction(
-            QtGui.QIcon(os.path.join(root, 'samfp/icons/file-import.png')),
-            'Open', self)
-        load_action.setShortcut('Ctrl+O')
-        load_action.setStatusTip('Load config file.')
-        load_action.triggered.connect(self.load_config_file)
-
-        save_action = QtGui.QAction(
-            QtGui.QIcon(os.path.join(root, 'samfp/icons/content-save.png')),
-            'Open', self)
-        save_action.setShortcut('Ctrl+S')
-        save_action.setStatusTip('Save config file.')
-        save_action.triggered.connect(self.save_config_file)
-
-        exit_action = QtGui.QAction(
-            QtGui.QIcon(os.path.join(root, 'samfp/icons/exit-to-app.png'))
-            ,'&Exit', self)
-        exit_action.setShortcut('Ctrl+Q')
-        exit_action.setStatusTip('Exit application')
-        exit_action.triggered.connect(self.close)
+        load_action = self.get_load_action()
+        save_action = self.get_save_action()
+        exit_action = self.get_exit_action()
 
         # Create the menu bar
         menubar = self.menuBar()
         menu = menubar.addMenu('&File')
         menu.addAction(load_action)
+        menu.addAction(save_action)
         menu.addAction(exit_action)
 
         # Create the toolbar
@@ -69,14 +53,12 @@ class Main(QtGui.QMainWindow):
         self.toolbar.addAction(exit_action)
 
         # Create the central widget
-        central = CentralWidget()
+        central = myCentralWidget()
         self.setCentralWidget(central)
         self.active_panel = central
 
         # Set the geometry
-        #self.resize(800, 600)
         self.center()
-
         self.setWindowTitle('SAM-FP - Data-Acquisition')
         self.setWindowIcon(QtGui.QIcon('web.png'))
 
@@ -116,13 +98,6 @@ class Main(QtGui.QMainWindow):
         # else:
         #     event.ignore()
 
-
-
-    def keyPressEvent(self, e):
-
-        if e.key() == QtCore.Qt.Key_Escape:
-            self.close()
-
     def config_parse(self, config_file):
 
         log.debug('Loading config file: {}'.format(config_file))
@@ -130,10 +105,10 @@ class Main(QtGui.QMainWindow):
         cfg = configparser.RawConfigParser()
         cfg.read("{}".format(config_file))
 
-        self.active_panel.basename.text = cfg.get('image', 'basename')
-        self.active_panel.comment.text = cfg.get('image', 'comment')
-        self.active_panel.path.text = cfg.get('image', 'dir')
-        self.active_panel.target_name.text = cfg.get('image', 'title')
+        self.active_panel.basename(cfg.get('image', 'basename'))
+        self.active_panel.comment(cfg.get('image', 'comment'))
+        self.active_panel.path(cfg.get('image', 'dir'))
+        self.active_panel.target_name(cfg.get('image', 'title'))
 
         index = self.active_panel.obs_type.combo_box.findText(
             cfg.get('image', 'type'), QtCore.Qt.MatchFixedString
@@ -141,41 +116,91 @@ class Main(QtGui.QMainWindow):
         if index >= 0:
             self.active_panel.obs_type.combo_box.setCurrentIndex(index)
 
-        self.active_panel.exp_time.value = cfg.getfloat('obs', 'exptime')
-        self.active_panel.n_frames.value = cfg.getint('obs', 'nframes')
+        self.active_panel.exp_time(cfg.getfloat('obs', 'exptime'))
+        self.active_panel.n_frames(cfg.getint('obs', 'nframes'))
 
         scan_page = self.active_panel.scan_page
-        scan_page.scan_id.text = cfg.get('scan', 'id')
-        scan_page.n_channels.value = cfg.getint('scan', 'nchannels')
-        scan_page.n_sweeps.value = cfg.getint('scan', 'nsweeps')
-        scan_page.z_start.value = cfg.getint('scan', 'zstart')
-        scan_page.z_step.value = cfg.getfloat('scan', 'zstep')
-        scan_page.sleep_time.value = cfg.getfloat('scan', 'stime')
+        scan_page.scan_id(cfg.get('scan', 'id'))
+        scan_page.n_channels(cfg.getint('scan', 'nchannels'))
+        scan_page.n_sweeps(cfg.getint('scan', 'nsweeps'))
+        scan_page.z_start(cfg.getint('scan', 'zstart'))
+        scan_page.z_step(cfg.getfloat('scan', 'zstep'))
+        scan_page.sleep_time(cfg.getfloat('scan', 'stime'))
+
+        self.active_panel.notebook.setCurrentIndex(
+            cfg.getint('gui', 'active_page')
+        )
+
+        if cfg.getboolean('calib', 'low_res_fabry_perot'):
+            self.active_panel.calib_page.fp_low_res_rb.setChecked(True)
+        else:
+            self.active_panel.calib_page.fp_high_res_rb.setChecked(True)
+
 
     def config_generate(self):
 
         cfg = configparser.RawConfigParser()
         cfg.add_section('image')
-        cfg.set('image', 'basename', self.active_panel.basename.text)
-        cfg.set('image', 'comment', self.active_panel.comment.text)
-        cfg.set('image', 'dir', self.active_panel.path.text)
+        cfg.set('image', 'basename', self.active_panel.basename())
+        cfg.set('image', 'comment', self.active_panel.comment())
+        cfg.set('image', 'dir', self.active_panel.path())
         cfg.set('image', 'type',
                 self.active_panel.obs_type.combo_box.currentText())
-        cfg.set('image', 'title', self.active_panel.target_name.text)
+        cfg.set('image', 'title', self.active_panel.target_name())
 
         cfg.add_section('obs')
-        cfg.set('obs', 'exptime', self.active_panel.exp_time.value)
-        cfg.set('obs', 'nframes', self.active_panel.n_frames.value)
+        cfg.set('obs', 'exptime', self.active_panel.exp_time())
+        cfg.set('obs', 'nframes', self.active_panel.n_frames())
 
         cfg.add_section('scan')
-        cfg.set('scan', 'id', self.active_panel.scan_page.scan_id.text)
-        cfg.set('scan', 'nchannels', self.active_panel.scan_page.n_channels.value)
-        cfg.set('scan', 'nsweeps', self.active_panel.scan_page.n_sweeps.value)
-        cfg.set('scan', 'stime', self.active_panel.scan_page.sleep_time.value)
-        cfg.set('scan', 'zstart', self.active_panel.scan_page.z_start.value)
-        cfg.set('scan', 'zstep', self.active_panel.scan_page.z_step.value)
+        cfg.set('scan', 'id', self.active_panel.scan_page.scan_id())
+        cfg.set('scan', 'nchannels', self.active_panel.scan_page.n_channels())
+        cfg.set('scan', 'nsweeps', self.active_panel.scan_page.n_sweeps())
+        cfg.set('scan', 'stime', self.active_panel.scan_page.sleep_time())
+        cfg.set('scan', 'zstart', self.active_panel.scan_page.z_start())
+        cfg.set('scan', 'zstep', self.active_panel.scan_page.z_step())
+
+        cfg.add_section('gui')
+        cfg.set('gui', 'active_page', self.active_panel.notebook.currentIndex())
+
+        cfg.add_section('calib')
+        cfg.set('calib', 'low_res_fabry_perot',
+                self.active_panel.calib_page.fp_low_res_rb.isChecked())
 
         return cfg
+
+    def get_exit_action(self):
+        exit_action = QtGui.QAction(
+            QtGui.QIcon(os.path.join(root, 'samfp/icons/exit-to-app.png'))
+            ,'&Exit', self)
+        exit_action.setShortcut('Ctrl+Q')
+        exit_action.setStatusTip('Exit application')
+        exit_action.triggered.connect(self.close)
+        return exit_action
+
+    def get_load_action(self):
+        load_action = QtGui.QAction(
+            QtGui.QIcon(os.path.join(root, 'samfp/icons/file-import.png')),
+            'Open', self)
+        load_action.setShortcut('Ctrl+O')
+        load_action.setStatusTip('Load config file.')
+        load_action.triggered.connect(self.load_config_file)
+        return load_action
+
+    def get_save_action(self):
+        save_action = QtGui.QAction(
+            QtGui.QIcon(os.path.join(root, 'samfp/icons/content-save.png')),
+            'Open', self)
+        save_action.setShortcut('Ctrl+S')
+        save_action.setStatusTip('Save config file.')
+        save_action.triggered.connect(self.save_config_file)
+        return save_action
+
+
+    def keyPressEvent(self, e):
+
+        if e.key() == QtCore.Qt.Key_Escape:
+            self.close()
 
     def load_config_file(self):
         # TODO Isolate only configuration files
@@ -190,6 +215,9 @@ class Main(QtGui.QMainWindow):
             except configparser.NoOptionError as error:
                 log.warning("{}".format(error.option) + \
                             "option not found in the input config file")
+            except configparser.NoSectionError as error:
+                log.warning("{}".format(error.section) + \
+                            "section not found in the input config file")
         else:
             log.debug('Temp config file does not exists.')
 
@@ -209,26 +237,24 @@ class Main(QtGui.QMainWindow):
             temp_config.write(foo)
 
 
-class CentralWidget(QtGui.QFrame):
+class myCentralWidget(QtGui.QFrame):
 
     def __init__(self):
-        super(CentralWidget, self).__init__()
+        super(myCentralWidget, self).__init__()
         self.initUI()
 
     def initUI(self):
 
-        grid = QtGui.QGridLayout()
-        grid.setSpacing(5)
+        # Initialize widgets ---
+        self.basename = myLineEdit("Basename: ", "samfp_scan")
+        self.path = myLineEdit("Remote path:", "/home2/images/SAMFP/")
+        self.target_name = myLineEdit("Target name:", "NGC0000")
+        self.comment = myLineEdit("Comment:", "---")
+        self.obs_type = myComboBox("Observation type: ",
+                                   ["DARK", "DFLAT", "OBJECT", "SFLAT", "ZERO"])
 
-        self.basename = LineField_Text("Basename: ", "samfp_scan")
-        self.path = LineField_Text("Remote path:", "/home2/images/SAMFP/")
-        self.target_name = LineField_Text("Target name:", "NGC0000")
-        self.comment = LineField_Text("Comment:", "---")
-        self.obs_type = ComboBox("Observation type: ",
-                                ["DARK", "DFLAT", "OBJECT", "SFLAT", "ZERO"])
-
-        self.exp_time = LineField_Float("Exposure time [s]:", 1.0)
-        self.n_frames = LineField_Int("Frames per channel:", 1)
+        self.exp_time = myLineEdit_Float("Exposure time [s]:", 1.0)
+        self.n_frames = myLineEdit_Int("Frames per channel:", 1)
 
         self.scan = QtGui.QPushButton("Scan")
         self.abort = QtGui.QPushButton("Abort")
@@ -237,53 +263,75 @@ class CentralWidget(QtGui.QFrame):
         self.abort.setDisabled(True)
         self.progress.setDisabled(True)
 
-        grid.addWidget(self.basename.label, 0, 0, 1, 3)
-        grid.addWidget(self.basename.line_edit, 0, 1, 1, 3)
-
-        grid.addWidget(self.path.label, 1, 0, 1, 3)
-        grid.addWidget(self.path.line_edit, 1, 1, 1, 3)
-
-        grid.addWidget(self.HLine(), 2, 0, 1, 3)
-
-        grid.addWidget(self.obs_type.label, 3, 0)
-        grid.addWidget(self.obs_type.combo_box, 3, 1)
-
-        grid.addWidget(self.target_name.label, 4, 0)
-        grid.addWidget(self.target_name.line_edit, 4, 1)
-
-        grid.addWidget(self.comment.label, 5, 0)
-        grid.addWidget(self.comment.line_edit, 5, 1)
-
-        grid.addWidget(self.HLine(), 6, 0, 1, 2)
-
-        grid.addWidget(self.exp_time.label, 7, 0)
-        grid.addWidget(self.exp_time.line_edit, 7, 1)
-
-        grid.addWidget(self.n_frames.label, 8, 0)
-        grid.addWidget(self.n_frames.line_edit, 8, 1)
-
-        notebook = QtGui.QTabWidget()
-        grid.addWidget(notebook, 3, 2, 6, 1)
-
-        grid.addWidget(self.HLine(), 9, 0, 1, 3)
-
-        grid.addWidget(self.scan, 10, 0)
-        grid.addWidget(self.abort, 10, 1)
-        grid.addWidget(self.progress, 10, 2)
-
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 3)
-
         self.scan_page = PageScan()
-        notebook.addTab(self.scan_page, "Simple Scan")
 
+        self.notebook = QtGui.QTabWidget()
         self.calib_page = PageCalibrationScan()
-        notebook.addTab(self.calib_page, "Calibration Scan")
-
         self.sci_page = PageScienceScan()
-        notebook.addTab(self.sci_page, "Science Scan")
 
-        self.setLayout(grid)
+        # Put some in the left part of the GUI ---------------------------------
+        left_group = QtGui.QGroupBox()
+
+        left_grid = QtGui.QGridLayout()
+        left_grid.setSpacing(3)
+
+        left_grid.addWidget(self.basename.label, 0, 0)
+        left_grid.addWidget(self.basename.line_edit, 1, 0, 1, 3)
+
+        left_grid.addWidget(self.path.label, 2, 0)
+        left_grid.addWidget(self.path.line_edit, 3, 0, 1, 3)
+
+        left_grid.addWidget(self.HLine(), 4, 0, 1, 3)
+
+        left_grid.addWidget(self.obs_type.label, 5, 0)
+        left_grid.addWidget(self.obs_type.combo_box, 5, 1)
+
+        left_grid.addWidget(self.target_name.label, 6, 0)
+        left_grid.addWidget(self.target_name.line_edit, 6, 1)
+
+        left_grid.addWidget(self.comment.label, 7, 0)
+        left_grid.addWidget(self.comment.line_edit, 7, 1)
+
+        left_grid.addWidget(self.HLine(), 8, 0, 1, 2)
+
+        left_grid.addWidget(self.exp_time.label, 9, 0)
+        left_grid.addWidget(self.exp_time.line_edit, 9, 1)
+
+        left_grid.addWidget(self.n_frames.label, 10, 0)
+        left_grid.addWidget(self.n_frames.line_edit, 10, 1)
+
+        left_grid.addWidget(self.scan_page, 11, 0, 1, 2)
+
+        left_grid.setAlignment(QtCore.Qt.AlignLeft)
+        left_group.setLayout(left_grid)
+
+        # Put others in the bottom of the GUI ----------------------------------
+        bottom_group = QtGui.QGroupBox()
+
+        bottom_grid = QtGui.QGridLayout()
+        bottom_grid.setSpacing(3)
+
+        bottom_grid.addWidget(self.scan, 10, 0)
+        bottom_grid.addWidget(self.abort, 10, 1)
+        bottom_grid.addWidget(self.progress, 10, 2)
+
+        bottom_group.setLayout(bottom_grid)
+
+        # Put others in the notebook on the right ------------------------------
+        # self.notebook.addTab(self.scan_page, "Simple Scan")
+        self.notebook.addTab(self.calib_page, "Calibration Scan")
+        self.notebook.addTab(self.sci_page, "Science Scan")
+
+        # Put all of them in the main grid -------------------------------------
+        main_grid = QtGui.QGridLayout()
+        main_grid.setSpacing(5)
+
+        main_grid.addWidget(left_group, 0, 0)
+        main_grid.addWidget(self.notebook, 0, 1)
+        main_grid.addWidget(self.HLine(), 1, 0, 1, 2)
+        main_grid.addWidget(bottom_group, 2, 0, 1, 2)
+
+        self.setLayout(main_grid)
 
     def HLine(self):
         toto = QtGui.QFrame()
@@ -292,20 +340,20 @@ class CentralWidget(QtGui.QFrame):
         return toto
 
 
-class ComboBox(QtGui.QWidget):
+class myComboBox(QtGui.QWidget):
 
     def __init__(self, label, options):
 
-        super(ComboBox, self).__init__()
+        super(myComboBox, self).__init__()
 
         self.label = QtGui.QLabel(label)
         self.combo_box = QtGui.QComboBox()
         self.combo_box.addItems(options)
 
 
-class LineField_Text(QtGui.QWidget):
+class myLineEdit(QtGui.QWidget):
 
-    def __init__(self, label, text):
+    def __init__(self, label, value):
         """
         Initialize field that contains a label (QtGui.QLabel) and a text field
          (QtGui.QLineEdit).
@@ -315,31 +363,26 @@ class LineField_Text(QtGui.QWidget):
         label (string) : the field label
         text (string) : the text that will be inside the text box
         """
-        super(LineField_Text, self).__init__()
+        super(myLineEdit, self).__init__()
 
         self.button = None
         self.label = QtGui.QLabel(label)
-        self.line_edit = QtGui.QLineEdit(text)
+        self.line_edit = QtGui.QLineEdit(value)
         self.line_edit.setAlignment(QtCore.Qt.AlignRight)
-        self.line_edit.setMinimumWidth(200)
+        self._value = value
 
-        self._text = text
+    def __call__(self, x=None):
+        if x is None:
+            x = self.line_edit.text()
+            return x
+        else:
+            self.line_edit.setText(x)
+            self._value = x
 
     def add_button(self, label):
         self.button = QtGui.QPushButton(label)
 
-    @property
-    def text(self):
-        x = self.line_edit.text()
-        return x
-
-    @text.setter
-    def text(self, x):
-        self.line_edit.setText(x)
-        self._text = x
-
-
-class LineField_Int(QtGui.QWidget):
+class myLineEdit_Int(myLineEdit):
 
     def __init__(self, label, number):
         """
@@ -352,33 +395,23 @@ class LineField_Int(QtGui.QWidget):
         number (int) : the number that will be set to the field
         """
         assert (isinstance(number, int) or isinstance(number, float))
-
-        super(LineField_Int, self).__init__()
-
         number = int(number)
 
-        self.button = None
-        self.label = QtGui.QLabel(label)
-        self.line_edit = QtGui.QLineEdit("{:d}".format(number))
-        self.line_edit.setAlignment(QtCore.Qt.AlignRight)
-
+        super(myLineEdit_Int, self).__init__(label, "{:d}".format(number))
         self._value = number
 
-    @property
-    def value(self):
-        x = self.line_edit.text()
-        x = int(x)
-        return x
-
-    @value.setter
-    def value(self, x):
-        assert (isinstance(x, int) or isinstance(x, float))
-        x = int(x)
-        self.line_edit.setText("{:d}".format(x))
-        self._value = x
+    def __call__(self, x=None):
+        if x is None:
+            x = self.line_edit.text()
+            x = int(x)
+            return x
+        else:
+            x = int(x)
+            self.line_edit.setText("{:d}".format(x))
+            self._value = x
 
 
-class LineField_Float(QtGui.QWidget):
+class myLineEdit_Float(myLineEdit):
 
     def __init__(self, label, number):
         """
@@ -391,30 +424,21 @@ class LineField_Float(QtGui.QWidget):
         number (float) : the number that will be set to the field
         """
         assert (isinstance(number, int) or isinstance(number, float))
-
-        super(LineField_Float, self).__init__()
-
         number = float(number)
 
-        self.button = None
-        self.label = QtGui.QLabel(label)
-        self.line_edit = QtGui.QLineEdit("{:.1f}".format(number))
-        self.line_edit.setAlignment(QtCore.Qt.AlignRight)
-
+        super(myLineEdit_Float, self).__init__(label, "{:.1f}".format(number))
         self._value = number
 
-    @property
-    def value(self):
-        x = self.line_edit.text()
-        x = float(x)
-        return x
-
-    @value.setter
-    def value(self, x):
-        assert (isinstance(x, int) or isinstance(x, float))
-        x = float(x)
-        self.line_edit.setText("{:.1f}".format(x))
-        self._value = x
+    def __call__(self, x=None):
+        if x is None:
+            x = self.line_edit.text()
+            x = float(x)
+            return x
+        else:
+            assert (isinstance(x, int) or isinstance(x, float))
+            x = float(x)
+            self.line_edit.setText("{:.1f}".format(x))
+            self._value = x
 
 
 class PageScan(QtGui.QWidget):
@@ -424,15 +448,17 @@ class PageScan(QtGui.QWidget):
         grid = QtGui.QGridLayout()
         grid.setSpacing(5)
 
-        self.scan_id = LineField_Text("Scan ID:", "")
-        self.n_channels = LineField_Int("Number of channels:", 1)
-        self.n_sweeps = LineField_Int("Number of sweeps:", 1)
-        self.z_start = LineField_Int("Z Start [bcv]:", 0)
-        self.z_step = LineField_Float("Z Step [bcv]:", 0)
-        self.sleep_time = LineField_Float("Sleep time [s]:", 0)
+        self.scan_id = myLineEdit("Scan ID:", "")
+        self.n_channels = myLineEdit_Int("Number of channels:", 1)
+        self.n_sweeps = myLineEdit_Int("Number of sweeps:", 1)
+        self.z_start = myLineEdit_Int("Z Start [bcv]:", 0)
+        self.z_step = myLineEdit_Float("Z Step [bcv]:", 0)
+        self.sleep_time = myLineEdit_Float("Sleep time [s]:", 0)
 
         self.scan_id.add_button("Get ID")
         self.scan_id.button.clicked.connect(self.get_id)
+        self.scan_id.button.setMaximumWidth(50)
+        self.scan_id.line_edit.setMinimumWidth(175)
 
         grid.addWidget(self.scan_id.label, 0, 0)
         grid.addWidget(self.scan_id.line_edit, 0, 1)
@@ -454,15 +480,14 @@ class PageScan(QtGui.QWidget):
         grid.addWidget(self.sleep_time.line_edit, 5, 1)
 
         grid.setAlignment(QtCore.Qt.AlignTop)
+        grid.setAlignment(QtCore.Qt.AlignLeft)
         self.setLayout(grid)
-
-
 
 
     def get_id(self):
         now = datetime.datetime.now()
         s = now.strftime("SCAN_%Y%m%d_UTC%H%M%S")
-        self.scan_id.text = s
+        self.scan_id(s)
 
 
 class PageCalibrationScan(QtGui.QWidget):
@@ -474,9 +499,89 @@ class PageScienceScan(QtGui.QWidget):
     def __init__(self):
         super(PageScienceScan, self).__init__()
 
+class PageCalibrationScan(QtGui.QWidget):
+
+    def __init__(self):
+        super(PageCalibrationScan, self).__init__()
+        self.initUI()
+
+    def initUI(self):
+
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(5)
+
+        fp_grid = QtGui.QGridLayout()
+        fp_grid.setSpacing(1)
+
+        self.lamp = QtGui.QComboBox()
+        self.lamp.addItems(
+            ['Ne 6600']
+        )
+
+        self.fp = QtGui.QGroupBox("Fabry-Perot")
+
+        self.fp_label = QtGui.QLabel("Fabry-Perot")
+        self.fp_low_res_rb = QtGui.QRadioButton("Low-Resolution")
+        self.fp_high_res_rb = QtGui.QRadioButton("High-Resolution")
+
+        self.fp_order = myLineEdit_Int("Interference order at Ha:", 134)
+        self.fp_gap_size = myLineEdit_Float("Gap size [um]:", 44)
+
+        self.queensgate_constant = myLineEdit_Float(
+            "Queensgate Constant [A/bcv]:", 0)
+        self.finesse = myLineEdit_Float(
+            "Finesse [--]:", 0)
+        self.free_spectral_range = myLineEdit_Float(
+            "Free Spectral Range [bcv]:", 0)
+
+        self.queensgate_constant.add_button("Get")
+        self.finesse.add_button("Get")
+
+        #  Add all the widgets to the current layout --------------------------
+        grid.addWidget(QtGui.QLabel('Lamp:'), 1, 0)
+        grid.addWidget(self.lamp, 1, 1)
+
+        grid.addWidget(self.fp, 2, 0, 3, 3)
+
+        fp_grid.addWidget(self.fp_low_res_rb, 0, 0)
+        fp_grid.addWidget(self.fp_high_res_rb, 1, 0)
+
+        fp_grid.addWidget(self.fp_order.label, 2, 0)
+        fp_grid.addWidget(self.fp_order.line_edit, 2, 1)
+
+        fp_grid.addWidget(self.fp_gap_size.label, 3, 0)
+        fp_grid.addWidget(self.fp_gap_size.line_edit, 3, 1)
+
+        fp_grid.addWidget(self.queensgate_constant.label, 4, 0)
+        fp_grid.addWidget(self.queensgate_constant.line_edit, 4, 1)
+        fp_grid.addWidget(self.queensgate_constant.button, 4, 2)
+
+        fp_grid.addWidget(self.finesse.label, 5, 0)
+        fp_grid.addWidget(self.finesse.line_edit, 5, 1)
+        fp_grid.addWidget(self.finesse.button, 5, 2)
+
+
+        fp_grid.setAlignment(QtCore.Qt.AlignTop)
+        self.fp.setLayout(fp_grid)
+
+        grid.setAlignment(QtCore.Qt.AlignTop)
+        self.setLayout(grid)
+
+    def HLine(self):
+        toto = QtGui.QFrame()
+        toto.setFrameShape(QtGui.QFrame.HLine)
+        toto.setFrameShadow(QtGui.QFrame.Sunken)
+        return toto
+
+    def VLine(self):
+        toto = QtGui.QFrame()
+        toto.setFrameShape(QtGui.QFrame.VLine)
+        toto.setFrameShadow(QtGui.QFrame.Sunken)
+        return toto
 
 if __name__ == '__main__':
 
     app = QtGui.QApplication(sys.argv)
+    app.setStyle("cleanlooks")
     ex = Main()
     sys.exit(app.exec_())
