@@ -8,6 +8,9 @@ import datetime
 import logging
 import sys
 import os
+import time
+
+import scan
 
 logging.basicConfig()
 log = logging.getLogger("samfp.scan")
@@ -15,11 +18,18 @@ log.setLevel(logging.DEBUG)
 
 root = "/home/bquint/PycharmProjects/samfp/"
 
+wavelength = {
+        'Ha': 6562.78,
+        'SIIf': 6716.47,
+        'SIIF': 6730.85,
+        'NIIf': 6548.03,
+        'NIIF': 6583.41,
+        'Ne 6600': 6598.9529
+    }
+
 class Main(QtGui.QMainWindow):
 
-    config = {
-        'temp_file': '.samfp_temp.ini'
-    }
+    config = {'temp_file': '.samfp_temp.ini'}
 
     def __init__(self):
         super(Main, self).__init__()
@@ -105,36 +115,65 @@ class Main(QtGui.QMainWindow):
         cfg = configparser.RawConfigParser()
         cfg.read("{}".format(config_file))
 
-        self.active_panel.basename(cfg.get('image', 'basename'))
-        self.active_panel.comment(cfg.get('image', 'comment'))
-        self.active_panel.path(cfg.get('image', 'dir'))
-        self.active_panel.target_name(cfg.get('image', 'title'))
+        try:
+            self.active_panel.basename(cfg.get('image', 'basename'))
+            self.active_panel.comment(cfg.get('image', 'comment'))
+            self.active_panel.path(cfg.get('image', 'dir'))
+            self.active_panel.target_name(cfg.get('image', 'title'))
 
-        index = self.active_panel.obs_type.combo_box.findText(
-            cfg.get('image', 'type'), QtCore.Qt.MatchFixedString
-        )
-        if index >= 0:
-            self.active_panel.obs_type.combo_box.setCurrentIndex(index)
+            idx = self.active_panel.obs_type.combo_box.findText(
+                cfg.get('image', 'type'), QtCore.Qt.MatchFixedString
+            )
+            if idx >= 0:
+                self.active_panel.obs_type.combo_box.setCurrentIndex(idx)
 
-        self.active_panel.exp_time(cfg.getfloat('obs', 'exptime'))
-        self.active_panel.n_frames(cfg.getint('obs', 'nframes'))
+            self.active_panel.exp_time(cfg.getfloat('obs', 'exptime'))
+            self.active_panel.n_frames(cfg.getint('obs', 'nframes'))
 
-        scan_page = self.active_panel.scan_page
-        scan_page.scan_id(cfg.get('scan', 'id'))
-        scan_page.n_channels(cfg.getint('scan', 'nchannels'))
-        scan_page.n_sweeps(cfg.getint('scan', 'nsweeps'))
-        scan_page.z_start(cfg.getint('scan', 'zstart'))
-        scan_page.z_step(cfg.getfloat('scan', 'zstep'))
-        scan_page.sleep_time(cfg.getfloat('scan', 'stime'))
+            scan_page = self.active_panel.scan_page
+            scan_page.scan_id(cfg.get('scan', 'id'))
+            scan_page.n_channels(cfg.getint('scan', 'nchannels'))
+            scan_page.n_sweeps(cfg.getint('scan', 'nsweeps'))
+            scan_page.z_start(cfg.getint('scan', 'zstart'))
+            scan_page.z_step(cfg.getfloat('scan', 'zstep'))
+            scan_page.sleep_time(cfg.getfloat('scan', 'stime'))
 
-        self.active_panel.notebook.setCurrentIndex(
-            cfg.getint('gui', 'active_page')
-        )
+            self.active_panel.notebook.setCurrentIndex(
+                cfg.getint('gui', 'active_page')
+            )
 
-        if cfg.getboolean('calib', 'low_res_fabry_perot'):
-            self.active_panel.calib_page.fp_low_res_rb.setChecked(True)
-        else:
-            self.active_panel.calib_page.fp_high_res_rb.setChecked(True)
+            # The calibration page ---
+            idx = self.active_panel.calib_page.lamp.combo_box.findText(
+                cfg.get('calib', 'lamp'), QtCore.Qt.MatchFixedString
+            )
+            if idx >= 0:
+                self.active_panel.calib_page.lamp.combo_box.setCurrentIndex(idx)
+
+            if cfg.getboolean('calib', 'low_res_fabry_perot'):
+                self.active_panel.calib_page.fp_low_res_rb.setChecked(True)
+            else:
+                self.active_panel.calib_page.fp_high_res_rb.setChecked(True)
+
+            self.active_panel.calib_page.finesse(
+                cfg.getfloat('calib', 'gap_size')
+            )
+            self.active_panel.calib_page.finesse(
+                cfg.getfloat('calib', 'finesse')
+            )
+            self.active_panel.calib_page.fp_order(
+                cfg.getfloat('calib', 'order')
+            )
+            self.active_panel.calib_page.queensgate_constant(
+                cfg.getfloat('calib', 'queensgate_constant')
+            )
+
+        except configparser.NoOptionError as error:
+            log.warning("{}".format(error.option) + \
+                        "option not found in the input config file")
+
+        except configparser.NoSectionError as error:
+            log.warning("{}".format(error.section) + \
+                        "section not found in the input config file")
 
 
     def config_generate(self):
@@ -144,9 +183,9 @@ class Main(QtGui.QMainWindow):
         cfg.set('image', 'basename', self.active_panel.basename())
         cfg.set('image', 'comment', self.active_panel.comment())
         cfg.set('image', 'dir', self.active_panel.path())
+        cfg.set('image', 'title', self.active_panel.target_name())
         cfg.set('image', 'type',
                 self.active_panel.obs_type.combo_box.currentText())
-        cfg.set('image', 'title', self.active_panel.target_name())
 
         cfg.add_section('obs')
         cfg.set('obs', 'exptime', self.active_panel.exp_time())
@@ -164,8 +203,24 @@ class Main(QtGui.QMainWindow):
         cfg.set('gui', 'active_page', self.active_panel.notebook.currentIndex())
 
         cfg.add_section('calib')
-        cfg.set('calib', 'low_res_fabry_perot',
-                self.active_panel.calib_page.fp_low_res_rb.isChecked())
+        if self.active_panel.calib_page.fp_low_res_rb.isChecked():
+            cfg.set('calib', 'low_res_fabry_perot', True)
+        else:
+            cfg.set('calib', 'low_res_fabry_perot', False)
+
+        self.active_panel.calib_page.set_fp_pars()
+        cfg.set('calib', 'finesse', self.active_panel.calib_page.finesse())
+        cfg.set('calib', 'order', self.active_panel.calib_page.fp_order())
+        cfg.set('calib', 'lamp',
+                self.active_panel.calib_page.lamp.combo_box.currentText())
+        cfg.set('calib', 'queensgate_constant',
+                self.active_panel.calib_page.queensgate_constant())
+        cfg.set('calib', 'gap_size', self.active_panel.calib_page.fp_gap_size())
+
+
+        # cfg.add_section('science')
+        # cfg.set('science', 'low_res_fabry_perot',
+        #         self.active_panel.sci_page.fp_low_res_rb.isChecked())
 
         return cfg
 
@@ -210,28 +265,22 @@ class Main(QtGui.QMainWindow):
 
     def load_temp_file(self):
         if os.path.exists(self.config['temp_file']):
-            try:
-                self.config_parse(self.config['temp_file'])
-            except configparser.NoOptionError as error:
-                log.warning("{}".format(error.option) + \
-                            "option not found in the input config file")
-            except configparser.NoSectionError as error:
-                log.warning("{}".format(error.section) + \
-                            "section not found in the input config file")
+            self.config_parse(self.config['temp_file'])
         else:
             log.debug('Temp config file does not exists.')
 
     def save_config_file(self):
-
-        fname = QtGui.QFileDialog.getSaveFileName(self, 'Save file', os.getcwd())
+        """Save a new configuration file"""
+        fname = QtGui.QFileDialog.getSaveFileName(self, 'Save', os.getcwd())
         fname = str(fname)
 
         temp_config = self.config_generate()
-        with open(self.config['temp_file'], 'w') as foo:
+        with open(fname, 'w') as foo:
             temp_config.write(foo)
 
 
     def save_temp_file(self):
+        """Save a temporary file for persistance"""
         temp_config = self.config_generate()
         with open(self.config['temp_file'], 'w') as foo:
             temp_config.write(foo)
@@ -256,12 +305,9 @@ class myCentralWidget(QtGui.QFrame):
         self.exp_time = myLineEdit_Float("Exposure time [s]:", 1.0)
         self.n_frames = myLineEdit_Int("Frames per channel:", 1)
 
-        self.scan = QtGui.QPushButton("Scan")
-        self.abort = QtGui.QPushButton("Abort")
-        self.progress = QtGui.QProgressBar()
-
-        self.abort.setDisabled(True)
-        self.progress.setDisabled(True)
+        self.scan_button = QtGui.QPushButton("Scan")
+        self.abort_button = QtGui.QPushButton("Abort")
+        self.progress_bar = QtGui.QProgressBar()
 
         self.scan_page = PageScan()
 
@@ -311,14 +357,13 @@ class myCentralWidget(QtGui.QFrame):
         bottom_grid = QtGui.QGridLayout()
         bottom_grid.setSpacing(3)
 
-        bottom_grid.addWidget(self.scan, 10, 0)
-        bottom_grid.addWidget(self.abort, 10, 1)
-        bottom_grid.addWidget(self.progress, 10, 2)
+        bottom_grid.addWidget(self.scan_button, 10, 0)
+        bottom_grid.addWidget(self.abort_button, 10, 1)
+        bottom_grid.addWidget(self.progress_bar, 10, 2)
 
         bottom_group.setLayout(bottom_grid)
 
         # Put others in the notebook on the right ------------------------------
-        # self.notebook.addTab(self.scan_page, "Simple Scan")
         self.notebook.addTab(self.calib_page, "Calibration Scan")
         self.notebook.addTab(self.sci_page, "Science Scan")
 
@@ -332,6 +377,70 @@ class myCentralWidget(QtGui.QFrame):
         main_grid.addWidget(bottom_group, 2, 0, 1, 2)
 
         self.setLayout(main_grid)
+
+        # Add the thread for the scan ------------------------------------------
+        self.scan_button.setEnabled(True)
+        self.abort_button.setDisabled(True)
+        self.progress_bar.setDisabled(True)
+
+        self.timer = QtCore.QBasicTimer()
+        self.step = 0
+
+        self.scan_button.clicked.connect(self.scan_start)
+        self.abort_button.clicked.connect(self.scan_abort)
+
+
+    def scan_abort(self):
+
+        self.timer.stop()
+        self.scan_button.setEnabled(True)
+        self.abort_button.setDisabled(True)
+        self.progress_bar.setDisabled(True)
+        self.step = 0
+
+    def scan_start(self):
+
+        self.current_sweep = 1
+        self.current_channel = 1
+        self.z = self.scan_page.z_start()
+
+        self.total_sweeps = self.scan_page.n_sweeps()
+        self.total_channels = self.scan_page.n_channels()
+        self.total_steps = self.total_channels * self.total_sweeps
+        self.step_fraction = 1. / self.total_steps * 100
+
+        self.timer.start(50, self)
+        self.scan_button.setDisabled(True)
+        self.abort_button.setEnabled(True)
+        self.progress_bar.setEnabled(True)
+
+    def timerEvent(self, e):
+
+        if self.step >= 100:
+            self.timer.stop()
+            self.scan_abort()
+            return
+
+        log.debug("Sweep: {}, Channel {}, Z {}".format(
+            self.current_sweep, self.current_channel, self.z))
+
+        self.step += self.step_fraction
+        self.progress_bar.setValue(self.step)
+
+        time.sleep(self.exp_time())
+        time.sleep(self.scan_page.sleep_time())
+
+        self.current_channel += 1
+        self.z += self.scan_page.z_step()
+
+        if self.current_channel > self.total_channels:
+            self.current_channel = 1
+            self.current_sweep += 1
+
+        if self.z < 0 or self.z > 4095:
+            self.scan_abort()
+
+
 
     def HLine(self):
         toto = QtGui.QFrame()
@@ -381,6 +490,7 @@ class myLineEdit(QtGui.QWidget):
 
     def add_button(self, label):
         self.button = QtGui.QPushButton(label)
+
 
 class myLineEdit_Int(myLineEdit):
 
@@ -441,6 +551,48 @@ class myLineEdit_Float(myLineEdit):
             self._value = x
 
 
+class myProgressBar(QtGui.QProgressBar):
+    def __init__(self, parent=None):
+        super(myProgressBar, self).__init__(parent)
+
+        # Set up the user interface from Designer.
+        self.setValue(0)
+
+        self.thread = mythread(self, 3)
+
+        self.thread.total.connect(self.setMaximum)
+        self.thread.update.connect(self.update)
+        self.thread.finished.connect(self.close)
+
+        self.n = 0
+        self.thread.start()
+
+    def update(self):
+        self.n += 1
+        print
+        self.n
+        self.setValue(self.n)
+
+
+class mythread(QtCore.QThread):
+
+    total = QtCore.pyqtSignal(object)
+    update = QtCore.pyqtSignal()
+
+    def __init__(self, parent, n):
+        super(mythread, self).__init__(parent)
+        self.n = n
+
+    def run(self):
+        self.total.emit(self.n)
+        i = 0
+        while (i < self.n):
+            if (time.time() % 1 == 0):
+                i += 1
+                # print str(i)
+                self.update.emit()
+
+
 class PageScan(QtGui.QWidget):
     def __init__(self):
         super(PageScan, self).__init__()
@@ -499,6 +651,7 @@ class PageScienceScan(QtGui.QWidget):
     def __init__(self):
         super(PageScienceScan, self).__init__()
 
+
 class PageCalibrationScan(QtGui.QWidget):
 
     def __init__(self):
@@ -513,10 +666,7 @@ class PageCalibrationScan(QtGui.QWidget):
         fp_grid = QtGui.QGridLayout()
         fp_grid.setSpacing(1)
 
-        self.lamp = QtGui.QComboBox()
-        self.lamp.addItems(
-            ['Ne 6600']
-        )
+        self.lamp = myComboBox("Lamp: ", wavelength.keys())
 
         self.fp = QtGui.QGroupBox("Fabry-Perot")
 
@@ -524,8 +674,8 @@ class PageCalibrationScan(QtGui.QWidget):
         self.fp_low_res_rb = QtGui.QRadioButton("Low-Resolution")
         self.fp_high_res_rb = QtGui.QRadioButton("High-Resolution")
 
-        self.fp_order = myLineEdit_Int("Interference order at Ha:", 134)
-        self.fp_gap_size = myLineEdit_Float("Gap size [um]:", 44)
+        self.fp_order = myLineEdit_Float("Interference order at Ha:", 0)
+        self.fp_gap_size = myLineEdit_Float("Gap size [um]:", 0)
 
         self.queensgate_constant = myLineEdit_Float(
             "Queensgate Constant [A/bcv]:", 0)
@@ -537,9 +687,12 @@ class PageCalibrationScan(QtGui.QWidget):
         self.queensgate_constant.add_button("Get")
         self.finesse.add_button("Get")
 
+        key = str(self.lamp.combo_box.currentText())
+        self.wavelength = wavelength[key]
+
         #  Add all the widgets to the current layout --------------------------
-        grid.addWidget(QtGui.QLabel('Lamp:'), 1, 0)
-        grid.addWidget(self.lamp, 1, 1)
+        grid.addWidget(self.lamp.label, 1, 0)
+        grid.addWidget(self.lamp.combo_box, 1, 1)
 
         grid.addWidget(self.fp, 2, 0, 3, 3)
 
@@ -560,12 +713,19 @@ class PageCalibrationScan(QtGui.QWidget):
         fp_grid.addWidget(self.finesse.line_edit, 5, 1)
         fp_grid.addWidget(self.finesse.button, 5, 2)
 
-
         fp_grid.setAlignment(QtCore.Qt.AlignTop)
         self.fp.setLayout(fp_grid)
 
         grid.setAlignment(QtCore.Qt.AlignTop)
         self.setLayout(grid)
+
+        # Connect handlers -----------------------------------------------------
+        self.fp_low_res_rb.setChecked(True)
+        self.set_fp_pars()
+
+        self.fp_low_res_rb.clicked.connect(self.set_fp_pars)
+        self.fp_high_res_rb.clicked.connect(self.set_fp_pars)
+
 
     def HLine(self):
         toto = QtGui.QFrame()
@@ -578,6 +738,57 @@ class PageCalibrationScan(QtGui.QWidget):
         toto.setFrameShape(QtGui.QFrame.VLine)
         toto.setFrameShadow(QtGui.QFrame.Sunken)
         return toto
+
+    def set_fp_pars(self):
+
+        if self.fp_low_res_rb.isChecked():
+            gap_size = 44
+        else:
+            gap_size = 200
+
+        order = get_order(wavelength['Ha'], gap_size)
+        fsr = self.free_spectral_range()
+
+        self.fp_gap_size(gap_size)
+        self.fp_order(order)
+        self.queensgate_constant()
+
+
+
+    def set_highres_fp(self):
+        self.fp_gap_size.line_edit.setText("{:d}".format(200))
+
+
+def get_order(wavelength, gap_size):
+    """
+    Returns the FP interferential order.
+
+    Parameters
+    ----------
+    wavelength (float):
+    gap_size (float):
+
+    Returns
+    -------
+    order (float)
+    """
+    return 2 * (gap_size * 1e-6) / (wavelength * 1e-10)
+
+def get_queensgate_constant(wavelength, free_spectra_range_bcv):
+    """
+    Returns the Fabry-Perot's Queensgate Constant.
+
+    Parameters
+    ----------
+    wavelength (float):
+    free_spectra_range_bcv (float):
+
+
+    Returns
+    -------
+    queensgate_constant (float) :
+    """
+    return wavelength / free_spectra_range_bcv
 
 if __name__ == '__main__':
 
