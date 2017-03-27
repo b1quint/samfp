@@ -41,7 +41,7 @@ class Main(QtGui.QMainWindow):
         QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
 
         # Create the status bar
-        self.statusBar()
+        self.status_bar = self.statusBar()
 
         # Create an action to leave the program
         # TODO Get icons for these
@@ -154,11 +154,8 @@ class Main(QtGui.QMainWindow):
             else:
                 self.active_panel.calib_page.fp_high_res_rb.setChecked(True)
 
-            self.active_panel.calib_page.finesse(
+            self.active_panel.calib_page.fp_gap_size(
                 cfg.getfloat('calib', 'gap_size')
-            )
-            self.active_panel.calib_page.finesse(
-                cfg.getfloat('calib', 'finesse')
             )
             self.active_panel.calib_page.fp_order(
                 cfg.getfloat('calib', 'order')
@@ -166,15 +163,30 @@ class Main(QtGui.QMainWindow):
             self.active_panel.calib_page.queensgate_constant(
                 cfg.getfloat('calib', 'queensgate_constant')
             )
+            self.active_panel.calib_page.finesse(
+                cfg.getfloat('calib', 'finesse')
+            )
+            self.active_panel.calib_page.free_spectral_range(
+                cfg.getfloat('calib', 'free_spectral_range')
+            )
+            self.active_panel.calib_page.fwhm(
+                cfg.getfloat('calib', 'fwhm')
+            )
+            self.active_panel.calib_page.oversample_factor(
+                cfg.getfloat('calib', 'oversample_factor')
+            )
+            self.active_panel.calib_page.overscan_factor(
+                cfg.getfloat('calib', 'overscan_factor')
+            )
+
 
         except configparser.NoOptionError as error:
             log.warning("{}".format(error.option) + \
-                        "option not found in the input config file")
+                        " option not found in the input config file")
 
         except configparser.NoSectionError as error:
             log.warning("{}".format(error.section) + \
-                        "section not found in the input config file")
-
+                        " section not found in the input config file")
 
     def config_generate(self):
 
@@ -208,15 +220,24 @@ class Main(QtGui.QMainWindow):
         else:
             cfg.set('calib', 'low_res_fabry_perot', False)
 
-        self.active_panel.calib_page.set_fp_pars()
-        cfg.set('calib', 'finesse', self.active_panel.calib_page.finesse())
-        cfg.set('calib', 'order', self.active_panel.calib_page.fp_order())
         cfg.set('calib', 'lamp',
                 self.active_panel.calib_page.lamp.combo_box.currentText())
+        cfg.set('calib', 'order',
+                self.active_panel.calib_page.fp_order())
+        cfg.set('calib', 'gap_size',
+                self.active_panel.calib_page.fp_gap_size())
         cfg.set('calib', 'queensgate_constant',
                 self.active_panel.calib_page.queensgate_constant())
-        cfg.set('calib', 'gap_size', self.active_panel.calib_page.fp_gap_size())
-
+        cfg.set('calib', 'finesse',
+                self.active_panel.calib_page.finesse())
+        cfg.set('calib', 'free_spectral_range',
+                self.active_panel.calib_page.free_spectral_range())
+        cfg.set('calib', 'fwhm',
+                self.active_panel.calib_page.fwhm())
+        cfg.set('calib', 'oversample_factor',
+                self.active_panel.calib_page.oversample_factor())
+        cfg.set('calib', 'overscan_factor',
+                self.active_panel.calib_page.overscan_factor())
 
         # cfg.add_section('science')
         # cfg.set('science', 'low_res_fabry_perot',
@@ -251,7 +272,6 @@ class Main(QtGui.QMainWindow):
         save_action.triggered.connect(self.save_config_file)
         return save_action
 
-
     def keyPressEvent(self, e):
 
         if e.key() == QtCore.Qt.Key_Escape:
@@ -278,13 +298,11 @@ class Main(QtGui.QMainWindow):
         with open(fname, 'w') as foo:
             temp_config.write(foo)
 
-
     def save_temp_file(self):
         """Save a temporary file for persistance"""
         temp_config = self.config_generate()
         with open(self.config['temp_file'], 'w') as foo:
             temp_config.write(foo)
-
 
 class myCentralWidget(QtGui.QFrame):
 
@@ -314,6 +332,8 @@ class myCentralWidget(QtGui.QFrame):
         self.notebook = QtGui.QTabWidget()
         self.calib_page = PageCalibrationScan()
         self.sci_page = PageScienceScan()
+
+        self.set_scan_button = QtGui.QPushButton("Set scan parameters")
 
         # Put some in the left part of the GUI ---------------------------------
         left_group = QtGui.QGroupBox()
@@ -371,10 +391,11 @@ class myCentralWidget(QtGui.QFrame):
         main_grid = QtGui.QGridLayout()
         main_grid.setSpacing(5)
 
-        main_grid.addWidget(left_group, 0, 0)
+        main_grid.addWidget(left_group, 0, 0, 2, 1)
         main_grid.addWidget(self.notebook, 0, 1)
-        main_grid.addWidget(self.HLine(), 1, 0, 1, 2)
-        main_grid.addWidget(bottom_group, 2, 0, 1, 2)
+        main_grid.addWidget(self.set_scan_button, 1, 1)
+        main_grid.addWidget(self.HLine(), 2, 0, 1, 2)
+        main_grid.addWidget(bottom_group, 3, 0, 1, 2)
 
         self.setLayout(main_grid)
 
@@ -388,6 +409,7 @@ class myCentralWidget(QtGui.QFrame):
 
         self.scan_button.clicked.connect(self.scan_start)
         self.abort_button.clicked.connect(self.scan_abort)
+        self.set_scan_button.clicked.connect(self.set_scan_pars)
 
 
     def scan_abort(self):
@@ -430,6 +452,31 @@ class myCentralWidget(QtGui.QFrame):
         self.z = self.scan_page.z_start()
         self.current_sweep = 1
         self.current_channel = 1
+
+    def set_scan_pars(self):
+
+        # For calibration cube
+        if self.notebook.currentIndex() == 0:
+
+            overscan_factor = self.calib_page.overscan_factor()
+            oversample_factor = self.calib_page.oversample_factor()
+
+            n_channels = 2 * self.calib_page.finesse()
+            z_step = self.calib_page.fwhm() / oversample_factor
+
+        else:
+
+            oversample_factor = 0
+            overscan_factor = 0
+
+            n_channels = 0
+            zstep = 0
+
+        n_channels = round(overscan_factor * n_channels)
+
+        self.scan_page.n_channels(n_channels)
+        self.scan_page.z_step(- z_step)
+
 
     def timerEvent(self, e):
 
@@ -696,16 +743,24 @@ class PageCalibrationScan(QtGui.QWidget):
         self.fp_gap_size = myLineEdit_Float("Gap size [um]:", 0)
 
         self.queensgate_constant = myLineEdit_Float(
-            "Queensgate Constant [A/bcv]:", 0)
+            "Queensgate Constant [A / bcv]:", 0)
         self.finesse = myLineEdit_Float(
             "Finesse [--]:", 0)
         self.free_spectral_range = myLineEdit_Float(
             "Free Spectral Range [bcv]:", 0)
+        self.fwhm = myLineEdit_Float(
+            "Full-width at half-maximum [bcv]:", 0)
+
+        self.sampling = myLineEdit_Float(
+            "Sampling [bcv / step]:", 1)
+
+        self.oversample_factor = myLineEdit_Float(
+            "Oversample factor:", 1)
+        self.overscan_factor = myLineEdit_Float(
+            "Overscan factor:", 1)
 
         self.queensgate_constant.add_button("Get")
         self.finesse.add_button("Get")
-
-        self.set_scan = QtGui.QPushButton("Set scan parameters")
 
         key = str(self.lamp.combo_box.currentText())
         self.wavelength = wavelength[key]
@@ -736,7 +791,16 @@ class PageCalibrationScan(QtGui.QWidget):
         grid.addWidget(self.free_spectral_range.label, 7, 0)
         grid.addWidget(self.free_spectral_range.line_edit, 7, 1)
 
-        grid.addWidget(self.set_scan, 8, 0, 1, 3)
+        grid.addWidget(self.fwhm.label, 8, 0)
+        grid.addWidget(self.fwhm.line_edit, 8, 1)
+
+        grid.addWidget(self.HLine(), 9, 0, 1, 3)
+
+        grid.addWidget(self.oversample_factor.label, 10, 0)
+        grid.addWidget(self.oversample_factor.line_edit, 10, 1)
+
+        grid.addWidget(self.overscan_factor.label, 11, 0)
+        grid.addWidget(self.overscan_factor.line_edit, 11, 1)
 
         fp_grid.setAlignment(QtCore.Qt.AlignTop)
         self.fp.setLayout(fp_grid)
@@ -750,7 +814,13 @@ class PageCalibrationScan(QtGui.QWidget):
 
         self.fp_low_res_rb.clicked.connect(self.set_fp_pars)
         self.fp_high_res_rb.clicked.connect(self.set_fp_pars)
-        self.queensgate_constant.button.clicked.connect(self.get_queensgate_constant)
+
+        self.lamp.combo_box.currentIndexChanged.connect(self.on_lamp_change)
+
+        self.queensgate_constant.button.clicked.connect(
+            self.get_queensgate_constant)
+        self.finesse.button.clicked.connect(
+            self.get_finesse)
 
     def HLine(self):
         toto = QtGui.QFrame()
@@ -764,29 +834,62 @@ class PageCalibrationScan(QtGui.QWidget):
         toto.setFrameShadow(QtGui.QFrame.Sunken)
         return toto
 
-    def set_fp_pars(self):
+    def get_finesse(self):
+        """
+        Use the current FSR and FWHM to calculate and set the Finesse.
+        """
+        try:
+            self.finesse(calc_finesse(self.free_spectral_range(), self.fwhm()))
 
-        if self.fp_low_res_rb.isChecked():
-            gap_size = 44
-        else:
-            gap_size = 200
-
-        order = get_order(wavelength['Ha'], gap_size)
-        fsr = self.free_spectral_range()
-
-        self.fp_gap_size(gap_size)
-        self.fp_order(order)
-        self.queensgate_constant()
+        except ZeroDivisionError as error:
+            main_widget = self.window()
+            main_widget.status_bar.showMessage(
+                "Error: Zero division while calculating the Finesse."
+            )
 
     def get_queensgate_constant(self):
-
+        """
+        Use the current wavelength and the free-spectral-range to calculate
+        and set the Queensgate Constant.
+        """
         w = wavelength[self.lamp()]
         FSR = self.free_spectral_range()
 
-        QGC = calc_queensgate_constant(w, FSR)
-        self.queensgate_constant(QGC)
+        try:
+            QGC = calc_queensgate_constant(w, FSR)
+            self.queensgate_constant(QGC)
 
-def get_order(wavelength, gap_size):
+        except ZeroDivisionError as error:
+
+            page_widget = self.parent()
+            tab_widget = page_widget.parent()
+            central_widget = tab_widget.parent()
+            main_widget = central_widget.parent()
+
+            main_widget.status_bar.showMessage(
+                "Error: Zero division while calculating the Queensgate "
+                "Constant."
+            )
+
+    def on_lamp_change(self):
+        """
+        Does nothing for now. Check with Philippe if he wants this to deppend on
+        the source wavelength or not.
+        """
+        return
+
+    def set_fp_pars(self):
+
+        if self.fp_low_res_rb.isChecked():
+            gap_size = 44.
+        else:
+            gap_size = 200.
+
+        self.fp_gap_size(gap_size)
+        self.fp_order(calc_order(wavelength[self.lamp()], gap_size))
+
+
+def calc_order(wavelength, gap_size):
     """
     Returns the FP interferential order.
 
@@ -800,6 +903,27 @@ def get_order(wavelength, gap_size):
     order (float)
     """
     return 2 * (gap_size * 1e-6) / (wavelength * 1e-10)
+
+
+def calc_finesse(FSR, FWHM):
+    """
+    Returns the FP Finesse.
+
+    Parameters
+    ----------
+    FSR (float) : free-spectral-range in BCV or A
+    FWHM (float) : full-width-at-half-maximum in BCV or A
+
+    Returns
+    -------
+    F (float) : the finesse
+
+    Observations
+    ------------
+    Both FSR and FWHM have to have same units.
+    """
+    return float(FSR) / float(FWHM)
+
 
 def calc_queensgate_constant(wavelength, free_spectra_range_bcv):
     """
@@ -816,6 +940,7 @@ def calc_queensgate_constant(wavelength, free_spectra_range_bcv):
     queensgate_constant (float) :
     """
     return wavelength / free_spectra_range_bcv
+
 
 if __name__ == '__main__':
 
