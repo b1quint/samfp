@@ -12,6 +12,9 @@ import time
 
 import scan
 
+import astropy.units as u
+import astropy.constants as const
+
 logging.basicConfig()
 log = logging.getLogger("samfp.scan")
 log.setLevel(logging.DEBUG)
@@ -63,16 +66,15 @@ class Main(QtGui.QMainWindow):
         self.toolbar.addAction(exit_action)
 
         # Create the central widget
-        central = myCentralWidget()
+        central = MyCentralWidget()
         self.setCentralWidget(central)
-        self.active_panel = central
 
         # Set the geometry
         self.center()
         self.setWindowTitle('SAM-FP - Data-Acquisition')
         self.setWindowIcon(QtGui.QIcon('web.png'))
 
-        self.load_temp_file()
+        #self.load_temp_file()
         self.show()
 
     def center(self):
@@ -110,27 +112,29 @@ class Main(QtGui.QMainWindow):
 
     def config_parse(self, config_file):
 
+        central_widget = self.centralWidget()
+
         log.debug('Loading config file: {}'.format(config_file))
 
         cfg = configparser.RawConfigParser()
         cfg.read("{}".format(config_file))
 
         try:
-            self.active_panel.basename(cfg.get('image', 'basename'))
-            self.active_panel.comment(cfg.get('image', 'comment'))
-            self.active_panel.path(cfg.get('image', 'dir'))
-            self.active_panel.target_name(cfg.get('image', 'title'))
+            central_widget.basename(cfg.get('image', 'basename'))
+            central_widget.comment(cfg.get('image', 'comment'))
+            central_widget.path(cfg.get('image', 'dir'))
+            central_widget.target_name(cfg.get('image', 'title'))
 
-            idx = self.active_panel.obs_type.combo_box.findText(
+            idx = central_widget.obs_type.combo_box.findText(
                 cfg.get('image', 'type'), QtCore.Qt.MatchFixedString
             )
             if idx >= 0:
-                self.active_panel.obs_type.combo_box.setCurrentIndex(idx)
+                central_widget.obs_type.combo_box.setCurrentIndex(idx)
 
-            self.active_panel.exp_time(cfg.getfloat('obs', 'exptime'))
-            self.active_panel.n_frames(cfg.getint('obs', 'nframes'))
+            central_widget.exp_time(cfg.getfloat('obs', 'exptime'))
+            central_widget.n_frames(cfg.getint('obs', 'nframes'))
 
-            scan_page = self.active_panel.scan_page
+            scan_page = central_widget.scan_page
             scan_page.scan_id(cfg.get('scan', 'id'))
             scan_page.n_channels(cfg.getint('scan', 'nchannels'))
             scan_page.n_sweeps(cfg.getint('scan', 'nsweeps'))
@@ -138,44 +142,44 @@ class Main(QtGui.QMainWindow):
             scan_page.z_step(cfg.getfloat('scan', 'zstep'))
             scan_page.sleep_time(cfg.getfloat('scan', 'stime'))
 
-            self.active_panel.notebook.setCurrentIndex(
+            central_widget.notebook.setCurrentIndex(
                 cfg.getint('gui', 'active_page')
             )
 
             # The calibration page ---
-            idx = self.active_panel.calib_page.lamp.combo_box.findText(
+            idx = central_widget.calib_page.lamp.combo_box.findText(
                 cfg.get('calib', 'lamp'), QtCore.Qt.MatchFixedString
             )
             if idx >= 0:
-                self.active_panel.calib_page.lamp.combo_box.setCurrentIndex(idx)
+                central_widget.calib_page.lamp.combo_box.setCurrentIndex(idx)
 
             if cfg.getboolean('calib', 'low_res_fabry_perot'):
-                self.active_panel.calib_page.fp_low_res_rb.setChecked(True)
+                central_widget.calib_page.fp_low_res_rb.setChecked(True)
             else:
-                self.active_panel.calib_page.fp_high_res_rb.setChecked(True)
+                central_widget.calib_page.fp_high_res_rb.setChecked(True)
 
-            self.active_panel.calib_page.fp_gap_size(
+            central_widget.calib_page.fp_gap_size(
                 cfg.getfloat('calib', 'gap_size')
             )
-            self.active_panel.calib_page.fp_order(
+            central_widget.calib_page.fp_order(
                 cfg.getfloat('calib', 'order')
             )
-            self.active_panel.calib_page.queensgate_constant(
+            central_widget.calib_page.queensgate_constant(
                 cfg.getfloat('calib', 'queensgate_constant')
             )
-            self.active_panel.calib_page.finesse(
+            central_widget.calib_page.finesse(
                 cfg.getfloat('calib', 'finesse')
             )
-            self.active_panel.calib_page.free_spectral_range(
+            central_widget.calib_page.free_spectral_range(
                 cfg.getfloat('calib', 'free_spectral_range')
             )
-            self.active_panel.calib_page.fwhm(
+            central_widget.calib_page.fwhm(
                 cfg.getfloat('calib', 'fwhm')
             )
-            self.active_panel.calib_page.oversample_factor(
+            central_widget.calib_page.oversample_factor(
                 cfg.getfloat('calib', 'oversample_factor')
             )
-            self.active_panel.calib_page.overscan_factor(
+            central_widget.calib_page.overscan_factor(
                 cfg.getfloat('calib', 'overscan_factor')
             )
 
@@ -192,56 +196,56 @@ class Main(QtGui.QMainWindow):
 
         cfg = configparser.RawConfigParser()
         cfg.add_section('image')
-        cfg.set('image', 'basename', self.active_panel.basename())
-        cfg.set('image', 'comment', self.active_panel.comment())
-        cfg.set('image', 'dir', self.active_panel.path())
-        cfg.set('image', 'title', self.active_panel.target_name())
+        cfg.set('image', 'basename', central_widget.basename())
+        cfg.set('image', 'comment', central_widget.comment())
+        cfg.set('image', 'dir', central_widget.path())
+        cfg.set('image', 'title', central_widget.target_name())
         cfg.set('image', 'type',
-                self.active_panel.obs_type.combo_box.currentText())
+                central_widget.obs_type.combo_box.currentText())
 
         cfg.add_section('obs')
-        cfg.set('obs', 'exptime', self.active_panel.exp_time())
-        cfg.set('obs', 'nframes', self.active_panel.n_frames())
+        cfg.set('obs', 'exptime', central_widget.exp_time())
+        cfg.set('obs', 'nframes', central_widget.n_frames())
 
         cfg.add_section('scan')
-        cfg.set('scan', 'id', self.active_panel.scan_page.scan_id())
-        cfg.set('scan', 'nchannels', self.active_panel.scan_page.n_channels())
-        cfg.set('scan', 'nsweeps', self.active_panel.scan_page.n_sweeps())
-        cfg.set('scan', 'stime', self.active_panel.scan_page.sleep_time())
-        cfg.set('scan', 'zstart', self.active_panel.scan_page.z_start())
-        cfg.set('scan', 'zstep', self.active_panel.scan_page.z_step())
+        cfg.set('scan', 'id', central_widget.scan_page.scan_id())
+        cfg.set('scan', 'nchannels', central_widget.scan_page.n_channels())
+        cfg.set('scan', 'nsweeps', central_widget.scan_page.n_sweeps())
+        cfg.set('scan', 'stime', central_widget.scan_page.sleep_time())
+        cfg.set('scan', 'zstart', central_widget.scan_page.z_start())
+        cfg.set('scan', 'zstep', central_widget.scan_page.z_step())
 
         cfg.add_section('gui')
-        cfg.set('gui', 'active_page', self.active_panel.notebook.currentIndex())
+        cfg.set('gui', 'active_page', central_widget.notebook.currentIndex())
 
         cfg.add_section('calib')
-        if self.active_panel.calib_page.fp_low_res_rb.isChecked():
+        if central_widget.calib_page.fp_low_res_rb.isChecked():
             cfg.set('calib', 'low_res_fabry_perot', True)
         else:
             cfg.set('calib', 'low_res_fabry_perot', False)
 
         cfg.set('calib', 'lamp',
-                self.active_panel.calib_page.lamp.combo_box.currentText())
+                central_widget.calib_page.lamp.combo_box.currentText())
         cfg.set('calib', 'order',
-                self.active_panel.calib_page.fp_order())
+                central_widget.calib_page.fp_order())
         cfg.set('calib', 'gap_size',
-                self.active_panel.calib_page.fp_gap_size())
+                central_widget.calib_page.fp_gap_size())
         cfg.set('calib', 'queensgate_constant',
-                self.active_panel.calib_page.queensgate_constant())
+                central_widget.calib_page.queensgate_constant())
         cfg.set('calib', 'finesse',
-                self.active_panel.calib_page.finesse())
+                central_widget.calib_page.finesse())
         cfg.set('calib', 'free_spectral_range',
-                self.active_panel.calib_page.free_spectral_range())
+                central_widget.calib_page.free_spectral_range())
         cfg.set('calib', 'fwhm',
-                self.active_panel.calib_page.fwhm())
+                central_widget.calib_page.fwhm())
         cfg.set('calib', 'oversample_factor',
-                self.active_panel.calib_page.oversample_factor())
+                central_widget.calib_page.oversample_factor())
         cfg.set('calib', 'overscan_factor',
-                self.active_panel.calib_page.overscan_factor())
+                central_widget.calib_page.overscan_factor())
 
         # cfg.add_section('science')
         # cfg.set('science', 'low_res_fabry_perot',
-        #         self.active_panel.sci_page.fp_low_res_rb.isChecked())
+        #         central_widget.sci_page.fp_low_res_rb.isChecked())
 
         return cfg
 
@@ -304,74 +308,108 @@ class Main(QtGui.QMainWindow):
         with open(self.config['temp_file'], 'w') as foo:
             temp_config.write(foo)
 
-class myCentralWidget(QtGui.QFrame):
+class MyCentralWidget(QtGui.QFrame):
 
     def __init__(self):
-        super(myCentralWidget, self).__init__()
+        super(MyCentralWidget, self).__init__()
         self.initUI()
 
     def initUI(self):
 
-        # Initialize widgets ---
-        self.basename = myLineEdit("Basename: ", "samfp_scan")
-        self.path = myLineEdit("Remote path:", "/home2/images/SAMFP/")
-        self.target_name = myLineEdit("Target name:", "NGC0000")
-        self.comment = myLineEdit("Comment:", "---")
-        self.obs_type = MyComboBox("Observation type: ",
-                                   ["DARK", "DFLAT", "OBJECT", "SFLAT", "ZERO"])
+        self.top_group = self.init_top_panel()
+        self.left_group = self.init_left_panel()
+        self.right_group = self.init_right_panel()
+        self.bottom_group = self.init_bottom_panel()
 
-        self.exp_time = myLineEdit_Float("Exposure time [s]:", 1.0)
-        self.n_frames = myLineEdit_Int("Frames per channel:", 1)
+        # self.connect_events()
+
+        # Initialize widgets ---
+        # self.notebook = QtGui.QTabWidget()
+        # self.calib_page = PageCalibrationScan()
+        # self.sci_page = PageScienceScan()
+
+
+        # self.fp_order = MyLineEdit_Float("Interference order at Ha:", 0)
+        # self.fp_gap_size = MyLineEdit_Float("Gap size [um]:", 0)
+
+        # self.queensgate_constant = MyLineEdit_Float(
+        #     "Queensgate Constant [A / bcv]:", 0)
+        # self.finesse = MyLineEdit_Float(
+        #     "Finesse [--]:", 0)
+        # self.free_spectral_range = MyLineEdit_Float(
+        #     "Free Spectral Range [bcv]:", 0)
+        # self.fwhm = MyLineEdit_Float(
+        #     "Full-width at half-maximum [bcv]:", 0)
+        #
+        # self.sampling = MyLineEdit_Float(
+        #     "Sampling [bcv / step]:", 1)
+        #
+        # self.oversample_factor = MyLineEdit_Float(
+        #     "Oversample factor:", 1)
+        # self.overscan_factor = MyLineEdit_Float(
+        #     "Overscan factor:", 1)
+        #
+        # self.queensgate_constant.add_button("Get")
+        # self.finesse.add_button("Get")
+        #
+        # key = str(self.lamp.combo_box.currentText())
+        # self.wavelength = wavelength[key]
+        #
+        # self.set_scan_button = QtGui.QPushButton("Set scan parameters")
+        #
+
+        # Right grid ------------------------------
+        # fp_group = QtGui.QGroupBox()
+        #
+        # self.fp_label = QtGui.QLabel("Fabry-Perot")
+        # self.fp_low_res_rb = QtGui.QRadioButton("Low-Resolution")
+        # self.fp_high_res_rb = QtGui.QRadioButton("High-Resolution")
+        #
+        # self.notebook.addTab(self.calib_page, "Calibration Scan")
+        # self.notebook.addTab(self.sci_page, "Science Scan")
+        #
+        # right_group = QtGui.QGroupBox()
+        # right_grid = QtGui.QGridLayout()
+        #
+        # fp_grid = QtGui.QGridLayout()
+        # fp_grid.setSpacing(5)
+        #
+        # fp_grid.addWidget(self.fp_low_res_rb, 0, 0)
+        # fp_grid.addWidget(self.fp_high_res_rb, 1, 0)
+        #
+        #
+
+        # Put all of them in the main grid -------------------------------------
+        main_grid = QtGui.QGridLayout()
+        main_grid.setSpacing(5)
+
+        main_grid.addWidget(self.top_group, 0, 0, 1, 2)
+        main_grid.addWidget(self.left_group, 1, 0)
+        main_grid.addWidget(self.right_group, 1, 1)
+        main_grid.addWidget(self.bottom_group, 2, 0, 1, 2)
+
+        main_grid.setAlignment(QtCore.Qt.AlignTop)
+        main_grid.setAlignment(QtCore.Qt.AlignLeft)
+        self.setLayout(main_grid)
+
+        # Add the thread for the scan ------------------------------------------
+        self.timer = QtCore.QBasicTimer()
+        self.step = 0
+
+        self.scan_button.clicked.connect(self.scan_start)
+        self.abort_button.clicked.connect(self.scan_abort)
+        # self.set_scan_button.clicked.connect(self.set_scan_pars)
+
+    def init_bottom_panel(self):
 
         self.scan_button = QtGui.QPushButton("Scan")
         self.abort_button = QtGui.QPushButton("Abort")
         self.progress_bar = QtGui.QProgressBar()
 
-        self.scan_page = PageScan()
+        self.scan_button.setEnabled(True)
+        self.abort_button.setDisabled(True)
+        self.progress_bar.setDisabled(True)
 
-        self.notebook = QtGui.QTabWidget()
-        self.calib_page = PageCalibrationScan()
-        self.sci_page = PageScienceScan()
-
-        self.set_scan_button = QtGui.QPushButton("Set scan parameters")
-
-        # Put some in the left part of the GUI ---------------------------------
-        left_group = QtGui.QGroupBox()
-
-        left_grid = QtGui.QGridLayout()
-        left_grid.setSpacing(3)
-
-        left_grid.addWidget(self.basename.label, 0, 0)
-        left_grid.addWidget(self.basename.line_edit, 1, 0, 1, 3)
-
-        left_grid.addWidget(self.path.label, 2, 0)
-        left_grid.addWidget(self.path.line_edit, 3, 0, 1, 3)
-
-        left_grid.addWidget(self.HLine(), 4, 0, 1, 3)
-
-        left_grid.addWidget(self.obs_type.label, 5, 0)
-        left_grid.addWidget(self.obs_type.combo_box, 5, 1)
-
-        left_grid.addWidget(self.target_name.label, 6, 0)
-        left_grid.addWidget(self.target_name.line_edit, 6, 1)
-
-        left_grid.addWidget(self.comment.label, 7, 0)
-        left_grid.addWidget(self.comment.line_edit, 7, 1)
-
-        left_grid.addWidget(self.HLine(), 8, 0, 1, 2)
-
-        left_grid.addWidget(self.exp_time.label, 9, 0)
-        left_grid.addWidget(self.exp_time.line_edit, 9, 1)
-
-        left_grid.addWidget(self.n_frames.label, 10, 0)
-        left_grid.addWidget(self.n_frames.line_edit, 10, 1)
-
-        left_grid.addWidget(self.scan_page, 11, 0, 1, 2)
-
-        left_grid.setAlignment(QtCore.Qt.AlignLeft)
-        left_group.setLayout(left_grid)
-
-        # Put others in the bottom of the GUI ----------------------------------
         bottom_group = QtGui.QGroupBox()
 
         bottom_grid = QtGui.QGridLayout()
@@ -383,34 +421,98 @@ class myCentralWidget(QtGui.QFrame):
 
         bottom_group.setLayout(bottom_grid)
 
-        # Put others in the notebook on the right ------------------------------
-        self.notebook.addTab(self.calib_page, "Calibration Scan")
-        self.notebook.addTab(self.sci_page, "Science Scan")
+        return bottom_group
 
-        # Put all of them in the main grid -------------------------------------
-        main_grid = QtGui.QGridLayout()
-        main_grid.setSpacing(5)
+    def init_left_panel(self):
 
-        main_grid.addWidget(left_group, 0, 0, 2, 1)
-        main_grid.addWidget(self.notebook, 0, 1)
-        main_grid.addWidget(self.set_scan_button, 1, 1)
-        main_grid.addWidget(self.HLine(), 2, 0, 1, 2)
-        main_grid.addWidget(bottom_group, 3, 0, 1, 2)
+        self.obs_type = MyComboBox(
+            "Observation type: ", ["DARK", "DFLAT", "OBJECT", "SFLAT", "ZERO"])
 
-        self.setLayout(main_grid)
+        self.target_name = MyLineEdit("Target name:", "")
+        self.comment = MyLineEdit("Comment:", "")
 
-        # Add the thread for the scan ------------------------------------------
-        self.scan_button.setEnabled(True)
-        self.abort_button.setDisabled(True)
-        self.progress_bar.setDisabled(True)
+        self.exp_time = MyLineEdit_Float("Exposure time [s]:", -1)
+        self.n_frames = MyLineEdit_Int("Frames per channel:", -1)
 
-        self.timer = QtCore.QBasicTimer()
-        self.step = 0
+        self.scan_id = MyLineEdit("Scan ID:", "")
+        self.n_channels = MyLineEdit_Int("Number of channels:", 1)
+        self.n_sweeps = MyLineEdit_Int("Number of sweeps:", 1)
+        self.z_start = MyLineEdit_Int("Z Start [bcv]:", 1024)
+        self.z_step = MyLineEdit_Float("Z Step [bcv]:", 0)
+        self.sleep_time = MyLineEdit_Float("Sleep time [s]:", 0)
 
-        self.scan_button.clicked.connect(self.scan_start)
-        self.abort_button.clicked.connect(self.scan_abort)
-        self.set_scan_button.clicked.connect(self.set_scan_pars)
+        self.scan_id.add_button("Get ID")
+        self.scan_id.button.clicked.connect(self.get_id)
+        self.scan_id.line_edit.setMinimumWidth(200)
 
+        group = QtGui.QGroupBox()
+
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(3)
+
+        grid.addWidget(self.obs_type.label, 0, 0)
+        grid.addWidget(self.obs_type.combo_box, 0, 1)
+
+        grid.addWidget(self.target_name.label, 1, 0)
+        grid.addWidget(self.target_name.line_edit, 1, 1)
+
+        grid.addWidget(self.comment.label, 2, 0)
+        grid.addWidget(self.comment.line_edit, 2, 1)
+
+        grid.addWidget(self.HLine(), 3, 0, 1, 2)
+
+        grid.addWidget(self.exp_time.label, 4, 0)
+        grid.addWidget(self.exp_time.line_edit, 4, 1)
+
+        grid.addWidget(self.n_frames.label, 5, 0)
+        grid.addWidget(self.n_frames.line_edit, 5, 1)
+
+        grid.addWidget(self.HLine(), 6, 0, 1, 2)
+
+        grid.addWidget(self.scan_id.label, 7, 0)
+        grid.addWidget(self.scan_id.line_edit, 8, 0, 1, 2)
+        grid.addWidget(self.scan_id.button, 8, 2)
+
+        grid.addWidget(self.n_sweeps.label, 9, 0)
+        grid.addWidget(self.n_sweeps.line_edit, 9, 1)
+
+        grid.setAlignment(QtCore.Qt.AlignLeft)
+        group.setLayout(grid)
+
+        return group
+
+    def init_top_panel(self):
+
+        self.basename = MyLineEdit("Basename", "")
+        self.path = MyLineEdit("Path:", "")
+
+        grid = QtGui.QGridLayout()
+        grid.addWidget(self.basename.label, 0, 0)
+        grid.addWidget(self.basename.line_edit, 1, 0)
+        grid.addWidget(self.path.label, 2, 0)
+        grid.addWidget(self.path.line_edit, 3, 0)
+
+        grid.setAlignment(QtCore.Qt.AlignLeft)
+        grid.setAlignment(QtCore.Qt.AlignTop)
+
+        group = QtGui.QGroupBox()
+        group.setLayout(grid)
+
+        return group
+
+    def init_right_panel(self):
+        
+        grid = QtGui.QGridLayout()
+
+        group = QtGui.QGroupBox()
+        group.setLayout(grid)
+        
+        return group
+
+    def get_id(self):
+        now = datetime.datetime.now()
+        s = now.strftime("SCAN_%Y%m%d_UTC%H%M%S")
+        self.scan_id(s)
 
     def scan_abort(self):
 
@@ -531,7 +633,7 @@ class MyComboBox(QtGui.QWidget):
         return str(self.combo_box.currentText())
 
 
-class myLineEdit(QtGui.QWidget):
+class MyLineEdit(QtGui.QWidget):
 
     def __init__(self, label, value):
         """
@@ -543,7 +645,7 @@ class myLineEdit(QtGui.QWidget):
         label (string) : the field label
         text (string) : the text that will be inside the text box
         """
-        super(myLineEdit, self).__init__()
+        super(MyLineEdit, self).__init__()
 
         self.button = None
         self.label = QtGui.QLabel(label)
@@ -563,7 +665,7 @@ class myLineEdit(QtGui.QWidget):
         self.button = QtGui.QPushButton(label)
 
 
-class myLineEdit_Int(myLineEdit):
+class MyLineEdit_Int(MyLineEdit):
 
     def __init__(self, label, number):
         """
@@ -578,7 +680,7 @@ class myLineEdit_Int(myLineEdit):
         assert (isinstance(number, int) or isinstance(number, float))
         number = int(number)
 
-        super(myLineEdit_Int, self).__init__(label, "{:d}".format(number))
+        super(MyLineEdit_Int, self).__init__(label, "{:d}".format(number))
         self._value = number
 
     def __call__(self, x=None):
@@ -592,7 +694,7 @@ class myLineEdit_Int(myLineEdit):
             self._value = x
 
 
-class myLineEdit_Float(myLineEdit):
+class MyLineEdit_Float(MyLineEdit):
 
     def __init__(self, label, number):
         """
@@ -607,7 +709,7 @@ class myLineEdit_Float(myLineEdit):
         assert (isinstance(number, int) or isinstance(number, float))
         number = float(number)
 
-        super(myLineEdit_Float, self).__init__(label, "{:.1f}".format(number))
+        super(MyLineEdit_Float, self).__init__(label, "{:.1f}".format(number))
         self._value = number
 
     def __call__(self, x=None):
@@ -671,16 +773,7 @@ class PageScan(QtGui.QWidget):
         grid = QtGui.QGridLayout()
         grid.setSpacing(5)
 
-        self.scan_id = myLineEdit("Scan ID:", "")
-        self.n_channels = myLineEdit_Int("Number of channels:", 1)
-        self.n_sweeps = myLineEdit_Int("Number of sweeps:", 1)
-        self.z_start = myLineEdit_Int("Z Start [bcv]:", 1024)
-        self.z_step = myLineEdit_Float("Z Step [bcv]:", 0)
-        self.sleep_time = myLineEdit_Float("Sleep time [s]:", 0)
 
-        self.scan_id.add_button("Get ID")
-        self.scan_id.button.clicked.connect(self.get_id)
-        self.scan_id.line_edit.setMinimumWidth(200)
 
         grid.addWidget(self.scan_id.label, 0, 0)
         grid.addWidget(self.scan_id.line_edit, 1, 0)
@@ -706,15 +799,6 @@ class PageScan(QtGui.QWidget):
         self.setLayout(grid)
 
 
-    def get_id(self):
-        now = datetime.datetime.now()
-        s = now.strftime("SCAN_%Y%m%d_UTC%H%M%S")
-        self.scan_id(s)
-
-
-class PageScienceScan(QtGui.QWidget):
-    def __init__(self):
-        super(PageScienceScan, self).__init__()
 
 
 class PageCalibrationScan(QtGui.QWidget):
@@ -728,46 +812,11 @@ class PageCalibrationScan(QtGui.QWidget):
         grid = QtGui.QGridLayout()
         grid.setSpacing(5)
 
-        fp_grid = QtGui.QGridLayout()
-        fp_grid.setSpacing(5)
 
         self.lamp = MyComboBox("Lamp: ", wavelength.keys())
 
-        self.fp = QtGui.QGroupBox("Fabry-Perot")
-
-        self.fp_label = QtGui.QLabel("Fabry-Perot")
-        self.fp_low_res_rb = QtGui.QRadioButton("Low-Resolution")
-        self.fp_high_res_rb = QtGui.QRadioButton("High-Resolution")
-
-        self.fp_order = myLineEdit_Float("Interference order at Ha:", 0)
-        self.fp_gap_size = myLineEdit_Float("Gap size [um]:", 0)
-
-        self.queensgate_constant = myLineEdit_Float(
-            "Queensgate Constant [A / bcv]:", 0)
-        self.finesse = myLineEdit_Float(
-            "Finesse [--]:", 0)
-        self.free_spectral_range = myLineEdit_Float(
-            "Free Spectral Range [bcv]:", 0)
-        self.fwhm = myLineEdit_Float(
-            "Full-width at half-maximum [bcv]:", 0)
-
-        self.sampling = myLineEdit_Float(
-            "Sampling [bcv / step]:", 1)
-
-        self.oversample_factor = myLineEdit_Float(
-            "Oversample factor:", 1)
-        self.overscan_factor = myLineEdit_Float(
-            "Overscan factor:", 1)
-
-        self.queensgate_constant.add_button("Get")
-        self.finesse.add_button("Get")
-
-        key = str(self.lamp.combo_box.currentText())
-        self.wavelength = wavelength[key]
-
         #  Add all the widgets to the current layout --------------------------
-        fp_grid.addWidget(self.fp_low_res_rb, 0, 0)
-        fp_grid.addWidget(self.fp_high_res_rb, 1, 0)
+
 
         grid.addWidget(self.lamp.label, 0, 0)
         grid.addWidget(self.lamp.combo_box, 0, 1)
@@ -889,6 +938,57 @@ class PageCalibrationScan(QtGui.QWidget):
         self.fp_order(calc_order(wavelength[self.lamp()], gap_size))
 
 
+class PageScienceScan(QtGui.QWidget):
+    def __init__(self):
+        super(PageScienceScan, self).__init__()
+
+        # These are the variables that this page will have
+        self.redshift = None
+        self.heliocentric_velocity = None
+        self.systemic_velocity = None
+        self.rest_wavelength = None
+        self.observed_wavelength = None
+
+        self.initUI()
+
+    def initUI(self):
+
+        # Initialize fields ---
+        self.rest_wavelength = MyLineEdit_Float("Rest wavelength [A]:", -1)
+        self.redshift = MyLineEdit_Float("Redshift [-]:", -1)
+        self.systemic_velocity = MyLineEdit_Float("Systemic velocity [km / s]:", -1)
+        self.observed_wavelength = MyLineEdit_Float("Observed wavelength [A]:", -1)
+
+        # Put them inside the grid ---
+        elements = [
+            self.rest_wavelength,
+            self.redshift,
+            self.systemic_velocity,
+            self.observed_wavelength
+        ]
+
+        grid = QtGui.QGridLayout()
+        for i, element in enumerate(elements):
+
+            grid.addWidget(element.label, i, 0)
+            grid.addWidget(element.line_edit, i, 1)
+
+            if i in [2, 3, 4]:
+                element.add_button("Get")
+                grid.addWidget(element.button, i, 2)
+
+        grid.setAlignment(QtCore.Qt.AlignLeft)
+        grid.setAlignment(QtCore.Qt.AlignTop)
+        self.setLayout(grid)
+
+        self.systemic_velocity.button.clicked.connect(self.get_systemic_velocity)
+
+    def get_systemic_velocity(self):
+
+        print(const.c.to('km/s'))
+
+
+
 def calc_order(wavelength, gap_size):
     """
     Returns the FP interferential order.
@@ -903,6 +1003,7 @@ def calc_order(wavelength, gap_size):
     order (float)
     """
     return 2 * (gap_size * 1e-6) / (wavelength * 1e-10)
+
 
 
 def calc_finesse(FSR, FWHM):
