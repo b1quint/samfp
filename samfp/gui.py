@@ -75,6 +75,8 @@ class Main(QtGui.QMainWindow):
         self.setWindowIcon(QtGui.QIcon('web.png'))
 
         self.load_temp_file()
+        self.centralWidget().set_fp_pars()
+
         self.show()
 
     def center(self):
@@ -350,7 +352,6 @@ class MyCentralWidget(QtGui.QFrame):
 
         # Connect handlers -----------------------------------------------------
         self.fp_low_res_rb.setChecked(True)
-        self.set_fp_pars()
 
         self.fp_low_res_rb.clicked.connect(self.set_fp_pars)
         self.fp_high_res_rb.clicked.connect(self.set_fp_pars)
@@ -365,6 +366,7 @@ class MyCentralWidget(QtGui.QFrame):
 
         self.finesse.button.clicked.connect(self.get_finesse)
         self.finesse.line_edit.returnPressed.connect(self.get_finesse)
+
 
     def get_finesse(self):
         """
@@ -631,7 +633,12 @@ class MyCentralWidget(QtGui.QFrame):
         Does nothing for now. Check with Philippe if he wants this to deppend on
         the source wavelength or not.
         """
-        return
+        if self.calib_page.lamp() in wavelength.keys():
+            w = wavelength[self.calib_page.lamp()]
+            self.calib_page.wavelength(w)
+        # TODO - Change other parameters that deppend on wavelength
+        # TODO - Change paramaters when CALIB / SCI is selected
+            # and when the custom mode too
 
     def scan_start(self):
 
