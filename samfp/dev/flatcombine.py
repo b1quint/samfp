@@ -31,7 +31,7 @@ class FlatCombine:
 
     @staticmethod
     def mode(data):
-        foo = data[200:-200:10, 200:-200:10].ravel()
+        foo = data[300:-300, 300:300:10].ravel()
         foo = stats.mode(foo)[0][0]
         return 1. / foo
 
@@ -80,9 +80,9 @@ class FlatCombine:
                               sigma_clip_high_thresh=3.0,
                               scale=self.mode)
 
-        foo = self.mode(master_flat.data)
+        # foo = self.mode(master_flat.data)
+        # master_flat.data /= foo
 
-        master_flat.data /= foo
         master_flat.header = hdr
         master_flat.write('nSFLAT_{:s}.fits'.format(hdr['FILTERS']), clobber=True)
 
