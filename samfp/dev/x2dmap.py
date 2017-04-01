@@ -21,7 +21,7 @@ from multiprocessing import Pool, Process
 import astropy.io.fits as pyfits
 import numpy as np
 from astropy.modeling import models, fitting
-from scipy.signal import argrelmax
+from scipy import ndimage, signal, stats
 
 __author__ = 'Bruno C. Quint'
 __date__ = '2016.08.09'
@@ -60,12 +60,12 @@ def main():
 
     # Perform the 2D-Map Extraction ---
     results = perform_2dmap_extraction(
-        args.filename, log, args.pool_size, gaussian=args.gaussian
+        args.filename, log, args.pool_size, args.algorithm
     )
 
     # Write the results to a FITS file ---
     write_results(
-        results, args.filename, args.output, gaussian=args.gaussian,
+        results, args.filename, args.output, args.algorithm,
         wavelength=args.wavelength
     )
 
@@ -79,7 +79,7 @@ def main():
     log.info('All done.')
 
 
-def perform_2dmap_extraction(_input_filename, log, n=4, gaussian=False):
+def perform_2dmap_extraction(_input_filename, log, n=4, algorithm='direct'):
     """
     Perform the 2D-Map extraction using `multiprocessing` and
     `astropy.modeling`.
@@ -109,36 +109,41 @@ def perform_2dmap_extraction(_input_filename, log, n=4, gaussian=False):
     """
 
     if not isinstance(_input_filename, str):
-        raise (TypeError, '_input_filename expected to be string. '
+        raise TypeError, ('_input_filename expected to be string. '
                           '{}s found.'.format(_input_filename.__class__))
 
     if not isinstance(log, logging.Logger):
-        raise (TypeError, '`log` expected to be a logging.Logger instance. '
+        raise TypeError, ('`log` expected to be a logging.Logger instance. '
                           '{}s found.'.format(log.__class__))
 
     if not isinstance(n, int):
-        raise (TypeError, '`n` expected to be a `int` instance. '
+        raise TypeError, ('`n` expected to be a `int` instance. '
                           '{}s found.'.format(n.__class__))
 
     if not os.path.exists(_input_filename):
-        raise (IOError, '{}s file not could not be open for '
+        raise IOError, ('{}s file not could not be open for '
                         'reading.'.format(_input_filename))
 
     # Load data ---
     log.info(' Loading data from: {0:s}'.format(_input_filename))
     header = pyfits.getheader(_input_filename)
-    x = np.arange(header['NAXIS1'])
-    y = np.arange(header['NAXIS2'])
+    x = np.arange(header['NAXIS1'], dtype=int)
+    y = np.arange(header['NAXIS2'], dtype=int)
 
     # Using astropy fitter and model ---
-    if gaussian:
+    if algorithm in 'direct':
+        fitter = DirectMeasure(_input_filename)
+    elif algorithm in 'lorentzian':
+        fitter = FitLorentzian(_input_filename)
+    elif algorithm in 'gaussian':
         fitter = FitGaussian(_input_filename)
     else:
-        fitter = FitLorentzian(_input_filename)
+        raise IOError, 'Wrong algorithm input: {:s}'.format(algorithm)
+
     p = Pool(n)
     results = None
 
-    log.info(' Extracting 2D Maps...'.format(_input_filename))
+    log.info(' Extracting 2D Maps using: {:s}'.format(algorithm))
     loading = Process(target=stand_by, name="stand_by", args=[log.level])
     loading.start()
     try:
@@ -147,6 +152,8 @@ def perform_2dmap_extraction(_input_filename, log, n=4, gaussian=False):
         log.info('\n\nYou pressed Ctrl+C!')
         log.info('Leaving now. Bye!\n')
         pass
+    p.close()
+    p.join()
     loading.terminate()
 
     return np.array(results)
@@ -236,15 +243,16 @@ def parse_arguments():
                     "file. Each maps is saved in a different extension."
     )
     parser.add_argument(
+        '-a', '--algorithm', type=str, default='direct', nargs='?',
+        const='direct', help="Use [lorentzian|gaussian|direct] to find" +
+                             "the maps. 'direct' is the default"
+    )
+    parser.add_argument(
         '-d', '--debug', action='store_true',
         help="Enable debug mode."
     )
     parser.add_argument(
         'filename', type=str, help="Input data-cube name."
-    )
-    parser.add_argument(
-        '-g', '--gaussian', action="store_true",
-        help='Use a Gaussian fit instead of Lorentzian fit.'
     )
     parser.add_argument(
         '-o', '--output', default=None, type=str,
@@ -290,7 +298,8 @@ def stand_by(level=logging.NOTSET):
 
     return
 
-def write_results(_results, _input_file, _output_file, gaussian=False,
+
+def write_results(_results, _input_file, _output_file, algorithm='direct',
                   wavelength=None):
 
     """
@@ -326,14 +335,17 @@ def write_results(_results, _input_file, _output_file, gaussian=False,
     m0 = _results[:, 0]  # Amplitude
     m1 = _results[:, 1]  # Mean
     m2 = _results[:, 2]  # STDDEV
+    m3 = _results[:, 3]  # CONT
 
     m0 = m0.reshape((x, y)).T
     m1 = m1.reshape((x, y)).T
     m2 = m2.reshape((x, y)).T
+    m3 = m3.reshape((x, y)).T
 
     m0 = np.array(m0, dtype=np.float32)
     m1 = np.array(m1, dtype=np.float32)
     m2 = np.array(m2, dtype=np.float32)
+    m3 = np.array(m3, dtype=np.float32)
 
     h1 = header
     h2 = header
@@ -344,10 +356,15 @@ def write_results(_results, _input_file, _output_file, gaussian=False,
     h2.append("M2_MEAN", np.mean(m2))
     h2.append("M2_STDEV", np.std(m2))
 
-    if gaussian:
+    # Using astropy fitter and model ---
+    if algorithm in 'direct':
+        i = 'D'
+    elif algorithm in 'lorentzian':
+        i = 'L'
+    elif algorithm in 'gaussian':
         i = 'G'
     else:
-        i = 'L'
+        raise (IOError, 'Wrong algorithm input: {:s}'.format(algorithm))
 
     if wavelength is not None:
 
@@ -366,28 +383,35 @@ def write_results(_results, _input_file, _output_file, gaussian=False,
 
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m0.fits'.format(i)), data=m0,
-            header=header, overwrite=True
+            header=header, clobber=True
         )
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m1.fits'.format(i)), data=m1,
-            header=h1, overwrite=True
+            header=h1, clobber=True
         )
         pyfits.writeto(
             _input_file.replace('.fits', '.{:s}m2.fits'.format(i)), data=m2,
-            header=h2, overwrite=True
+            header=h2, clobber=True
+        )
+        pyfits.writeto(
+            _input_file.replace('.fits', '.{:s}m3.fits'.format(i)), data=m3,
+            header=header, clobber=True
         )
 
     else:
-        if gaussian:
+        if algorithm in 'direct':
             HDUl = pyfits.HDUList()
             HDUl.append(pyfits.PrimaryHDU(header))
-            HDUl.append(pyfits.ImageHDU(data=m0, name='Gaussian_Peak'))
-            HDUl.append(pyfits.ImageHDU(data=m1, name='Gaussian_Center',
+            HDUl.append(pyfits.ImageHDU(data=m0, name='Direct_Peak'))
+            HDUl.append(pyfits.ImageHDU(data=m1, name='Center',
                                         header=h1))
-            HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV',
+            HDUl.append(pyfits.ImageHDU(data=m2, name='STDDEV',
                                         header=h2))
-            HDUl.writeto(_output_file, overwrite=True)
-        else:
+            HDUl.append(pyfits.ImageHDU(data=m3, name='CONT',
+                                        header=header))
+            HDUl.writeto(_output_file, clobber=True)
+
+        elif algorithm in 'lorentzian':
             HDUl = pyfits.HDUList()
             HDUl.append(pyfits.PrimaryHDU(header))
             HDUl.append(pyfits.ImageHDU(data=m0, name='Lorentzian_Peak'))
@@ -395,10 +419,25 @@ def write_results(_results, _input_file, _output_file, gaussian=False,
                                         header=h1))
             HDUl.append(pyfits.ImageHDU(data=m2, name='Lorentzian_STDDEV',
                                         header=h2))
-            HDUl.writeto(_output_file, overwrite=True)
+            HDUl.append(pyfits.ImageHDU(data=m3, name='Lorentzian_CONT',
+                                        header=header))
+            HDUl.writeto(_output_file, clobber=True)
+
+        elif algorithm in 'gaussian':
+            HDUl = pyfits.HDUList()
+            HDUl.append(pyfits.PrimaryHDU(header))
+            HDUl.append(pyfits.ImageHDU(data=m0, name='Gaussian_Peak'))
+            HDUl.append(pyfits.ImageHDU(data=m1, name='Gaussian_Center',
+                                        header=h1))
+            HDUl.append(pyfits.ImageHDU(data=m2, name='Gaussian_STDDEV',
+                                        header=h2))
+            HDUl.append(pyfits.ImageHDU(data=m3, name='Gaussian_CONT',
+                                        header=header))
+            HDUl.writeto(_output_file, clobber=True)
 
 
-class FitGaussian:
+class MyFitter:
+
     def __init__(self, filename):
         """
         Parameter
@@ -409,7 +448,35 @@ class FitGaussian:
                 fitting.
         """
         self._filename = filename
-        self._g = None
+
+        # Load the data and do some pre-processing ---
+        data = pyfits.getdata(self._filename, memmap=True)
+        s = data.mean(axis=2).mean(axis=1)
+
+        # Delete the data that will not be used anymore ---
+        del data
+
+        # Find the local maxima ---
+        s = ndimage.gaussian_filter1d(s, 3)
+        max_args = signal.argrelmax(s, order=3)[0]
+
+        # Get the top of the top ---
+        max_s = s[max_args]
+        max_arg = np.argmax(max_s)
+        self._argmax = max_arg
+        self._left = 0
+        self._right = s.size - 1
+
+        # Find the safe window ---
+        if len(max_args) > 1:
+
+            max_differences = max_arg - max_args
+            print(max_differences)
+
+            max_left = max_differences[max_differences < 0]
+
+
+class FitGaussian(MyFitter):
 
     def __call__(self, indexes):
         """
@@ -428,7 +495,7 @@ class FitGaussian:
         """
         i, j = indexes
         data = pyfits.getdata(self._filename, memmap=True)
-        s = data[:, j, i]
+        s = data[self._left:self._right, j, i]
 
         h = pyfits.getheader(self._filename)
         self._z = \
@@ -437,26 +504,27 @@ class FitGaussian:
         del data
         del h
 
-        g = models.Gaussian1D(
-            amplitude=s.max(), mean=self._z[s.argmax()], stddev=2.0)
+        # Calculate the continuun --
+        cont = stats.mode(s)[0]
+
+        arg_max = self._argmax
+        amp = s[arg_max]
+        avg = self._z[arg_max]
+
         fitter = fitting.LevMarLSQFitter()
+        g = models.Gaussian1D(amplitude=amp, mean=avg, stddev=2.0) + \
+            models.Const1D(amplitude=cont)
+
         g = fitter(g, self._z, s)
 
-        return [g.amplitude.value, g.mean.value, g.stddev.value]
+        if  fitter.fit_info['ierr'] not in [1, 2, 3, 4]:
+            return [np.nan, np.nan, np.nan, np.nan]
+
+        return [g.amplitude_0.value, g.mean_0.value, g.stddev_0.value,
+                g.amplitude_1.value]
 
 
-class FitLorentzian:
-    def __init__(self, filename):
-        """
-        Parameter
-        ---------
-            filename : str
-                Relative or absolute path to the file that contains a data-cube
-                from where the 2D maps will be extracted through gaussian
-                fitting.
-        """
-        self._filename = filename
-        #self._g = None
+class FitLorentzian(MyFitter):
 
     def __call__(self, indexes):
         """
@@ -475,7 +543,7 @@ class FitLorentzian:
         """
         i, j = indexes
         data = pyfits.getdata(self._filename, memmap=True)
-        s = data[:, j, i]
+        s = data[self._left:self._right, j, i]
 
         h = pyfits.getheader(self._filename)
         self._z = \
@@ -484,22 +552,74 @@ class FitLorentzian:
         del data
         del h
 
-        std = np.std(s)
-        arg_max = argrelmax(s, axis=0, order=5, mode='wrap')[0]
-        arg_max = arg_max[s[arg_max] > 2 * std]
+        # Calculate the continuun --
+        cont = stats.mode(s)[0]
 
-        if len(arg_max) == 0:
-            return [0, 0, 0]
-
+        # Get the first guess parameters --
+        arg_max = self._argmax
         amplitude = s[arg_max]
         x_0 = self._z[arg_max]
 
-        l = models.Lorentz1D(
-            amplitude=amplitude, x_0=x_0, fwhm=2.0)
         fitter = fitting.LevMarLSQFitter()
-        l = fitter(l, self._z, s)
+        my_model = models.Lorentz1D(amplitude=amplitude, x_0=x_0, fwhm=5.0) + \
+                    models.Const1D(amplitude=cont)
 
-        return [l.amplitude.value, l.x_0.value, l.fwhm.value]
+        fitted = fitter(my_model, self._z, s)
+
+        if  fitter.fit_info['ierr'] not in [1, 2, 3, 4]:
+            return [np.nan, np.nan, np.nan, np.nan]
+
+        return [fitted.amplitude_0.value, fitted.x_0_0.value,
+                fitted.fwhm_0.value, fitted.amplitude_1.value]
+
+
+class DirectMeasure(MyFitter):
+
+    def __call__(self, indexes):
+        """
+        Parameter
+        ---------
+            indexes : tuple
+                Contains two integers that correspond to the X and Y indexes
+                that will be used to extract the spectrum from the data-cube and
+                fits a gaussian to this extracted spectrum.
+        Returns
+        -------
+            results : list
+                A list containing the numerical values of the three gaussian
+                parameters met in the fitting processes `peak`, `mean` and
+                `stddev`.
+        """
+        i, j = indexes
+        data = pyfits.getdata(self._filename, memmap=True)
+        s = data[self._left:self._right, j, i]
+
+        h = pyfits.getheader(self._filename)
+        self._z = \
+            (np.arange(s.size) - h['CRPIX3'] - 1) * h['CDELT3'] + h['CRVAL3']
+
+        del data
+        del h
+
+        # Calculate center using barycenter ---
+        p = s / s.sum()
+        x_0 = np.sum(self._z * p)
+
+        # Calculate dispersion ---
+
+        p_min = np.abs(p.min())
+        p += p_min
+        stddev = np.sqrt(np.sum((self._z - x_0) ** 2 * p))
+
+        # Calculate the amplitude ---
+        p -= p_min
+        cond = np.where(np.abs(self._z - x_0) <= stddev, True, False)
+        flux = np.sum(s[cond])
+
+        # Calculate the continuun --
+        cont = stats.mode(s)[0]
+
+        return [flux, x_0, stddev, cont]
 
 
 if __name__ == '__main__':

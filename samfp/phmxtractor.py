@@ -33,6 +33,7 @@ import sys
 from scipy import signal
 from scipy import ndimage
 from multiprocessing import Pool
+from sklearn.cluster import MeanShift
 
 log = logging.getLogger('phasemap_extractor')
 
@@ -666,19 +667,11 @@ class PhaseMapFP(PhaseMap):
             if self.verbose:
                 log.info(" Reference pixel NOT found in header.")
                 log.info(" Trying to find the center of the rings.")
-                ref_x, ref_y = self.find_rings_center()
-
-            # try:
-            #     ref_x, ref_y = self.find_rings_center()
-            # except ValueError:
-            #     log.warn('Could not find the center of the rings. Using '
-            #              'center of image')
-            #     ref_x = self.header['NAXIS1'] // 2
-            #     ref_y = self.header['NAXIS2'] // 2
+                ref_x, ref_y = self.find_rings_center(self.fsr_channel)
 
         return ref_x, ref_y
 
-    def find_rings_center(self, n_interactions=20):
+    def find_rings_center(self, fsr, n_interactions=20):
         """
         Method used to find the center of the rings inside a FP data-cube by
         cutting it in two directions (XZ to find Y center and YZ to find X
@@ -686,6 +679,9 @@ class PhaseMapFP(PhaseMap):
 
         Parameters
         ----------
+            fsr : float
+                The free-spectral-range in number of channels
+
             n_interactions : int
                 Number of interactions to find the center.
 
@@ -729,19 +725,47 @@ class PhaseMapFP(PhaseMap):
             temp_x = self.data[:, ref_y, x]
             temp_y = self.data[:, y, ref_x]
 
+            # Create a pool to find the Z position in each row/column
             p = Pool(16)
             px = PeakFinder(temp_x)
             py = PeakFinder(temp_y)
 
-            temp_x = p.map(px, range(x.size))
-            temp_y = p.map(py, range(y.size))
+            temp_x = np.array(p.map(px, range(x.size)))
+            temp_y = np.array(p.map(py, range(y.size)))
 
-            # First Version -- First derivative
-            xl = np.diff(temp_x)
-            yl = np.diff(temp_y)
+            # Reshape into two dimensions so the clustering works
+            X = np.array(zip(temp_x, np.zeros(len(temp_x))), dtype=np.int)
+            Y = np.array(zip(temp_y, np.zeros(len(temp_y))), dtype=np.int)
 
-            px = scipy.polyfit(x[:-1], temp_x[0] + np.cumsum(xl), 2)
-            py = scipy.polyfit(y[:-1], temp_y[0] + np.cumsum(yl), 2)
+            # Use MeanShift algorithm to cluster the data
+            ms = MeanShift(bandwidth=fsr // 2)
+            ms.fit(X)
+
+            labels_unique = np.unique(ms.labels_)
+            n_clusters = len(labels_unique)
+            if n_clusters == 2:
+                cluster_centers = ms.cluster_centers_[ms.labels_, 0]
+                temp_x = \
+                    np.where(cluster_centers < fsr // 2, temp_x, temp_x - fsr)
+            elif n_clusters > 2:
+                log.warning("Your data-cube may contain more than 2 FSR. \n"
+                            "I don't know how to deal with that")
+
+                # Same for Y
+            ms = MeanShift(bandwidth=fsr // 2)
+            ms.fit(Y)
+
+            labels_unique = np.unique(ms.labels_)
+            n_clusters = len(labels_unique)
+            if n_clusters > 1:
+                cluster_centers = ms.cluster_centers_[ms.labels_, 0]
+                temp_y = \
+                    np.where(cluster_centers < fsr // 2, temp_y,
+                             temp_y - fsr)
+
+                # Not that it is fixed, I can fit the parabola
+            px = scipy.polyfit(x, temp_x, 2)
+            py = scipy.polyfit(y, temp_y, 2)
 
             ref_x = int(round(- px[1] / (2.0 * px[0])))
             ref_y = int(round(- py[1] / (2.0 * py[0])))
@@ -773,8 +797,13 @@ class PhaseMapFP(PhaseMap):
                 ax2.plot(y, temp_y - scipy.polyval(py, y), 'o', color='r', alpha=0.25)
                 fig.add_axes(ax2)
 
-            cond_x = np.where(error_x <= 3 * np.abs(np.median(xl[xl != 0])), True, False)
-            cond_y = np.where(error_y <= 3 * np.abs(np.median(yl[yl != 0])), True, False)
+            # Measuring the error
+            xl = np.diff(temp_x)
+            yl = np.diff(temp_y)
+            cond_x = np.where(error_x <= 3 * np.abs(np.median(xl[xl != 0])),
+                              True, False)
+            cond_y = np.where(error_y <= 3 * np.abs(np.median(yl[yl != 0])),
+                              True, False)
 
             x = x[cond_x]
             y = y[cond_y]
@@ -1054,11 +1083,7 @@ class PeakFinder:
         data = np.where(data > 0.70 * np.max(data), data, 0)
         n = int(data.shape[0] * 0.2)
         peaks = signal.argrelmax(data, axis=0, order=n)[0]
-
-        try:
-            peak = np.min(peaks)
-        except ValueError:
-            peak = 0
+        peak = np.min(peaks)
 
         return peak
 
