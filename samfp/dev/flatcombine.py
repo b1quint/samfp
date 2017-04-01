@@ -2,6 +2,8 @@
 # -*- coding: utf8 -*-
 from __future__ import division, print_function
 
+from scipy.stats import mode
+
 __author__ = 'Bruno Quint'
 
 
@@ -21,6 +23,10 @@ class FlatCombine:
     def info(self, message):
         """Print an info message using the logging system."""
         self._log.info(message)
+
+    def mode(self, data):
+        temp = mode(data[200:-200, 200:-200].rave())[0]
+        return temp
 
     def set_debug(self, debug):
         """
@@ -99,10 +105,10 @@ class FlatCombine:
                                   sigma_clip=True,
                                   sigma_clip_low_thresh=3.0,
                                   sigma_clip_high_thresh=3.0,
-                                  scale="mode",
-                                  statssec="[200:800,200:800]")
+                                  scale=self.mode,
+                                  )
 
-            foo = master_flat[100:-100, 100:-100].data
+            foo = master_flat[200:-200, 200:-200].data
             w, h = foo.shape
             w = np.random.random_integers(0, w, 20)
             h = np.random.random_integers(0, h, 20)
