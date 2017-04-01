@@ -31,14 +31,11 @@ class FlatCombine:
 
     def mode(self, data):
 
-        foo = data[200:-200, 200:-200]
-        w, h = foo.shape
-        w = np.random.random_integers(0, w, 20)
-        h = np.random.random_integers(0, h, 20)
-        foo = foo[w, h].ravel()
+        foo = data[200:-200:10, 200:-200:10]
         foo = stats.mode(foo)[0]
 
-        return foo
+        data /= foo
+        return data
 
     def set_debug(self, debug):
         """
