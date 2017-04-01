@@ -29,13 +29,11 @@ class FlatCombine:
         """Print an info message using the logging system."""
         self._log.info(message)
 
-    def mode(self, data):
-
+    @staticmethod
+    def mode(data):
         foo = data[200:-200:10, 200:-200:10].ravel()
-        foo = stats.mode(foo)[0]
-
-        data /= foo
-        return data
+        foo = stats.mode(foo)[0][0]
+        return 1. / foo
 
     def set_debug(self, debug):
         """
