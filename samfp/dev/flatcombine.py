@@ -98,7 +98,9 @@ class FlatCombine:
                                   mem_limit=6.4e7,
                                   sigma_clip=True,
                                   sigma_clip_low_thresh=3.0,
-                                  sigma_clip_high_thresh=3.0)
+                                  sigma_clip_high_thresh=3.0,
+                                  scale="mode",
+                                  statssec="[200:800,200:800]")
 
             foo = master_flat[100:-100, 100:-100].data
             w, h = foo.shape
