@@ -31,7 +31,7 @@ class FlatCombine:
 
     def mode(self, data):
 
-        foo = data[200:-200:10, 200:-200:10]
+        foo = data[200:-200:10, 200:-200:10].ravel()
         foo = stats.mode(foo)[0]
 
         data /= foo
