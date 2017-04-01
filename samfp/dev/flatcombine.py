@@ -2,7 +2,12 @@
 # -*- coding: utf8 -*-
 from __future__ import division, print_function
 
-from scipy.stats import mode
+import numpy as np
+
+from astropy.io import fits as pyfits
+from astropy import units as u
+from ccdproc import CCDData, combine
+from scipy import stats
 
 __author__ = 'Bruno Quint'
 
@@ -25,8 +30,15 @@ class FlatCombine:
         self._log.info(message)
 
     def mode(self, data):
-        temp = mode(data[200:-200, 200:-200].ravel())[0]
-        return temp
+
+        foo = data[200:-200, 200:-200]
+        w, h = foo.shape
+        w = np.random.random_integers(0, w, 20)
+        h = np.random.random_integers(0, h, 20)
+        foo = foo[w, h].ravel()
+        foo = stats.mode(foo)[0]
+
+        return foo
 
     def set_debug(self, debug):
         """
@@ -58,13 +70,6 @@ class FlatCombine:
 
     def run(self, input_files, output_file='o.fits'):
 
-        import numpy as np
-
-        from astropy.io import fits as pyfits
-        from astropy import units as u
-        from ccdproc import CCDData, combine
-        from scipy import stats
-
         list_of_data = []
         for f in input_files:
 
@@ -80,14 +85,9 @@ class FlatCombine:
                               sigma_clip_high_thresh=3.0,
                               scale=self.mode)
 
-        foo = master_flat[200:-200, 200:-200].data
-        w, h = foo.shape
-        w = np.random.random_integers(0, w, 20)
-        h = np.random.random_integers(0, h, 20)
-        foo = foo[w, h].ravel()
-        foo = stats.mode(foo)[0]
+        foo = self.mode(master_flat.data)
 
-        master_flat.data = master_flat.data / foo
+        master_flat.data /= foo
         master_flat.header = hdr
         master_flat.write('nSFLAT_{:s}.fits'.format(hdr['FILTERS']), clobber=True)
 
