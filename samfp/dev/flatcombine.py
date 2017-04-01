@@ -25,7 +25,7 @@ class FlatCombine:
         self._log.info(message)
 
     def mode(self, data):
-        temp = mode(data[200:-200, 200:-200].rave())[0]
+        temp = mode(data[200:-200, 200:-200].ravel())[0]
         return temp
 
     def set_debug(self, debug):
