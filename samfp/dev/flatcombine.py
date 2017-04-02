@@ -72,7 +72,7 @@ class FlatCombine:
         """Print a warning message using the logging system."""
         self._log.warning(message)
 
-    def run(self, input_files, output_file='o.fits'):
+    def run(self, input_files, output_file=None):
 
         list_of_data = []
         for f in input_files:
@@ -89,11 +89,13 @@ class FlatCombine:
                               sigma_clip_high_thresh=3.0,
                               scale=self.mode)
 
-        # foo = self.mode(master_flat.data)
-        # master_flat.data /= foo
 
         master_flat.header = hdr
-        master_flat.write('nSFLAT_{:s}.fits'.format(hdr['FILTERS']), clobber=True)
+        if output_file is None:
+            master_flat.write('nSFLAT_{:s}.fits'.format(hdr['FILTERS']),
+                              clobber=True)
+        else:
+            master_flat.write(output_file, clobber=True)
 
 if __name__ == '__main__':
 
@@ -122,7 +124,7 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '-o', '--output',
-        type=str, default='o.fits',
+        type=str, default=None,
         help='Name of the output fits file.'
     )
 
