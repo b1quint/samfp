@@ -110,4 +110,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     zero_combine = ZeroCombine(verbose=not args.quiet, debug=args.debug)
-    zero_combine.run(args.input_database, output=args.output)
+    zero_combine.run(args.input_files, output_file=args.output)
