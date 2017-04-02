@@ -2,21 +2,10 @@
 # -*- coding: utf8 -*-
 from __future__ import division, print_function
 
-import numpy as np
-
 from astropy.io import fits as pyfits
 from astropy import units as u
 from ccdproc import CCDData, combine
 from scipy import stats
-
-import ccdproc
-import astropy
-import scipy
-
-print(ccdproc.__version__)
-print(np.__version__)
-print(astropy.__version__)
-print(scipy.__version__)
 
 __author__ = 'Bruno Quint'
 
