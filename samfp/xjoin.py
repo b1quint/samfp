@@ -1040,7 +1040,7 @@ def _str2pixels(my_string):
     return x, y
 
 
-def _parse_arguments():
+def parse_arguments():
     """
     Parse the argument given by the user in the command line.
 
@@ -1083,15 +1083,3 @@ def _parse_arguments():
                         help="input filenames.")
 
     return parser.parse_args()
-
-
-if __name__ == '__main__':
-    pargs = _parse_arguments()
-    xjoin = SAMI_XJoin(
-        bias_file=pargs.bias, clean=pargs.clean, cosmic_rays=pargs.rays,
-        dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,
-        glow_file=pargs.glow, norm_flat=pargs.norm,
-        time=pargs.exptime, verbose=not pargs.quiet
-    )
-
-    xjoin.run(pargs.files)
