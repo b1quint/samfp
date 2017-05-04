@@ -227,12 +227,24 @@ class SAMI_XJoin:
 
         bad_columns = [
             [167, 0, 513],
+            [213, 513, 1023],
+            [304, 0, 513],
+            [309, 1, 512],
+            [386, 0, 513],
             [476, 0, 513],
             [602, 0, 513],
             [671, 0, 513],
             [673, 475, 513],
+            [678, 0, 513],
+            [741, 0, 513],
             [810, 0, 513],
-            [213, 513, 1024]
+            [919, 0, 513],
+            [212, 513, 1023],
+            [680, 513, 1023],
+            [725, 513, 1023],
+            [848, 513, 1023],
+            [948, 0, 512],
+            [949, 0, 512]
         ]
 
         for column in bad_columns:
@@ -304,13 +316,23 @@ class SAMI_XJoin:
                               'expected 2 dimensions.')
 
         bad_lines = [
+            [166, 206, 282],
+            [212, 258, 689],
             [214, 239, 688],
+            [304, 345, 291],
+            [386, 422, 454],
+            [398, 422, 38],
             [477, 516, 490],
             [387, 429, 455],
             [574, 603, 494],
             [574, 603, 493],
             [640, 672, 388],
-            [604, 671, 388]
+            [604, 671, 388],
+            [698, 746, 198],
+            [706, 634, 634],
+            [772, 812, 354],
+            [900, 938, 426],
+            [904, 920, 396]
         ]
 
         for line in bad_lines:
@@ -1018,7 +1040,7 @@ def _str2pixels(my_string):
     return x, y
 
 
-def _parse_arguments():
+def parse_arguments():
     """
     Parse the argument given by the user in the command line.
 
@@ -1061,15 +1083,3 @@ def _parse_arguments():
                         help="input filenames.")
 
     return parser.parse_args()
-
-
-if __name__ == '__main__':
-    pargs = _parse_arguments()
-    xjoin = SAMI_XJoin(
-        bias_file=pargs.bias, clean=pargs.clean, cosmic_rays=pargs.rays,
-        dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,
-        glow_file=pargs.glow, norm_flat=pargs.norm,
-        time=pargs.exptime, verbose=not pargs.quiet
-    )
-
-    xjoin.run(pargs.files)
