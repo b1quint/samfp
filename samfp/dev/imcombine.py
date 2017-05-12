@@ -52,13 +52,9 @@ class ImageCombine:
 
     def run(self, input_files, output_file='o.fits'):
 
-        import pandas as pd
         from astropy.io import fits as pyfits
         from astropy import units as u
         from ccdproc import CCDData, combine
-        from samfp import xjoin
-        from samfp.globals import csv_columns
-        from os.path import exists
 
         list_of_data = []
         for f in input_files:
@@ -108,5 +104,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    zero_combine = ImageCombine(verbose=not args.quiet, debug=args.debug)
-    zero_combine.run(args.input_files, output_file=args.output)
+    image_combine = ImageCombine(verbose=not args.quiet, debug=args.debug)
+    image_combine.run(args.input_files, output_file=args.output)

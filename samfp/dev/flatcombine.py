@@ -2,6 +2,11 @@
 # -*- coding: utf8 -*-
 from __future__ import division, print_function
 
+from astropy.io import fits as pyfits
+from astropy import units as u
+from ccdproc import CCDData, combine
+from scipy import stats
+
 __author__ = 'Bruno Quint'
 
 
@@ -21,6 +26,12 @@ class FlatCombine:
     def info(self, message):
         """Print an info message using the logging system."""
         self._log.info(message)
+
+    @staticmethod
+    def mode(data):
+        foo = data[300:-300:10, 300:-300:10].ravel()
+        foo = stats.mode(foo)[0][0]
+        return 1. / foo
 
     def set_debug(self, debug):
         """
@@ -50,86 +61,42 @@ class FlatCombine:
         """Print a warning message using the logging system."""
         self._log.warning(message)
 
-    def run(self, csv_table, bias_file=None):
+    def run(self, input_files, output_file=None):
 
-        import pandas as pd
-        import numpy as np
+        list_of_data = []
+        for f in input_files:
 
-        from astropy.io import fits as pyfits
-        from astropy import units as u
-        from ccdproc import CCDData
-        from ccdproc import combine
-        from samfp import xjoin
-        from scipy import stats
+            hdr = pyfits.getheader(f)
+            data = pyfits.getdata(f)
+            data = CCDData(data, unit=u.adu)
+            list_of_data.append(data)
 
-        dataframe = pd.read_csv(csv_table)
-        dataframe = dataframe[dataframe['OBSTYPE'] == 'SFLAT']
-        dataframe = dataframe[dataframe['NEXTEND'] == 4]
+        master_flat = combine(list_of_data, method='median',
+                              mem_limit=6.4e7,
+                              sigma_clip=True,
+                              sigma_clip_low_thresh=3.0,
+                              sigma_clip_high_thresh=3.0,
+                              scale=self.mode)
 
-        xj = xjoin.SAMI_XJoin(
-            clean=True, cosmic_rays=True, verbose=True, bias_file=bias_file
-        )
-        flats = dataframe['FILTERS'].unique()
 
-        for f in flats:
-            self.info('Processing filter {:s}'.format(f))
-
-            flat_list = []
-            list_of_files = dataframe[dataframe['FILTERS'] == f]
-            list_of_files = list_of_files['FILENAME']
-            list_of_files = list_of_files.tolist()
-
-            master_header = pyfits.getheader(list_of_files[0])
-            master_header.add_blank()
-
-            for i in range(len(list_of_files)):
-
-                self.debug(list_of_files[i])
-
-                hdr = pyfits.getheader(list_of_files[i])
-                data = xj.get_joined_data(list_of_files[i])
-
-                data, hdr, prefix = xj.join_and_process(data, hdr)
-                data = CCDData(data, unit=u.adu)
-
-                flat_list.append(data)
-
-            master_flat = combine(flat_list, method='median',
-                                  mem_limit=6.4e7,
-                                  sigma_clip=True,
-                                  sigma_clip_low_thresh=3.0,
-                                  sigma_clip_high_thresh=3.0)
-
-            foo = master_flat[100:-100, 100:-100].data
-            w, h = foo.shape
-            w = np.random.random_integers(0, w, 20)
-            h = np.random.random_integers(0, h, 20)
-            foo = foo[w, h].ravel()
-            foo = stats.mode(foo)[0]
-
-            master_flat.data = master_flat.data / foo
-            master_flat.header = master_header
-            master_flat.write('nSFLAT_{:s}.fits'.format(f), clobber=True)
+        master_flat.header = hdr
+        if output_file is None:
+            master_flat.write('nSFLAT_{:s}.fits'.format(hdr['FILTERS']),
+                              clobber=True)
+        else:
+            master_flat.write(output_file, clobber=True)
 
 if __name__ == '__main__':
 
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Combine bias images into a merged single file."
+        description="Combine images into a merged single file."
     )
 
     parser.add_argument(
-        '-b', '--bias',
-        default=None,
-        help="Name of the bias file that will be subtracted from the others."
-    )
-
-    parser.add_argument(
-        'input_database',
-        type=str,
-        help="A CSV file containing the information about all the files, "
-             "specially the zero files."
+        'input_files',
+        nargs='+'
     )
 
     parser.add_argument(
@@ -144,7 +111,13 @@ if __name__ == '__main__':
         help="Run the script without printing anything."
     )
 
+    parser.add_argument(
+        '-o', '--output',
+        type=str, default=None,
+        help='Name of the output fits file.'
+    )
+
     args = parser.parse_args()
 
-    zero_combine = FlatCombine(verbose=not args.quiet, debug=args.debug)
-    zero_combine.run(args.input_database, bias_file=args.bias)
+    flat_combine = FlatCombine(verbose=not args.quiet, debug=args.debug)
+    flat_combine.run(args.input_files, output_file=args.output)
