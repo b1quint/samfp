@@ -68,7 +68,9 @@ class ImageCombine:
                               mem_limit=6.4e7,
                               sigma_clip=True,
                               sigma_clip_low_thresh=3.0,
-                              sigma_clip_high_thresh=3.0)
+                              sigma_clip_high_thresh=3.0,
+                              scale='mode',
+                              statsec="[200:800,200:800]")
         final.write(output_file, clobber=True)
 
 if __name__ == '__main__':
