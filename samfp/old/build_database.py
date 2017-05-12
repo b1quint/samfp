@@ -16,11 +16,12 @@ import argparse as _argparse
 import glob as _glob
 import logging as log
 import os.path
-import pandas as _pd
-import sqlite3 as _sqlite3
 
+import pandas as _pd
 from astropy.io import fits as _pyfits
-from samfp.globals import csv_columns
+
+from samfp.old.globals import csv_columns
+
 
 class DBBuilder:
     def __init__(self, _input, debug=False, verbose=True):

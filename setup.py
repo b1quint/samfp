@@ -7,10 +7,10 @@ https://github.com/pypa/sampleproject
 """
 
 # Always prefer setuptools over distutils
-from setuptools import setup, find_packages
-# To use a consistent encoding
 from codecs import open
 from os import path
+
+from setuptools import setup, find_packages
 
 from samfp.version import api, feature, bug
 
@@ -119,8 +119,8 @@ setup(
     entry_points={
         'console_scripts': [
             'xjoin=samfp.xjoin:main',
-            'mkcube=samfp.mkcube:main',
-            'phmxtractor=samfp.phmxtractor:main',
+            # 'mkcube=samfp.mkcube:main',
+            # 'phmxtractor=samfp.phmxtractor:main',
         ],
     },
 )

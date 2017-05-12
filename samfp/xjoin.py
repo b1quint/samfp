@@ -64,6 +64,18 @@ _dilstruct[0, 4] = 0
 _dilstruct[4, 0] = 0
 _dilstruct[4, 4] = 0
 
+def main():
+    pargs = _parse_arguments()
+
+    xjoin = SAMI_XJoin(
+        bias_file=pargs.bias, clean=pargs.clean, cosmic_rays=pargs.rays,
+        dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,
+        glow_file=pargs.glow, norm_flat=pargs.norm,
+        time=pargs.exptime, verbose=not pargs.quiet
+    )
+
+    xjoin.run(pargs.files)
+
 
 # noinspection PyPep8Naming
 class SAMI_XJoin:
@@ -1086,12 +1098,6 @@ def _parse_arguments():
 
 
 if __name__ == '__main__':
-    pargs = _parse_arguments()
-    xjoin = SAMI_XJoin(
-        bias_file=pargs.bias, clean=pargs.clean, cosmic_rays=pargs.rays,
-        dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,
-        glow_file=pargs.glow, norm_flat=pargs.norm,
-        time=pargs.exptime, verbose=not pargs.quiet
-    )
+    main()
 
-    xjoin.run(pargs.files)
+

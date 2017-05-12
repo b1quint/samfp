@@ -1,19 +1,18 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function, division
-from PyQt4 import QtCore, QtGui, Qt
 
-import configparser
 import datetime
 import logging
-import sys
 import os
+import sys
 import time
 
-import scan
-
-import astropy.units as u
 import astropy.constants as const
+import configparser
+from PyQt4 import QtCore, QtGui
+
+import scan
 
 logging.basicConfig()
 log = logging.getLogger("samfp.scan")
