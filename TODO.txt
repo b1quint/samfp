@@ -1,0 +1,6 @@
+Next steps
+[ ] Rebase mkcube
+[ ] Rebase phmxtractor using old code.
+[ ] Rebase phmfit using old code.
+[ ] Rebase phmapply using old code.
+[ ] Rebase wcal and try to find bug that causes systematic error.
