@@ -27,6 +27,44 @@ log.basicConfig(format='%(levelname)s: %(name)s(%(funcName)s): %(message)s',
                 level=log.INFO)
 
 
+def main():
+    # Parsing Arguments -------------------------------------------------------
+    parser = argparse.ArgumentParser(
+        description="Build a data-cube from image files.")
+
+    parser.add_argument('-a', '--algorithm', metavar='algorithm', type=str,
+                        default='average',
+                        help="Algorithm used when combining images per "
+                             "frame (average | median | sum)")
+
+    parser.add_argument('-b', '--binning', type=int, nargs=2, default=(1, 1),
+                        help='New binning to be applied to the data-cube')
+
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help="Run debug mode.")
+
+    parser.add_argument('-o', '--output', metavar='output', type=str,
+                        default="cube.fits", help="Name of the output cube.")
+
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help="Run quietly.")
+
+    parser.add_argument('files', metavar='files', type=str, nargs='+',
+                        help="input filenames.")
+
+    parsed_args = parser.parse_args()
+
+    if parsed_args.quiet:
+        log.basicConfig(level=log.ERROR)
+    if parsed_args.debug:
+        log.basicConfig(level=log.DEBUG)
+
+    make_cube(parsed_args.files,
+              output=parsed_args.output,
+              combine_algorithm=parsed_args.algorithm,
+              binning=parsed_args.binning)
+
+
 def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
               output='cube.fits', binning=(1, 1)):
     """
@@ -217,40 +255,4 @@ def safesave(name, overwrite=False, verbose=False):
 
 
 if __name__ == '__main__':
-
-    # Parsing Arguments -------------------------------------------------------
-    parser = argparse.ArgumentParser(
-        description="Build a data-cube from image files.")
-
-    parser.add_argument('-a', '--algorithm', metavar='algorithm', type=str,
-                        default='average',
-                        help="Algorithm used when combining images per "
-                             "frame (average | median | sum)")
-
-    parser.add_argument('-b', '--binning', type=int, nargs=2, default=(1, 1),
-                        help='New binning to be applied to the data-cube')
-
-    parser.add_argument('-d', '--debug', action='store_true',
-                        help="Run debug mode.")
-
-    parser.add_argument('-o', '--output', metavar='output', type=str,
-                        default="cube.fits", help="Name of the output cube.")
-
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help="Run quietly.")
-
-    parser.add_argument('files', metavar='files', type=str, nargs='+',
-                        help="input filenames.")
-
-    parsed_args = parser.parse_args()
-
-    if parsed_args.quiet:
-        log.basicConfig(level=log.ERROR)
-
-    if parsed_args.debug:
-        log.basicConfig(level=log.DEBUG)
-
-    make_cube(parsed_args.files,
-              output=parsed_args.output,
-              combine_algorithm=parsed_args.algorithm,
-              binning=parsed_args.binning)
+    main()

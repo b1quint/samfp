@@ -4,7 +4,9 @@
             using setup.py and the entry_points keyword.
     0.1.0 - xjoin was released again. It is working and installed using
             entry_points.
+    0.2.0 - mkcube can now be called as script again and it is installed using
+            pip.
 """
 api = 0
-feature = 1
+feature = 2
 bug = 0

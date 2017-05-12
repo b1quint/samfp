@@ -119,7 +119,7 @@ setup(
     entry_points={
         'console_scripts': [
             'xjoin=samfp.xjoin:main',
-            # 'mkcube=samfp.mkcube:main',
+            'mkcube=samfp.mkcube:main',
             # 'phmxtractor=samfp.phmxtractor:main',
         ],
     },
