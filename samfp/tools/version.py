@@ -6,7 +6,12 @@
             entry_points.
     0.2.0 - mkcube can now be called as script again and it is installed using
             pip.
+    0.3.0 - phmxtractor can now be called as script again and it is installed
+            using pip.
 """
 api = 0
-feature = 2
+feature = 3
 bug = 0
+
+month = 5
+year = 2017

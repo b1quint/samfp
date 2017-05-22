@@ -10,12 +10,12 @@
 from __future__ import division, print_function
 
 import argparse
-import astropy.io.fits as pyfits
-import numpy as np
 import os
 import sys
 import time
 
+import astropy.io.fits as pyfits
+import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 

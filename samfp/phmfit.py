@@ -8,11 +8,47 @@
 from __future__ import division, print_function
 
 import argparse
-import astropy.io.fits as pyfits
 import logging
+import os
+
+import astropy.io.fits as pyfits
 import matplotlib.pyplot as plt
 import numpy as np
-import os
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description="Fits an existing phase-map.")
+
+    parser.add_argument('filename', type=str,
+                        help="Input phase-map name.")
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help="Run program quietly.")
+    parser.add_argument('-i', '--interactions', default=5, type=int,
+                        help="Number of interactions in the process [5]")
+    parser.add_argument('-n', '--npoints', default=50, type=int,
+                        help="Number of points that will be used to fit the phase-map [50]")
+    parser.add_argument('-o', '--output', type=str, default=None,
+                        help="Name of the output phase-map file.")
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help="Run program quietly.")
+    parser.add_argument('-s', '--show_plots', action='store_true',
+                        help="Show plots.")
+
+    args = parser.parse_args()
+
+    phmfit = PhaseMapFit()
+
+    if args.quiet:
+        phmfit.set_log_level(level=logging.ERROR)
+
+    if args.debug:
+        phmfit.set_log_level(level=logging.DEBUG)
+
+    phmfit.log.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    phmfit.run(args.filename, interactions=args.interactions,
+               n_points=args.npoints, show=args.show_plots)
 
 
 class PhaseMapFit:
@@ -343,95 +379,3 @@ def get_colormap():
                       (1.0, 1.0, 1.0))}
 
     return colors.LinearSegmentedColormap('heaven_hell', cdict, 256)
-
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    DIM = '\e[2m'
-    ENDDIM = '\e[22m'
-
-    def disable(self):
-        self.HEADER = ''
-        self.OKBLUE = ''
-        self.OKGREEN = ''
-        self.WARNING = ''
-        self.FAIL = ''
-        self.ENDC = ''
-
-
-class MyLogFormatter(logging.Formatter):
-    err_fmt = "ERROR: %(msg)s"
-    dbg_fmt = " DBG: %(module)s: %(lineno)d: %(msg)s"
-    info_fmt = " %(msg)s"
-    warn_fmt = " %(msg)s"
-
-    def __init__(self, fmt="%(levelno)s: %(msg)s"):
-        logging.Formatter.__init__(self, fmt)
-
-    def format(self, record):
-
-        # Save the original format configured by the user
-        # when the logger formatter was instantiated
-        format_orig = self._fmt
-
-        # Replace the original format with one customized by logging level
-        if record.levelno == logging.DEBUG:
-            self._fmt = MyLogFormatter.dbg_fmt
-
-        elif record.levelno == logging.INFO:
-            self._fmt = MyLogFormatter.info_fmt
-
-        elif record.levelno == logging.ERROR:
-            self._fmt = MyLogFormatter.err_fmt
-
-        elif record.levelno == logging.WARNING:
-            self._fmt = MyLogFormatter.warn_fmt
-
-        # Call the original formatter class to do the grunt work
-        result = logging.Formatter.format(self, record)
-
-        # Restore the original format configured by the user
-        self._fmt = format_orig
-
-        return result
-
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(
-        description="Fits an existing phase-map.")
-
-    parser.add_argument('filename', type=str,
-                        help="Input phase-map name.")
-    parser.add_argument('-d', '--debug', action='store_true',
-                        help="Run program quietly.")
-    parser.add_argument('-i', '--interactions', default=5, type=int,
-                        help="Number of interactions in the process [5]")
-    parser.add_argument('-n', '--npoints', default=50, type=int,
-                        help="Number of points that will be used to fit the phase-map [50]")
-    parser.add_argument('-o', '--output', type=str, default=None,
-                        help="Name of the output phase-map file.")
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help="Run program quietly.")
-    parser.add_argument('-s', '--show_plots', action='store_true',
-                        help="Show plots.")
-
-    args = parser.parse_args()
-
-    phmfit = PhaseMapFit()
-
-    if args.quiet:
-        phmfit.set_log_level(level=logging.ERROR)
-
-    if args.debug:
-        phmfit.set_log_level(level=logging.DEBUG)
-
-    phmfit.log.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    phmfit.run(args.filename,
-               interactions=args.interactions, n_points=args.npoints,
-               show=args.show_plots)

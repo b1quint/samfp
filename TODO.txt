@@ -1,6 +1,8 @@
 Next steps
-[ ] Rebase mkcube
+[x] Rebase mkcube
 [ ] Rebase phmxtractor using old code.
+  [X] New algorithm to find FSR.
+  [ ] Change the algorithm to find the center of the rings.
 [ ] Rebase phmfit using old code.
 [ ] Rebase phmapply using old code.
 [ ] Rebase wcal and try to find bug that causes systematic error.

@@ -5,4 +5,4 @@ numpy
 photutils
 pandas
 scipy
-pyqt=4
+sklearn
