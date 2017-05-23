@@ -903,12 +903,14 @@ class PhaseMap:
 
         # Setting what is the reference pixels
         h.set('PHMREFX', value=self.ref_x, comment='Rings center - x')
-        h.set('PHMREFY', value=self.ref_y, comment='Rings center - y')
+        h.set('PHMREFY', value=self.ref_y, comment='Rings center - y',
+              after='PHMREFX')
+
         h.add_blank('', before='PHMREFX')
         h.add_blank('--- PHM Xtractor ---', before='PHMREFX')
 
         # Store information gathered
-        h.set('PHMTYPE', value='observed', comment='', after='PHMREFX')
+        h.set('PHMTYPE', value='observed', comment='', after='PHMREFY')
         h.set('PHMREFF', value=self.input_file, comment='Original file',
               after='PHMTYPE')
         h.set('PHMWCAL', value=self.wavelength,

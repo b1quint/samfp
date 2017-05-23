@@ -7,6 +7,11 @@
 """
 from __future__ import division, print_function
 
+import matplotlib
+matplotlib.use('TkAgg')
+
+from .tools import io
+
 import argparse
 import logging
 import os
@@ -88,13 +93,16 @@ class PhaseMapFit:
 
         return n_cols, n_rows
 
-    def get_logger(self):
-        """Create and return a customized logger object.
-
-        :return log: the logger object.
-        :rtype log: logging.Logger
+    @staticmethod
+    def get_logger():
         """
-        lf = MyLogFormatter()
+        Create and return a customized logger object.
+
+        Returns
+        -------
+            log (logging.Logger) : the logger object.
+        """
+        lf = io.MyLogFormatter()
 
         ch = logging.StreamHandler()
         ch.setLevel(logging.INFO)
@@ -132,7 +140,7 @@ class PhaseMapFit:
             ref_x = h['CRPIX1'] + (ref_x - h['CRVAL1']) / h['CDELT1']
             ref_y = h['CRPIX2'] + (ref_y - h['CRVAL2']) / h['CDELT2']
         except KeyError:
-            log.warn("WCS not found. Using phisical coordinates.")
+            log.warning("WCS not found. Using phisical coordinates.")
 
         log.info('Reference pixel: [%d, %d]' % (ref_x, ref_y))
 
@@ -202,9 +210,10 @@ class PhaseMapFit:
 
         unit = h['PHMUNIT']
         sampling = h['PHMSAMP']
-        FSR = float(h['PHMFSR'])
+        FSR = float(h['PHM_FSR'])
 
-        self.show_sampled_phasemap(d, ref_x, ref_y, n_cols, n_rows, X, Y, unit, show)
+        self.show_sampled_phasemap(d, ref_x, ref_y, n_cols, n_rows, X, Y, unit,
+                                   show)
 
         # Flatten sampled data
         x, y, z = np.ravel(X), np.ravel(Y), np.ravel(Z)
@@ -234,8 +243,11 @@ class PhaseMapFit:
         else:
             where = (r.size - 1)
 
-        # Plot the gradient
-        if args.show_plots:
+        delta = 10
+        z = (z + sign * delta + sign * FSR) % FSR + sign * FSR - sign * delta
+
+        if show:
+            # Plot the gradient
             plt.figure(figsize=(16, 7))
             plt.subplot(2, 2, 3)
             plt.plot(r[1:], dz, 'b-')
@@ -248,7 +260,6 @@ class PhaseMapFit:
             plt.legend(loc='best')
             plt.grid()
 
-        if args.show_plots:
             plt.subplot(2, 2, 1)
             plt.plot(r[:where], z[:where], 'b.', alpha=0.25, label='Not to be fixed')
             plt.plot(r[where:], z[where:], 'r.', alpha=0.25, label='Data to be fixed')
@@ -261,10 +272,7 @@ class PhaseMapFit:
             plt.legend(loc='best')
             plt.grid()
 
-        # Plot data after correction
-        delta = 10
-        z = (z + sign * delta + sign * FSR) % FSR + sign * FSR - sign * delta
-        if args.show_plots:
+            # Plot data after correction
             ax_fit = plt.subplot(2, 2, 2)
             ax_fit.plot(r, z, 'r.',
                         alpha=0.25, label='Fixed data')
@@ -286,6 +294,7 @@ class PhaseMapFit:
             rr = np.linspace(r[0], r[-1], 10000)
             zz = np.polyval(p, rr)
             err = (z - np.polyval(p, r))
+
             if show:
                 ax_fit.plot(rr, zz, 'k-', alpha=0.25)
                 ax_err.plot(r, err, 'k-', alpha=0.25)
@@ -313,7 +322,7 @@ class PhaseMapFit:
         Z = np.polyval(p, R)
         Z = Z - Z[ref_y, ref_x]
 
-        h['PHMTYPE'] = 'parabola fit'
+        h.set('PHMTYPE', value='parabola fit')
         fname = h['PHMREFF']
         fname = os.path.splitext(fname)[0]
         pyfits.writeto(fname + '--fit_phmap.fits', Z, h, clobber=True)
@@ -321,7 +330,7 @@ class PhaseMapFit:
 
         log.info(" All done.\n")
 
-        if args.show_plots:
+        if show:
             plt.show()
 
     def set_log_level(self, level):
