@@ -3,4 +3,4 @@
 import samfp
 
 if __name__ == '__main__':
-    samfp.phmfit.main()
+    samfp.phmapply.main()

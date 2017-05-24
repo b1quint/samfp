@@ -323,6 +323,15 @@ class PhaseMapFit:
         Z = Z - Z[ref_y, ref_x]
 
         h.set('PHMTYPE', value='parabola fit')
+
+        h.set('PHMFIT_A', value=p[0], after='PHMSAMP')
+        h.set('PHMFIT_B', value=p[1], after='PHMFIT_A')
+        h.set('PHMFIT_C', value=p[2], after='PHMFIT_B')
+
+        h.add_blank(value='', before='PHMFIT_A')
+        h.add_blank(value='--- PHM Fit ---', before='PHMFIT_A')
+        h.add_blank(value='f(x) = a * z ** 2 + b * z + c', before='PHMFIT_A')
+
         fname = h['PHMREFF']
         fname = os.path.splitext(fname)[0]
         pyfits.writeto(fname + '--fit_phmap.fits', Z, h, clobber=True)

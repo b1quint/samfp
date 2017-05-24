@@ -8,9 +8,13 @@
             pip.
     0.3.0 - phmxtractor can now be called as script again and it is installed
             using pip.
+    0.4.0 - phmfit can now be called as script again and it is installed using
+            pip.
+    0.4.1 - phmfit now stores fit parameters in the header.
+    0.5.0 - phmapply back to work.
 """
 api = 0
-feature = 3
+feature = 5
 bug = 0
 
 month = 5
