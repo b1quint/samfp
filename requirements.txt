@@ -1,5 +1,6 @@
 astropy
 ccdproc
+future
 matplotlib
 numpy
 photutils
