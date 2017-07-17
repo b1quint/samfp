@@ -243,11 +243,11 @@ def main():
     data_cube.header.add_blank(value='f(x) = a * z ** 2 + b * z + c',
                                before='PHMFIT_A')
 
-    data_cube.header.add_history(
-        'Phase-map corrected using {:s}'.format(map_file), after='PHMFIT_C'
-    )
-    data_cube.header.add_blank(value='--- phmapply ---', after='PHMFIT_C')
-    data_cube.header.add_blank(after='PHMFIT_C')
+    # data_cube.header.add_history(
+    #     'Phase-map corrected using {:s}'.format(map_file), after='PHMFIT_C'
+    # )
+    # data_cube.header.add_blank(value='--- phmapply ---', after='PHMFIT_C')
+    # data_cube.header.add_blank(after='PHMFIT_C')
 
     # Saving corrected data-cube ----------------------------------------------
     if v:
