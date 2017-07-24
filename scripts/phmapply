@@ -1,0 +1,6 @@
+#!/usr/bin/env python
+
+import samfp
+
+if __name__ == '__main__':
+    samfp.phmapply.main()

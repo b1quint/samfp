@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 """
     SAMI XJoin
@@ -35,10 +35,10 @@
 from __future__ import division as _division
 from __future__ import print_function
 
-import astropy.io.fits as _pyfits
 import logging as log
-import numpy as _np
 
+import astropy.io.fits as _pyfits
+import numpy as _np
 from ccdproc import cosmicray_lacosmic as _cosmicray_lacosmic
 from numpy import random
 from scipy import stats
@@ -63,6 +63,18 @@ _dilstruct[0, 0] = 0
 _dilstruct[0, 4] = 0
 _dilstruct[4, 0] = 0
 _dilstruct[4, 4] = 0
+
+def main():
+    pargs = _parse_arguments()
+
+    xjoin = SAMI_XJoin(
+        bias_file=pargs.bias, clean=pargs.clean, cosmic_rays=pargs.rays,
+        dark_file=pargs.dark, debug=pargs.debug, flat_file=pargs.flat,
+        glow_file=pargs.glow, norm_flat=pargs.norm,
+        time=pargs.exptime, verbose=not pargs.quiet
+    )
+
+    xjoin.run(pargs.files)
 
 
 # noinspection PyPep8Naming
@@ -1083,3 +1095,9 @@ def parse_arguments():
                         help="input filenames.")
 
     return parser.parse_args()
+
+
+if __name__ == '__main__':
+    main()
+
+

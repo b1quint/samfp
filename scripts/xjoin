@@ -1,22 +1,6 @@
-#!python
+#!/usr/bin/env python
 
 import samfp
 
 if __name__ == '__main__':
-
-    pargs = samfp.xjoin.parse_arguments()
-
-    xjoin = samfp.xjoin.SAMI_XJoin(
-        bias_file=pargs.bias,
-        clean=pargs.clean,
-        cosmic_rays=pargs.rays,
-        dark_file=pargs.dark,
-        debug=pargs.debug,
-        flat_file=pargs.flat,
-        glow_file=pargs.glow,
-        norm_flat=pargs.norm,
-        time=pargs.exptime,
-        verbose=not pargs.quiet
-    )
-
-    xjoin.run(pargs.files)
+    samfp.xjoin.main()

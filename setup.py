@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 """A setuptools based setup module.
 
 See:
@@ -7,12 +7,12 @@ https://github.com/pypa/sampleproject
 """
 
 # Always prefer setuptools over distutils
-from setuptools import setup, find_packages
-# To use a consistent encoding
 from codecs import open
 from os import path
 
-from samfp.version import api, feature, bug
+from setuptools import setup, find_packages
+
+from samfp.tools.version import api, feature, bug
 
 here = path.abspath(path.dirname(__file__))
 
@@ -60,10 +60,10 @@ setup(
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
+        # 'Programming Language :: Python :: 3',
+        # 'Programming Language :: Python :: 3.3',
+        # 'Programming Language :: Python :: 3.4',
+        # 'Programming Language :: Python :: 3.5',
     ],
 
     # What does your project relate to?
@@ -73,7 +73,13 @@ setup(
     # simple. Or you can use find_packages().
     # package_dir={'': 'samfp'},
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    # scripts=['scripts/xjoin', 'scripts/mkcube', 'scripts/phmxtractor'],
+    scripts=[
+        'scripts/xjoin',
+        'scripts/mkcube',
+        'scripts/phmxtractor',
+        'scripts/phmfit',
+        'scripts/phmapply',
+    ],
     # zip_safe=False,
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
@@ -84,12 +90,13 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=[
-        'astropy',
-        'matplotlib',
-        'numpy',
-        'scipy',
-    ],
+    # install_requires=[
+    #     'future',
+    #     'astropy',
+    #     'matplotlib',
+    #     'numpy',
+    #     'scipy',
+    # ],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
@@ -116,11 +123,10 @@ setup(
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.
-    entry_points={
-        'console_scripts': [
-            'xjoin=samfp.xjoin:main',
-            'mkcube=samfp.mkcube:main',
-            'phmxtractor=samfp.phmxtractor:main',
-        ],
-    },
+    # entry_points={
+    #     'console_scripts': [
+    #         'xjoin=samfp.xjoin:main',
+    #         'mkcube=samfp.mkcube:main',
+    #     ],
+    # },
 )

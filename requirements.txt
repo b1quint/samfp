@@ -1,8 +1,9 @@
 astropy
 ccdproc
+future
 matplotlib
 numpy
 photutils
 pandas
 scipy
-pyqt=4
+scikit-learn

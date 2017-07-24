@@ -1,453 +1,221 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python 
 # -*- coding: utf8 -*-
-"""
-    Wavelength Calibration
-
-    This script calculates the wavelength calibration using a Terminal Interface
-    with the User.
-"""
 from __future__ import division, print_function
 
 import argparse
-import astropy.io.fits as pyfits
-import logging as log
+import logging
+import threading
+import sys
+
+from astropy.io import fits as pyfits
+from scipy import signal
+
 import numpy as np
 
-from scipy import signal
 
 __author__ = 'Bruno Quint'
 
 
-class WavelengthCalibration:
-    """
-    Wavelength calibration
+class WavelengthCalibration(threading.Thread):
 
-    This class holds methods and properties needed to perform a wavelength
-    calibration on a phase-corrected data-cube. For that, it will use
-    theoretical equations and assume that the FP has a nominal gap size.
-    """
-    def __call__(self, filename, output=None):
-        """
-        One this class is called, the 'main' method is invoked.
-        Please, refer to its documentation for details.
+    key_zfsr = 'PHM_FSR'
+    key_z_step = 'CDELT3'
 
-        Parameters
-        ----------
-        filename : str
-            Input filename.
-        output : str
-            Output filename (optional).
-        """
-        self.main(filename, output)
-        return
+    def __init__(self, input_file, gap_size, debug_mode=False, output=None,
+                 verbose_mode=False, wavelength=None):
 
-    def __init__(self, verbose=False, debug=False):
-        """
-        Class constructor. For now, it will only receive the paramaters
-        related to feedback that is given to the user via terminal.
+        threading.Thread.__init__(self)
 
-        Parameters
-        ----------
-        verbose : bool
-        debug : bool
-        """
-        self._log = log
-        print(self._log.getLogger().getEffectiveLevel())
-        self.set_verbose(verbose)
-        print(self._log.getLogger().getEffectiveLevel())
-        self.set_debug(debug)
-        print(self._log.getLogger().getEffectiveLevel())
+        self.debug_mode = debug_mode
+        self.gap_size = gap_size
+        self.input_file = input_file
+        self.output_file = output
+        self.verbose_mode = verbose_mode
+        self.wavelength = wavelength
 
-        return
+    def run(self):
 
-    @staticmethod
-    def center_peak(data, center):
-        """
-        Based on the most probable center position, rolls the line so it lies
-        in the center of the data-cube.
+        # ----------------------------------------------------------------------
+        # Setting the log
+        self.log_formatter = logging.Formatter()
+        self.log_handler = logging.StreamHandler()
+        self.log = logging.getLogger()
 
-        Parameters
-        ----------
-        data : numpy.ndarray
-            The data-cube represented in a numpy.ndarray form.
-        center : int
-            The argument of the channel that contains the most probable
-            center of the strongest feature.
-        """
-        cube_center = data.shape[0] // 2
-        shift_size = cube_center - center
-        data = np.roll(data, shift_size, axis=0)
-        return data
+        self.log_handler.setFormatter(self.log_formatter)
+        self.log.addHandler(self.log_handler)
 
-    def debug(self, message):
-        """Print a debug message using the log system."""
-        self._log.debug(message)
-        return
+        if self.debug_mode:
+            self.log.setLevel(logging.DEBUG)
+        elif self.verbose_mode:
+            self.log.setLevel(logging.INFO)
+        else:
+            self.log.setLevel(logging.WARN)
 
-    def find_current_peak_position(self, data):
-        """
-        Finds the current average peak position.
+        self.info = self.log.info
+        self.debug = self.log.debug
+        self.error = self.log.error
+        self.warn = self.log.debug
 
-        Parameters
-        ----------
-            data : numpy.ndarray
-            A phase-corrected datacube.
+        # ----------------------------------------------------------------------
+        # Printing options
+        msg = ("\n"
+               "\n SAM-FP Wavelength Calibration"
+               "\n"
+               "\n Input filename: {0.input_file:s}"
+               "\n Output filename: {0.output_file:s}"
+               "\n "
+               "\n Verbose mode: {0.verbose_mode:}"
+               "\n Debug mode: {0.debug_mode:}")
 
-        Returns
-        -------
-            peak_position : int
-            The argument of the highest local maximum.
-        """
-        self.info('Finding current peak position.')
-        data = data.sum(axis=2)
-        data = data.sum(axis=1)
-        data = np.where(data < 0.75 * data.max(), 0, data)
-        peaks = signal.argrelmax(data, axis=0, order=5)[0]
-        self.info('Encountered {:d} peaks: '.format(len(peaks)))
+        self.info(msg.format(self))
 
-        peaks_values = data[peaks]
-        max_peaks_arg = np.argmax(peaks_values)
-        peak = peaks[max_peaks_arg]
-
-        return peak
-
-    def get_central_wavelength(self, header=None, key='FP_WOBS'):
-        """
-        Read the central wavelength from a header or from the user input.
-
-        Parameters
-        ----------
-            header : astropy.io.fits.Header
-                A FITS header.
-            key : str
-                A key that, in theory, has the observed wavelength.
-
-        Returns
-        -------
-            central_wavelength : float
-                Systemic central wavelength in meters.
-        """
-
+        # ----------------------------------------------------------------------
+        # Seistemic wavelength
         try:
-            central_wavelength = float(header[key])
-        except KeyError:
-            self.warn('%s card was not found in the header.' % key)
-            central_wavelength = input(' Please, enter the systemic observed '
-                                       'wavelength: \n >')
-        except TypeError:
-            self.warn(
-                'Header was not passed to "WCal.get_central_wavelength" method'
-            )
-            central_wavelength = input(
-                ' Please, enter the systemic observed wavelength: \n > '
-            )
-            central_wavelength = float(central_wavelength)
+            header = pyfits.getheader(self.input_file)
+        except IOError:
 
-        return central_wavelength * 1e-10
+            self.error("\n File not found:\n {0.input_file:s}".format(self))
+            self.error(" Leaving program now.")
+            sys.exit(1)
 
-    def get_logger(self):
-        """Create and return a customized logger object.
+        if self.wavelength is None:
+            try:
+                self.wavelength = header['PHMWCAL']
+                self.info("\n Seistemic wavelength found in the header: "
+                          "\n CRVAL = {0.wavelength:.2f} Angstrom".format(self))
+            except KeyError:
+                msg = ("\n No wavelength could be found. "
+                       "Leaving program now.")
+                self.error(msg)
+                sys.exit(1)
+        else:
+            self.info("\n Seistemic wavelength providen by the user: "
+                      "\n CRVAL = {0.wavelength:.2f} Angstrom".format(self))
 
-        :return log: the logger object.
-        :rtype log: log.Logger
-        """
-        lf = MyLogFormatter()
+        header.set('CRVAL3', value=self.wavelength,
+                   comment='Seistemic wavelength.')
 
-        ch = self.log.StreamHandler()
-        ch.setFormatter(lf)
+        # ----------------------------------------------------------------------
+        # Finding the reference pixel
+        data = pyfits.getdata(self.input_file)
+        s = np.mean(data, axis=2)
+        s = np.mean(s, axis=1)
 
-        self.log.captureWarnings(True)
-        log = self.log.getLogger("phasemap_fit")
-        log.addHandler(ch)
+        midpt = np.median(s)
+        std = np.std(s)
 
-        return log
+        self.debug(" Collapsed data statistics: ")
+        self.debug(" median = {:.2f}".format(midpt))
+        self.debug(" std = {:.2f}".format(std))
 
-    def get_wavelength_step(self, w_central, header=None, key_gap_size='FP_GAP',
-                            key_zfsr='PHMFSR', key_z_step='CDELT3'):
-        """
-        Calculates the wavelength step between channels.
+        p = np.percentile(data, 50.)
+        s_ = s.copy()
+        s_[s < p] = 0.
 
-        :return w_step: wavelength increment beween channels.
-        :rtype w_step: float
-        """
+        k = signal.general_gaussian(10, 1, 5)
+        cc = signal.correlate(s_[5:-5], k, mode="same")
+        self.arg_max = np.argmax(cc) + 5
+
+        msg = ("\n Reference channel is: "
+               "\n CRPIX3 = {0.arg_max:d}")
+        header.set('CRPIX3', value=self.arg_max)
+        self.info(msg.format(self))
+
+        # ----------------------------------------------------------------------
+        # Find the step in angstroms
         try:
-            gap_size = header[key_gap_size]
+            z_fsr = header[self.key_zfsr]
         except KeyError:
-            self.warn('%s card was not found in the header.' % key_gap_size)
-            gap_size = input('Please, enter the FP nominal gap size in microns:'
-                             '\n >  ')
-        except TypeError:
-            self.warn('Header was not passed to "WCal.get_wavelength_step"'
-                         ' method')
-            gap_size = input('Please, enter the FP nominal gap size in microns:'
-                             '\n >  ')
-
-        try:
-            z_fsr = header[key_zfsr]
-        except KeyError:
-            self.warn('%s card was not found in the header.' % key_zfsr)
+            self.warn('%s card was not found in the header.' % self.key_zfsr)
             z_fsr = input('Please, enter the Free-Spectral-Range in bcv:'
                           '\n > ')
         except TypeError:
-            log.warning('Header was not passed to "WCal.get_wavelength_step"'
-                        ' method')
             z_fsr = input('Please, enter the Free-Spectral-Range in bcv:'
                           '\n >  ')
 
         try:
-            z_step = header[key_z_step]
+            z_step = header[self.key_z_step]
         except KeyError:
-            log.warning('%s card was not found in the header.' % key_z_step)
+            self.warn('%s card was not found in the header.' % self.key_z_step)
             z_step = input('Please, enter the step between channels in bcv'
                            '\n >  ')
         except TypeError:
-            log.warning('Header was not passed to "WCal.get_wavelength_step"'
+            self.warn('Header was not passed to "WCal.get_wavelength_step"'
                         ' method')
             z_step = input('Please, enter the step between channels in bcv'
                            '\n >  ')
 
-        gap_size = gap_size * 1e-6
-        self.info('Gap size e = {:.1f} um'.format(gap_size * 1e6))
+        gap_size = self.gap_size * 1e-6
+        self.info(' Gap size e = {:.1f} um'.format(gap_size * 1e6))
 
-        w_order = 2 * gap_size / w_central
-        self.info('Interference order p({:.02f}) = {:.2f}'.format(
-            w_central * 1e10, w_order))
+        self.wavelength = self.wavelength * 1e-10
+        w_order = 2 * gap_size / self.wavelength
+        self.info(' Interference order p({:.02f}) = {:.2f}'.format(
+            self.wavelength * 1e10, w_order))
 
-        self.info('Z Free-Spectral-Range = {:.02f} bcv'.format(z_fsr))
-        w_fsr = w_central / (w_order * (1 + 1 / w_order ** 2))
-        self.info('W Free-Spectral-Range = {:.02f} A'.format(w_fsr * 1e10))
+        self.info(' Z Free-Spectral-Range = {:.02f} bcv'.format(z_fsr))
+        w_fsr = self.wavelength / (w_order * (1 + 1 / w_order ** 2))
+        self.info(' W Free-Spectral-Range = {:.02f} A'.format(w_fsr * 1e10))
 
         w_step = w_fsr / z_fsr * z_step
-        self.info('Queesgate constant = {:.02f} A / bcv'.format(w_fsr / z_fsr * 1e10))
-        self.info('Step = {:.02f} A / channel'.format(w_step * 1e10))
+        QGC = w_fsr / z_fsr * 1e10
+        self.info(' Queesgate constant = {:.02f} A / bcv'.format(QGC))
+        self.info(' Step = {:.02f} A / channel'.format(w_step * 1e10))
 
-        return w_step
-
-    def info(self, message):
-        """Print an info message using the log system."""
-        self._log.info(message)
-        return
-
-    def load_data(self, input_filename):
-        """Load the input data and header."""
-
-        self.info('Loading %s' % input_filename)
-        data = pyfits.getdata(input_filename)
-        hdr = pyfits.getheader(input_filename)
-        self.info('Done')
-
-        return data, hdr
-
-    def main(self, filename, output=None):
-        """
-        This is the main method that can be called via .main() or
-        via (). It colapses part of the data-cube, finds the most
-        strong spectral signal and put it at the center of
-        the data-cube. Then, needs the numerical parameters
-        to calculate the proper wavelength calibration.
-
-        Parameters
-        ----------
-        filename : str
-            Input filename.
-
-        output : str
-            Output filename (optional).
-        """
-        from os.path import exists
-        from astropy.io.fits import getdata, getheader, writeto
-
-        # Make sure that input file exists and can be read ---
-        if not exists(filename):
-            raise(IOError, 'Input file not found: {:s}'.format(filename))
-
-        # Load data ---
-        self.info('Loading file: {:s}'.format(filename))
-        data = getdata(filename)
-        hdr = getheader(filename)
-
-        # Find strongest signal ---
-        self.info('Find current peak position...')
-        current_peak_position = self.find_current_peak_position(data)
-
-        # Roll cube to put the peak at the center of the cube ---
-        self.info('Rolling the cube to put peak at the center...')
-        data = self.center_peak(data, current_peak_position)
-
-        # Get systemic wavelength ---
-        self.info('Getting systemic wavelength...')
-        w_center = self.get_central_wavelength(hdr)
-
-        # Get increment wavelength ---
-        self.info('Getting increment wavelength...')
-        w_step = self.get_wavelength_step(w_center, hdr)
-
-        # Update header ---
-        hdr = self.update_header(hdr, w_center, w_step)
-
-        # Write file ---
-        if output is None:
-            output = filename.replace('.fits', '.wcal.fits')
-
-        self.info('Writing output file: {:s}'.format(output))
-
-        # Wrap-up to make sure that writeto will be available in the next
-        # versions
-        try:
-            writeto(output, data, hdr, overwrite=True)
-        except TypeError:
-            writeto(output, data, hdr, clobber=True)
+        w_step *= 1e10
+        header.set('CDELT3', value=w_step)
+        header.set('C3_3', value=w_step)
 
 
-        # Leaving the program ---
-        self.info('Total ellapsed time: \n'
-                  'All done.\n')
+        header.set('WCAL_W0', value=self.wavelength,
+                   comment='Seistemic Wavelength [A]', after='PHMFIT_C')
+        header.set('WCAL_DW', value=self.wavelength,
+                   comment='Wavelength increment / channel [A]',
+                   after='PHMFIT_C')
+        header.add_blank('-- sam-fp wavelength calibration --',
+                         after='PHMFIT_C')
 
-        return
-
-    def print_header(self):
-        """
-        Simply print a header for the script.
-        """
-        msg = "\n " \
-              " Data-Cube Wavelength Calibration\n" \
-              " by Bruno C. Quint (bquint@ctio.noao.edu)\n"
-        self.info(msg)
-        return
-
-    def update_header(self, header, w_center, w_step):
-        """
-        Update the header so it contains the wavelength calibration.
-        This part still have to be updated to follow the 4.0 version
-        of the FITS standards (see link bellow).
-
-        http://fits.gsfc.nasa.gov/standard40/fits_standard40draft1.pdf
-
-        Parameters
-        ----------
-        header : astropy.io.fits.Header
-            Header of the data-cube that will be updated.
-        w_center : float
-            Wavelength at the center of the data-cube.
-        w_step : float
-            Wavelength increment between channels.
-
-        Returns
-        -------
-        header : astropy.io.fits.Header
-            An updated header.
-        """
-        header.add_blank(before=-1)
-        header.add_blank('--- Wavelength Calibration ---', before=-1)
-        header.set('CRPIX3', int(header['NAXIS3']) / 2 + 1, before=-1)
-        header.set('CRVAL3', w_center * 1e10, before=-1)
-        header.set('CDELT3', w_step * 1e10, before=-1)
-        header.set('CUNIT3', 'angstrom', before=-1)
-        header.set('RESTWAV', w_center * 1e10, before=-1)
-
-        return header
-
-    def set_log_level(self, level):
-        """
-        Set the internal logger level.
-
-        :param level: logger level.
-        :type level: logger.DEBUG|logger.WARNING|logger.CRITICAL
-        """
-        self.log.setLevel(level)
-
-    def set_debug(self, debug):
-        """
-        Turn on debug mode.
-
-        Parameter
-        ---------
-            debug : bool
-        """
-        print(debug)
-        if debug:
-            self._log.basicConfig(level=10, format='%(message)s')
-        self.debug('Debug mode ON.')
-
-    def set_verbose(self, verbose):
-        """
-        Turn on verbose mode.
-
-        Parameter
-        ---------
-            verbose : bool
-        """
-        if verbose:
-            self._log.basicConfig(level=self._log.INFO, format='%(message)s')
-        else:
-            self._log.basicConfig(level=self._log.WARNING, format='%(message)s')
-        return
-
-    def warn(self, message):
-        """Print a warning message using the log system."""
-        self._log.warning(message)
+        pyfits.writeto(self.input_file.replace('.fits', '_wcal.fits'), data,
+                       header, overwrite=True)
 
 
-class MyLogFormatter(log.Formatter):
-    err_fmt = "ERROR: %(msg)s"
-    dbg_fmt = " DBG: %(module)s: %(lineno)d: %(msg)s"
-    info_fmt = " %(msg)s"
-    warn_fmt = " %(msg)s"
+def parse_arguments():
 
-    def __init__(self, fmt="%(levelno)s: %(msg)s"):
-        log.Formatter.__init__(self, fmt)
+    parser = argparse.ArgumentParser(description="Find the wavelength "
+                                                 "calibration for a data-cube "
+                                                 "observed with the SAM-FP")
 
-    def format(self, record):
+    parser.add_argument('filename', type=str, help="Input data-cube.")
+    parser.add_argument('gap_size', type=float,
+                        help="Fabry-Perot nominal gap size [um]")
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help="Run program in debug mode.")
+    parser.add_argument('-o', '--output', type=str, default=None,
+                        help="Name of the output phase-map file.")
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help="Run program quietly.")
 
-        # Save the original format configured by the user
-        # when the logger formatter was instantiated
-        format_orig = self._fmt
-
-        # Replace the original format with one customized by log level
-        if record.levelno == log.DEBUG:
-            self._fmt = MyLogFormatter.dbg_fmt
-
-        elif record.levelno == log.INFO:
-            self._fmt = MyLogFormatter.info_fmt
-
-        elif record.levelno == log.ERROR:
-            self._fmt = MyLogFormatter.err_fmt
-
-        elif record.levelno == log.WARNING:
-            self._fmt = MyLogFormatter.warn_fmt
-
-        # Call the original formatter class to do the grunt work
-        result = log.Formatter.format(self, record)
-
-        # Restore the original format configured by the user
-        self._fmt = format_orig
-
-        return result
+    args = parser.parse_args()
+    return args
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description="Fits an existing phase-map."
+
+    args = parse_arguments()
+
+    wavelength_calibration = WavelengthCalibration(
+        args.filename,
+        args.gap_size,
+        debug_mode=args.debug,
+        output=args.output,
+        verbose_mode=not args.quiet
     )
 
-    parser.add_argument(
-        'filename', type=str,
-        help="Input phase-map name."
-    )
-    parser.add_argument(
-        '-D', '--debug', action='store_true',
-        help="Run program in debug mode."
-    )
-    parser.add_argument(
-        '-o', '--output', type=str, default=None,
-        help="Name of the output phase-map file."
-    )
-    parser.add_argument(
-        '-q', '--quiet', action='store_true',
-        help="Run program quietly."
-    )
+    wavelength_calibration.start()
+    wavelength_calibration.join()
 
-    args = parser.parse_args()
-
-    wcal = WavelengthCalibration(verbose=not args.quiet, debug=args.debug)
-    wcal(args.filename, output=args.output)
+    if wavelength_calibration.is_alive():
+        wavelength_calibration.log.warn(" A thread is still running.")
+    else:
+        wavelength_calibration.log.info(" All done.")

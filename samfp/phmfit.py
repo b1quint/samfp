@@ -7,12 +7,66 @@
 """
 from __future__ import division, print_function
 
+import matplotlib
+matplotlib.use('Qt5Agg')
+
+try:
+    from .tools import io
+except ValueError:
+    from tools import io
+
 import argparse
+import os
+
 import astropy.io.fits as pyfits
-import logging
 import matplotlib.pyplot as plt
 import numpy as np
-import os
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description="Fits an existing phase-map.")
+
+    parser.add_argument(
+        'filename', type=str, help="Input phase-map name.")
+
+    parser.add_argument(
+        '-d', '--debug', action='store_true', help="Run program quietly.")
+
+    parser.add_argument(
+        '-i', '--interactions', default=5, type=int,
+        help="Number of interactions in the process [5]")
+
+    parser.add_argument(
+        '-n', '--npoints', default=50, type=int,
+        help="Number of points that will be used to fit the phase-map [50]")
+
+    parser.add_argument(
+        '-o', '--output', type=str, default=None,
+        help="Name of the output phase-map file.")
+
+    parser.add_argument(
+        '-q', '--quiet', action='store_true',
+        help="Run program quietly.")
+
+    parser.add_argument(
+        '-s', '--show_plots', action='store_true',
+        help="Show plots.")
+
+    args = parser.parse_args()
+
+    phmfit = PhaseMapFit()
+
+    if args.quiet:
+        phmfit.set_log_level(level=io.logging.ERROR)
+
+    if args.debug:
+        phmfit.set_log_level(level=io.logging.DEBUG)
+
+    phmfit.log.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    phmfit.run(args.filename, interactions=args.interactions,
+               n_points=args.npoints, show=args.show_plots)
 
 
 class PhaseMapFit:
@@ -52,21 +106,24 @@ class PhaseMapFit:
 
         return n_cols, n_rows
 
-    def get_logger(self):
-        """Create and return a customized logger object.
-
-        :return log: the logger object.
-        :rtype log: logging.Logger
+    @staticmethod
+    def get_logger():
         """
-        lf = MyLogFormatter()
+        Create and return a customized logger object.
 
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        ch.setFormatter(lf)
+        Returns
+        -------
+            log (logging.Logger) : the logger object.
+        """
+        # lf = io.MyLogFormatter()
 
-        logging.captureWarnings(True)
-        log = logging.getLogger("phasemap_fit")
-        log.setLevel(logging.INFO)
+        ch = io.logging.StreamHandler()
+        ch.setLevel(io.logging.INFO)
+        # ch.setFormatter(lf)
+
+        io.logging.captureWarnings(True)
+        log = io.logging.getLogger()
+        log.setLevel(io.logging.INFO)
         log.addHandler(ch)
 
         return log
@@ -96,7 +153,7 @@ class PhaseMapFit:
             ref_x = h['CRPIX1'] + (ref_x - h['CRVAL1']) / h['CDELT1']
             ref_y = h['CRPIX2'] + (ref_y - h['CRVAL2']) / h['CDELT2']
         except KeyError:
-            log.warn("WCS not found. Using phisical coordinates.")
+            log.warning("WCS not found. Using phisical coordinates.")
 
         log.info('Reference pixel: [%d, %d]' % (ref_x, ref_y))
 
@@ -166,9 +223,10 @@ class PhaseMapFit:
 
         unit = h['PHMUNIT']
         sampling = h['PHMSAMP']
-        FSR = float(h['PHMFSR'])
+        FSR = float(h['PHM_FSR'])
 
-        self.show_sampled_phasemap(d, ref_x, ref_y, n_cols, n_rows, X, Y, unit, show)
+        self.show_sampled_phasemap(
+            d, ref_x, ref_y, n_cols, n_rows, X, Y, unit, show)
 
         # Flatten sampled data
         x, y, z = np.ravel(X), np.ravel(Y), np.ravel(Z)
@@ -176,13 +234,14 @@ class PhaseMapFit:
         # Radial plot
         r = np.sqrt((x - ref_x) ** 2 + (y - ref_y) ** 2)
 
-        # I have no idea of what I am doing here
+        # Removing extreme points. They can be problematic
         condition = np.where(z > z.min(), True, False) * \
                     np.where(z < z.max(), True, False)
 
         r = r[condition]
         z = z[condition]
 
+        # Sort the data to be ordered in 'r'
         z = z[np.argsort(r)]
         r = np.sort(r)
         dz = np.diff(z, 1)
@@ -192,14 +251,19 @@ class PhaseMapFit:
         # Tell me the limits to fit the first parabola
         dz_abs = np.abs(dz)
         dz_abs_crit = dz_abs >= FSR / 2
-        print(np.any(dz_abs_crit))
+
         if np.any(dz_abs_crit):
-            where = np.argmin(np.abs(r[dz_abs_crit][0] - r))
+            where = np.argmax(dz_abs_crit)
         else:
             where = (r.size - 1)
 
-        # Plot the gradient
-        if args.show_plots:
+        log.info('r[FSR] = {:.2f}'.format(r[where]))
+
+        delta = 10
+        z = (z + sign * delta + sign * FSR) % FSR + sign * FSR - sign * delta
+
+        if show:
+            # Plot the gradient
             plt.figure(figsize=(16, 7))
             plt.subplot(2, 2, 3)
             plt.plot(r[1:], dz, 'b-')
@@ -208,11 +272,10 @@ class PhaseMapFit:
             plt.axhline(FSR / 2, color='red', ls='--', label="FSR")
             plt.axhline(- FSR / 2, color='red', ls='--')
             plt.xlabel('Radius [px]')
-            plt.ylabel('Gradient \n [%s]' % unit)
+            plt.ylabel(u'$\delta z / \delta r$ \n [%s]' % unit)
             plt.legend(loc='best')
             plt.grid()
 
-        if args.show_plots:
             plt.subplot(2, 2, 1)
             plt.plot(r[:where], z[:where], 'b.', alpha=0.25, label='Not to be fixed')
             plt.plot(r[where:], z[where:], 'r.', alpha=0.25, label='Data to be fixed')
@@ -225,24 +288,6 @@ class PhaseMapFit:
             plt.legend(loc='best')
             plt.grid()
 
-        # Plot data after correction
-        delta = 10
-        z = (z + sign * delta + sign * FSR) % FSR + sign * FSR - sign * delta
-        if args.show_plots:
-            ax_fit = plt.subplot(2, 2, 2)
-            ax_fit.plot(r, z, 'r.',
-                        alpha=0.25, label='Fixed data')
-            ax_fit.yaxis.set_label_position("right")
-            ax_fit.set_xlabel('Radius [px]')
-            ax_fit.set_ylabel('Peak displacement \n [%s]' % unit)
-            ax_fit.grid()
-
-            ax_err = plt.subplot(224)
-            ax_err.yaxis.set_label_position("right")
-            ax_err.set_xlabel('Radius [px]')
-            ax_err.set_ylabel('Peak displacement \n [%s]' % unit)
-            ax_err.grid()
-
         # Fit data
         for i in range(interactions):
 
@@ -250,9 +295,6 @@ class PhaseMapFit:
             rr = np.linspace(r[0], r[-1], 10000)
             zz = np.polyval(p, rr)
             err = (z - np.polyval(p, r))
-            if show:
-                ax_fit.plot(rr, zz, 'k-', alpha=0.25)
-                ax_err.plot(r, err, 'k-', alpha=0.25)
 
             log.info('%02d interaction' % i)
             log.info("Average err = %.2f" % err.mean())
@@ -277,7 +319,16 @@ class PhaseMapFit:
         Z = np.polyval(p, R)
         Z = Z - Z[ref_y, ref_x]
 
-        h['PHMTYPE'] = 'parabola fit'
+        h.set('PHMTYPE', value='parabola fit')
+
+        h.set('PHMFIT_A', value=p[0], after='PHMSAMP')
+        h.set('PHMFIT_B', value=p[1], after='PHMFIT_A')
+        h.set('PHMFIT_C', value=p[2], after='PHMFIT_B')
+
+        h.add_blank(value='', before='PHMFIT_A')
+        h.add_blank(value='--- PHM Fit ---', before='PHMFIT_A')
+        h.add_blank(value='f(x) = a * z ** 2 + b * z + c', before='PHMFIT_A')
+
         fname = h['PHMREFF']
         fname = os.path.splitext(fname)[0]
         pyfits.writeto(fname + '--fit_phmap.fits', Z, h, clobber=True)
@@ -285,7 +336,24 @@ class PhaseMapFit:
 
         log.info(" All done.\n")
 
-        if args.show_plots:
+        if show:
+
+            # Plot data after correction
+            ax_fit = plt.subplot(2, 2, 2)
+            ax_fit.plot(r, z, 'r.', alpha=0.25, label='Fixed data')
+            ax_fit.plot(rr, zz, 'k-', alpha=0.75)
+            ax_fit.yaxis.set_label_position("right")
+            ax_fit.set_xlabel('Radius [px]')
+            ax_fit.set_ylabel('Peak displacement \n [%s]' % unit)
+            ax_fit.grid()
+
+            ax_err = plt.subplot(224)
+            ax_err.plot(r, err, 'k-', alpha=0.25)
+            ax_err.yaxis.set_label_position("right")
+            ax_err.set_xlabel('Radius [px]')
+            ax_err.set_ylabel('Peak displacement \n [%s]' % unit)
+            ax_err.grid()
+
             plt.show()
 
     def set_log_level(self, level):
@@ -344,94 +412,5 @@ def get_colormap():
 
     return colors.LinearSegmentedColormap('heaven_hell', cdict, 256)
 
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    DIM = '\e[2m'
-    ENDDIM = '\e[22m'
-
-    def disable(self):
-        self.HEADER = ''
-        self.OKBLUE = ''
-        self.OKGREEN = ''
-        self.WARNING = ''
-        self.FAIL = ''
-        self.ENDC = ''
-
-
-class MyLogFormatter(logging.Formatter):
-    err_fmt = "ERROR: %(msg)s"
-    dbg_fmt = " DBG: %(module)s: %(lineno)d: %(msg)s"
-    info_fmt = " %(msg)s"
-    warn_fmt = " %(msg)s"
-
-    def __init__(self, fmt="%(levelno)s: %(msg)s"):
-        logging.Formatter.__init__(self, fmt)
-
-    def format(self, record):
-
-        # Save the original format configured by the user
-        # when the logger formatter was instantiated
-        format_orig = self._fmt
-
-        # Replace the original format with one customized by logging level
-        if record.levelno == logging.DEBUG:
-            self._fmt = MyLogFormatter.dbg_fmt
-
-        elif record.levelno == logging.INFO:
-            self._fmt = MyLogFormatter.info_fmt
-
-        elif record.levelno == logging.ERROR:
-            self._fmt = MyLogFormatter.err_fmt
-
-        elif record.levelno == logging.WARNING:
-            self._fmt = MyLogFormatter.warn_fmt
-
-        # Call the original formatter class to do the grunt work
-        result = logging.Formatter.format(self, record)
-
-        # Restore the original format configured by the user
-        self._fmt = format_orig
-
-        return result
-
-
 if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(
-        description="Fits an existing phase-map.")
-
-    parser.add_argument('filename', type=str,
-                        help="Input phase-map name.")
-    parser.add_argument('-d', '--debug', action='store_true',
-                        help="Run program quietly.")
-    parser.add_argument('-i', '--interactions', default=5, type=int,
-                        help="Number of interactions in the process [5]")
-    parser.add_argument('-n', '--npoints', default=50, type=int,
-                        help="Number of points that will be used to fit the phase-map [50]")
-    parser.add_argument('-o', '--output', type=str, default=None,
-                        help="Name of the output phase-map file.")
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help="Run program quietly.")
-    parser.add_argument('-s', '--show_plots', action='store_true',
-                        help="Show plots.")
-
-    args = parser.parse_args()
-
-    phmfit = PhaseMapFit()
-
-    if args.quiet:
-        phmfit.set_log_level(level=logging.ERROR)
-
-    if args.debug:
-        phmfit.set_log_level(level=logging.DEBUG)
-
-    phmfit.log.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    phmfit.run(args.filename,
-               interactions=args.interactions, n_points=args.npoints,
-               show=args.show_plots)
+    main()

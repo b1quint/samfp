@@ -9,17 +9,20 @@
 
 from __future__ import division, print_function
 
+from .tools import io
+
 import argparse
-import astropy.io.fits as pyfits
-import numpy as np
 import os
 import sys
 import time
 
+import astropy.io.fits as pyfits
+import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 
 def main():
+
     # Setting Options ---------------------------------------------------------
     parser = argparse.ArgumentParser(
         description="Apply a phase-map on a data-cube."
@@ -31,6 +34,10 @@ def main():
     parser.add_argument(
         '-n', '--npoints', type=int, default=10,
         help="Number of points in the re-sampling for channel [10]."
+    )
+    parser.add_argument(
+        '-s', '--speed', type=float, default=0.0,
+        help="Systemic velocity to be applied to the emitted wavelength [km/s]."
     )
     parser.add_argument(
         '-o', '--output', metavar='output', type=str, default=None,
@@ -47,6 +54,10 @@ def main():
     parser.add_argument(
         'map_file', metavar='map_file', type=str,
         help="Input phase-map image filename."
+    )
+    parser.add_argument(
+        'wavelength', type=float,
+        help="Average systemic wavelength or emitted wavelength."
     )
 
     args = parser.parse_args()
@@ -73,6 +84,15 @@ def main():
         print(" Cube to be corrected: %s" % cube_file)
         print(" Phase-map to be applied: %s" % map_file)
         print(" Output corrected cube: %s" % out_file)
+
+    # Systemic wavelength ------------------------------------------------------
+    vel = args.speed
+    c = 299792 # km/s
+    wavelength = args.wavelength * np.sqrt((1 + vel / c) / (1 - vel / c))
+    if v:
+        print(" Emitted/systemic wavelength: %.2f A" % args.wavelength)
+        print(" Systemic velocity: %.2f km/s" % vel)
+        print(" Observed wavelength: %.2f A" % wavelength)
 
     # Reading input data ------------------------------------------------------
     if v:
@@ -120,16 +140,17 @@ def main():
         # TODO add an option to use the FSR found while extracting
         # TODO the phase-map or while fitting it.
         # TODO or even to give the option for the user to enter it.
-        # FSR = phase_map.header['PHMFITSR']
-        f_s_r = phase_map.header['PHMFSR']
+        cal_fsr = phase_map.header['PHM_FSR']
+        cal_wavelength = phase_map.header['PHMWCAL']
+        f_s_r = cal_fsr / cal_wavelength * wavelength
         if v:
             print(" Free Spectral Range = %.2f %s" % (f_s_r, units))
 
     except KeyError:
         print(" Please, enter the free-spectral-range in %s units" % units)
-        f_s_r = input(" > ")
+        f_s_r = io.input(" > ")
 
-    f_s_r = round(f_s_r / abs(sample))  # From BCV to Channels
+    f_s_r = round(f_s_r / abs(sample)) # From BCV to Channels
     if v:
         print(" Free-Spectral-Range is %d channels" % f_s_r)
 
@@ -207,16 +228,26 @@ def main():
         data_cube.data = np.roll(data_cube.data, - (imax - collapsed_cube.size // 2), axis=0)
 
     # Saving more information in the phase-corrected cube ---------------------
+    keys = ['PHMREFX', 'PHMREFY', 'PHMTYPE', 'PHMREFF', 'PHMWCAL', 'PHM_FSR',
+            'PHMUNIT', 'PHMSAMP', 'PHMFIT_A', 'PHMFIT_B', 'PHMFIT_C']
+    h = phase_map.header
 
-    keys = ['PHMREFX', 'PHMREFY', 'PHMREFF', 'PHMTYPE', 'PHMUNIT', 'PHMFSR', 'PHMSAMP']
-    for k in keys:
-        data_cube.header.append(card=(k, phase_map.header[k]))
+    for key in keys:
+        data_cube.header.append(card=(key, h[key]))
 
-    data_cube.header.add_blank(before=keys[0])
-    data_cube.header.add_blank('--- phmxtractor parameters ---', before=keys[0])
-    data_cube.header.add_history(
-        'Phase-map corrected using {:s}'.format(map_file)
-    )
+    data_cube.header.add_blank('', before='PHMREFX')
+    data_cube.header.add_blank('--- PHM Xtractor ---', before='PHMREFX')
+
+    data_cube.header.add_blank(value='', before='PHMFIT_A')
+    data_cube.header.add_blank(value='--- PHM Fit ---', before='PHMFIT_A')
+    data_cube.header.add_blank(value='f(x) = a * z ** 2 + b * z + c',
+                               before='PHMFIT_A')
+
+    # data_cube.header.add_history(
+    #     'Phase-map corrected using {:s}'.format(map_file), after='PHMFIT_C'
+    # )
+    # data_cube.header.add_blank(value='--- phmapply ---', after='PHMFIT_C')
+    # data_cube.header.add_blank(after='PHMFIT_C')
 
     # Saving corrected data-cube ----------------------------------------------
     if v:
@@ -234,6 +265,7 @@ def main():
         print("\n Total time ellapsed: {0:02d}:{1:02d}:{2:02d}".format(
             int(end // 3600), int(end % 3600 // 60), int(end % 60)))
         print(" All done!\n")
+
 
 # Method shift_spectrum ========================================================
 def shift_spectrum(spec, dz, fsr=-1, sample=1.0, n_points=100):
@@ -316,8 +348,3 @@ class BColors:
         self.WARNING = ''
         self.FAIL = ''
         self.ENDC = ''
-
-
-# ===============================================================================
-if __name__ == '__main__':
-    main()
