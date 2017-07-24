@@ -1,33 +1,31 @@
-import matplotlib
-matplotlib.use('TkAgg')
-
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_free_spectral_range(x, y, s, fsr):
+def free_spectral_range(x, y, s, fsr):
 
     mid = np.median(y)
     std = np.std(y)
 
     fig = plt.figure()
-    ax = fig.add_subplot(111)
+    fig.canvas.set_window_title("Finding Free-Spectral-Range")
 
+    ax = fig.add_subplot(111)
     ax.set_title("Finding the Free-Spectral-Range")
     ax.plot(x, y, 'ko', label='Measured data')
     ax.plot(x, s(x), 'k-', lw=2, label='3rd deg spline fitting')
     ax.set_xlabel("z [channels]")
+    ax.set_ylabel(u"$\\frac{\sum_{x,y} |\Phi(x, y, z) - \Phi(x, y, 0)|}{n_{x,y}}$")
 
     ax.axhline(mid, ls='-', c='r', alpha=0.5)
     ax.axhline(mid - std, ls='--', c='r', alpha=0.25)
     ax.axhline(mid + std, ls='--', c='r', alpha=0.25)
 
     ax.axvline(x=(x[fsr-1]), ls='-', c='blue',
-                label='Free-Spectral-Range \nat z = %.1f' % fsr)
+                label='Free-Spectral-Range \nat z = %.1f channel' % fsr)
 
     ax.legend(loc='best')
     ax.set_xlim(x[0], x[-1])
-    #ax.yaxis.set_ticklabels([])
     ax.grid()
     fig.tight_layout()
     plt.show()
@@ -52,9 +50,11 @@ def plot_with_vlines(x, y, xpos):
 
     plt.show()
 
+
 def show_divergent_map(data):
     plt.imshow(data, origin='lower', interpolation='nearest', cmap='RdYlBu')
     plt.show()
+
 
 def show_image(data, cmap, title):
 

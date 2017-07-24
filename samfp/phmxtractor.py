@@ -20,10 +20,9 @@
 from __future__ import absolute_import, division, print_function
 
 import matplotlib
+matplotlib.use('Qt5Agg')
 
 from .tools import io, plots, version
-
-matplotlib.use('TkAgg')
 
 import argparse
 import astropy.io.fits as pyfits
@@ -601,9 +600,8 @@ class PhaseMap:
                 Free-spectral-range in channels.
         """
         log = logging.getLogger('phasemap_extractor')
-
-
         log.info(" Finding the free-spectral-range.")
+
         now = time.time()
 
         # First frame is the reference frame
@@ -638,7 +636,7 @@ class PhaseMap:
 
         # Plot to see how it goes
         if self.show:
-            plots.plot_free_spectral_range(self.z, data, s, fsr_c)
+            plots.free_spectral_range(self.z, data, s, fsr_c)
 
         # What if my cube has less than a FSR or could not find it?
         if fsr_c == 5:
@@ -760,19 +758,25 @@ class PhaseMap:
             z_ = np.linspace(z[0], z[-1], 1000)
             fig, axs = plt.subplots(2, 1, sharex=True)
             axs[0].plot(z, s, 'ko')
-            axs[0].plot(z[5:-5], cc * s_.max(), 'y-')
+            axs[0].plot(z[5:-5], cc / cc.max() * s_.max(), 'y-', label='Cross-correlation')
             axs[0].grid()
 
             if len(arg_maxima) > 0:
+
                 axs[0].plot(z_, g_fit(z_), 'b-')
                 axs[0].plot(z_, l_fit(z_), 'r--')
+                axs[0].legend(loc='best')
+                axs[0].set_ylabel('Normalized spectrum')
 
                 for amax in arg_maxima:
                     axs[0].axvline(z[amax], c='k', ls='--', alpha=0.5)
 
                 # Display the errors
-                axs[1].plot(z, s - g_fit(z), 'bx', alpha=0.5)
-                axs[1].plot(z, s - l_fit(z), 'ro', alpha=0.5)
+                axs[1].plot(z, s - g_fit(z), 'bx', alpha=0.5, label='Error - Gaussian Fit')
+                axs[1].plot(z, s - l_fit(z), 'ro', alpha=0.5, label='Error - Lorentzian Fit')
+                axs[1].set_ylabel('Fir Errors [adu]')
+                axs[1].set_xlabel('z [bcv]')
+                axs[1].legend(loc='best')
                 axs[1].grid()
 
             plt.tight_layout()
