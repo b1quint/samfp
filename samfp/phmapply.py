@@ -131,7 +131,9 @@ def main():
     ref_x = phase_map.header['PHMREFX']
     ref_y = phase_map.header['PHMREFY']
     units = phase_map.header['PHMUNIT']
-    sample = float(phase_map.header['PHMSAMP'])
+
+    # sample = float(phase_map.header['PHMSAMP'])
+    sample = float(data_cube.header['CDELT3'])
 
     # Reading the Free-Spectral-Range --------------------------------------
     try:
