@@ -6,4 +6,4 @@ numpy
 photutils
 pandas
 scipy
-sklearn
+scikit-learn
