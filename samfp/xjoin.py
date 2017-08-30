@@ -1052,7 +1052,7 @@ def _str2pixels(my_string):
     return x, y
 
 
-def parse_arguments():
+def _parse_arguments():
     """
     Parse the argument given by the user in the command line.
 
