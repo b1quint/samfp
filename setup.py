@@ -74,11 +74,14 @@ setup(
     # package_dir={'': 'samfp'},
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     scripts=[
-        'scripts/xjoin',
+        'scripts/combine_zero',
         'scripts/mkcube',
         'scripts/phmxtractor',
         'scripts/phmfit',
         'scripts/phmapply',
+        'scripts/sami_ccr',
+        'scripts/sami_qastrometry',
+        'scripts/xjoin',
     ],
     # zip_safe=False,
 
