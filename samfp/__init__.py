@@ -9,3 +9,6 @@ from . import phmapply
 from . import phmfit
 from . import phmxtractor
 from . import xjoin
+
+from .image_combine import FlatCombine, ZeroCombine
+
