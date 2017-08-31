@@ -35,6 +35,13 @@
 from __future__ import division as _division
 from __future__ import print_function
 
+try:
+    # noinspection PyUnresolvedReferences,PyUnboundLocalVariable
+    _xrange = xrange
+except NameError:
+    # noinspection PyShadowingBuiltins
+    _xrange = range
+
 import logging as log
 
 import astropy.io.fits as _pyfits
@@ -43,12 +50,7 @@ from ccdproc import cosmicray_lacosmic as _cosmicray_lacosmic
 from numpy import random
 from scipy import stats
 
-try:
-    # noinspection PyUnresolvedReferences,PyUnboundLocalVariable
-    _xrange = xrange
-except NameError:
-    # noinspection PyShadowingBuiltins
-    _xrange = range
+from .tools import slices
 
 # Piece of code from cosmics.py
 # We define the laplacian kernel to be used
@@ -482,7 +484,6 @@ class SAMI_XJoin:
 
         if flat_file is not None:
             flat = _pyfits.getdata(flat_file)
-            #data /=  _normalize_data(flat)
             data /= flat
             header['FLATFILE'] = flat_file
             header.add_history('Flat normalized')
@@ -541,8 +542,31 @@ class SAMI_XJoin:
 
         fits_file = _pyfits.open(filename)
         h0 = fits_file[0].header
+        h1 = fits_file[1].header
+
         h0.append('UNITS')
         h0.set('UNITS', value='COUNTS', comment='Pixel intensity units.')
+
+        # Save the CCD binning in the main header
+        h0['CCDSUM'] = h1['CCDSUM']
+        h0['DETSEC'] = h1['DETSEC']
+
+        # Save the area that corresponds to each amplifier
+        bin_size = _np.array(h0['CCDSUM'].split(' '),dtype=int)
+        dx, dy = slices.iraf2python(h0['DETSEC'])
+        dx, dy = dx // bin_size[0], dy // bin_size[1]
+
+        h0['AMP_SEC1'] = slices.python2iraf(
+            dx[0], dx[1], dy[0], dy[1])
+
+        h0['AMP_SEC2'] = slices.python2iraf(
+            dx[0] + dx[1], dx[1] + dx[1], dy[0], dy[1])
+
+        h0['AMP_SEC3'] = slices.python2iraf(
+            dx[0], dx[1], dy[0] + dy[1], dy[1] + dy[1])
+
+        h0['AMP_SEC4'] = slices.python2iraf(
+            dx[0] + dx[1], dx[1] + dx[1], dy[0] + dy[1], dy[1] + dy[1])
 
         return h0
 
@@ -565,7 +589,7 @@ class SAMI_XJoin:
             raise (IOError, '%s file not found.' % filename)
 
         fits_file = _pyfits.open(filename)
-        w, h = _str2pixels(fits_file[1].header['DETSIZE'])
+        w, h = slices.iraf2python(fits_file[1].header['DETSIZE'])
 
         if len(fits_file) is 1:
             log.warning('%s file contains a single extension. ' % fits_file +
@@ -582,12 +606,12 @@ class SAMI_XJoin:
 
         # Process each extension
         for i in range(1, 5):
-            tx, ty = _str2pixels(fits_file[i].header['TRIMSEC'])
-            bx, by = _str2pixels(fits_file[i].header['BIASSEC'])
+            tx, ty = slices.iraf2python(fits_file[i].header['TRIMSEC'])
+            bx, by = slices.iraf2python(fits_file[i].header['BIASSEC'])
 
             data = fits_file[i].data
-            trim = data[ty[0] - 1:ty[1], tx[0] - 1:tx[1]]
-            bias = data[by[0] - 1:by[1], bx[0] - 1:bx[1]]
+            trim = data[ty[0]:ty[1], tx[0]:tx[1]]
+            bias = data[by[0]:by[1], bx[0]:bx[1]]
 
             # Collapse the bias columns to a single column.
             bias = _np.median(bias, axis=1)
@@ -600,7 +624,7 @@ class SAMI_XJoin:
             bias_fit = _np.repeat(bias_fit, trim.shape[1], axis=1)
 
             trim = trim - bias_fit
-            dx, dy = _str2pixels(fits_file[i].header['DETSEC'])
+            dx, dy = slices.iraf2python(fits_file[i].header['DETSEC'])
             dx, dy = dx // bin_size[0], dy // bin_size[1]
             new_data[dy[0]:dy[1], dx[0]:dx[1]] = trim
 
@@ -1030,28 +1054,6 @@ def _normalize_data(data):
     return data / mode
 
 
-def _str2pixels(my_string):
-    """
-    Parse a string containing [XX:XX, YY:YY] to pixels.
-
-    Parameter
-    ---------
-        my_string : str
-    """
-    my_string = my_string.replace('[', '')
-    my_string = my_string.replace(']', '')
-    x, y = my_string.split(',')
-
-    x = x.split(':')
-    y = y.split(':')
-
-    # "-1" fix from IDL to Python
-    x = _np.array(x, dtype=int)
-    y = _np.array(y, dtype=int)
-
-    return x, y
-
-
 def _parse_arguments():
     """
     Parse the argument given by the user in the command line.
@@ -1080,7 +1082,7 @@ def _parse_arguments():
                         help="Turn on DEBUG mode (overwrite quiet mode).")
     parser.add_argument('-f', '--flat', type=str, default=None,
                         help="Consider FLAT file for division.")
-    parser.add_argument('-n', '--norm', action='store_false',
+    parser.add_argument('-n', '--norm', action='store_true',
                         help="FLAT already normalized.")
     parser.add_argument('-g', '--glow', type=str, default=None,
                         help="Consider DARK file to correct lateral glows.")
