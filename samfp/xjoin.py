@@ -867,6 +867,7 @@ class SAMI_XJoin:
         list_of_files = sorted(list_of_files)
 
         if self.norm_flat and (self.flat_file is not None):
+            print('AAAAAA')
             log.info(" Normalizing flat")
 
             flat_hdr = _pyfits.getheader(self.flat_file)

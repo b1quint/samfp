@@ -12,10 +12,12 @@
             pip.
     0.4.1 - phmfit now stores fit parameters in the header.
     0.5.0 - phmapply back to work.
+
+    0.6.0 - Add tools to combine Bias, Flats, Darks and Images.
 """
 api = 0
-feature = 5
+feature = 6
 bug = 0
 
-month = 5
+month = 8
 year = 2017

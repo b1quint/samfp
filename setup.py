@@ -74,6 +74,7 @@ setup(
     # package_dir={'': 'samfp'},
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     scripts=[
+        'scripts/combine_flat',
         'scripts/combine_zero',
         'scripts/mkcube',
         'scripts/phmxtractor',

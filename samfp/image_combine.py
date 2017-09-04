@@ -120,39 +120,21 @@ class FlatCombine(Combine):
             hdr = pyfits.getheader(f)
             data = pyfits.getdata(f)
 
-            x = np.arange(data.shape[1])
-            x = np.arange(data.shape[1])
             x_center = data.shape[1] // 2
             x_bsize = int(0.05 * data.shape[1])
-            x_where = np.ones_like(data)
-            x_where[:, np.abs(x - x_center) > 2 * x_bsize] *= 0
-            x_where[:, np.abs(x - x_center) < x_bsize] *= 0
+            x1, x2 = x_center - x_bsize, x_center + x_bsize
+            x_where = np.zeros_like(data)
+            x_where[:, x1:x2] = 1
 
-            y = np.arange(data.shape[0])
             y_center = data.shape[0] // 2
             y_bsize = int(0.05 * data.shape[0])
-            y_where = np.ones_like(data)
-            y_where[np.abs(y - y_center) > 2 * y_bsize, :] *= 0
-            y_where[np.abs(y - y_center) < y_bsize, :] *= 0
+            y1, y2 = y_center - y_bsize, y_center + y_bsize
+            y_where = np.zeros_like(data)
+            y_where[y1:y2, :] = 1
 
             where = np.where(x_where * y_where == 1, True, False)
-
-            # Normalize each amplifier
-            for i in range(1, 5):
-                section = 'AMP_SEC{}'.format(i)
-                section = hdr[section]
-
-                x_sec, y_sec = slices.iraf2python(section)
-
-                amp_data = data[y_sec[0]:y_sec[1], x_sec[0]:x_sec[1]]
-                amp_where = where[y_sec[0]:y_sec[1], x_sec[0]:x_sec[1]]
-
-                norm_factor = np.median(amp_data[amp_where])
-                amp_data /= norm_factor
-                data[y_sec[0]:y_sec[1], x_sec[0]:x_sec[1]] = amp_data
-
-            # norm_factor = np.median(data[where])
-            # data /= norm_factor
+            norm_factor = np.median(data[where])
+            data /= norm_factor
 
             data = CCDData(data, unit=u.adu)
             list_of_data.append(data)
