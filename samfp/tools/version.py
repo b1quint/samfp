@@ -15,9 +15,12 @@
 
     0.6.0 - Add tools to combine Bias, Flats, Darks and Images.
 """
+
 api = 0
 feature = 6
 bug = 0
 
 month = 8
 year = 2017
+
+__str__ = '{:d}.{:d}.{:d} {:d}-{:d}'.format(api, feature, bug, month, year)

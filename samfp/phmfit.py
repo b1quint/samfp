@@ -22,6 +22,7 @@ import astropy.io.fits as pyfits
 import matplotlib.pyplot as plt
 import numpy as np
 
+log = io.MyLogger(__name__)
 
 def main():
 
@@ -55,23 +56,17 @@ def main():
         help="Show plots.")
 
     args = parser.parse_args()
+    log.set_verbose(not args.quiet)
+    log.set_debug(args.debug)
 
     phmfit = PhaseMapFit()
-
-    if args.quiet:
-        phmfit.set_log_level(level=io.logging.ERROR)
-
-    if args.debug:
-        phmfit.set_log_level(level=io.logging.DEBUG)
-
-    phmfit.log.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     phmfit.run(args.filename, interactions=args.interactions,
                n_points=args.npoints, show=args.show_plots)
 
 
 class PhaseMapFit:
-    def __init__(self, log=None):
-        self.log = self.get_logger() if log is None else log
+    def __init__(self, _log=None):
+        self.log = log if _log is None else _log
 
     def get_concavity_sign(self, dz, sampling):
 
@@ -102,31 +97,9 @@ class PhaseMapFit:
 
         n_cols = h['NAXIS1']
         n_rows = h['NAXIS2']
-        log.info('Input phase-map dimensions are: [%d, %d]' % (n_rows, n_cols))
+        log.info('Input phase-map dimensions are: [%d, %d]\n' % (n_rows, n_cols))
 
         return n_cols, n_rows
-
-    @staticmethod
-    def get_logger():
-        """
-        Create and return a customized logger object.
-
-        Returns
-        -------
-            log (logging.Logger) : the logger object.
-        """
-        # lf = io.MyLogFormatter()
-
-        ch = io.logging.StreamHandler()
-        ch.setLevel(io.logging.INFO)
-        # ch.setFormatter(lf)
-
-        io.logging.captureWarnings(True)
-        log = io.logging.getLogger()
-        log.setLevel(io.logging.INFO)
-        log.addHandler(ch)
-
-        return log
 
     def get_reference_pixel(self, header):
         """
@@ -162,7 +135,7 @@ class PhaseMapFit:
     def print_header(self):
         """Just print a nice header to show when the script is running."""
         log = self.log
-        log.info("\n Phase-Map Fitting for BTFI")
+        log.info("Phase-Map Fitting for BTFI")
         log.info("by Bruno Quint & Fabricio Ferrari")
         log.info("version 0.0a - Jan 2014\n")
 
@@ -185,7 +158,7 @@ class PhaseMapFit:
         data = pyfits.getdata(filename)
         header = pyfits.getheader(filename)
 
-        log.info('Done.')
+        log.info('Done.\n')
         return data, header
 
     def run(self, filename, n_points=10, interactions=5, show=False):
@@ -195,7 +168,7 @@ class PhaseMapFit:
         self.print_header()
         d, h = self.read_observed_phasemap(filename)
 
-        log.info("\n Starting phase-map fitting.")
+        log.info("Starting phase-map fitting.")
         log.info("[%d x %d] will be used to sample the observed phase-map"
                  % (n_points, n_points))
         log.info("%d interactions will be used for fitting" % interactions)
@@ -296,6 +269,7 @@ class PhaseMapFit:
             zz = np.polyval(p, rr)
             err = (z - np.polyval(p, r))
 
+            log.info('')
             log.info('%02d interaction' % i)
             log.info("Average err = %.2f" % err.mean())
             log.info("Error STD = %.2f" % err.std())
@@ -304,12 +278,13 @@ class PhaseMapFit:
             r = r[c]
             z = z[c]
 
-        log.info("  phi(x,y) = %.2e x^2 + %.2e x + %.2e " % (p[0], p[1], p[2]))
-        log.info("  Error abs min: %f" % np.abs(err).min())
-        log.info("  Error avg: %f" % err.mean())
-        log.info("  Error std: %f" % err.std())
-        log.info("  Error rms: %f" % np.sqrt(((err ** 2).mean())))
-        log.info("  Sampling in Z: %s" % h['phmsamp'])
+        log.info("")
+        log.info("phi(x,y) = %.2e x^2 + %.2e x + %.2e " % (p[0], p[1], p[2]))
+        log.info(" Error abs min: %f" % np.abs(err).min())
+        log.info(" Error avg: %f" % err.mean())
+        log.info(" Error std: %f" % err.std())
+        log.info(" Error rms: %f" % np.sqrt(((err ** 2).mean())))
+        log.info("Sampling in Z: %s" % h['phmsamp'])
         log.info(" ")
 
         x = np.arange(n_cols)
@@ -331,8 +306,8 @@ class PhaseMapFit:
 
         fname = h['PHMREFF']
         fname = os.path.splitext(fname)[0]
-        pyfits.writeto(fname + '--fit_phmap.fits', Z, h, clobber=True)
-        pyfits.writeto(fname + '--res_phmap.fits', Z - d, h, clobber=True)
+        pyfits.writeto(fname + '--fit_phmap.fits', Z, h, overwrite=True)
+        pyfits.writeto(fname + '--res_phmap.fits', Z - d, h, overwrite=True)
 
         log.info(" All done.\n")
 

@@ -12,7 +12,7 @@ from os import path
 
 from setuptools import setup, find_packages
 
-from samfp.tools.version import api, feature, bug
+from samfp.tools import version
 
 here = path.abspath(path.dirname(__file__))
 
@@ -26,7 +26,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='{}.{}.{}'.format(api, feature, bug),
+    version='{}.{}.{}'.format(version.api, version.feature, version.bug),
 
     description='SAM-FP Data Reduction Pipeline',
     long_description=long_description,

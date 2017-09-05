@@ -40,30 +40,30 @@ import sys
 from astropy.modeling import models, fitting
 from scipy import interpolate, signal
 
+log = io.MyLogger(__name__)
+
 
 def main():
     """Main method that runs the Phase-map Extraction."""
 
     # Parse arguments
     args = _parse_arguments()
-
-    # Set log level
-    setup_log(not args.quiet, args.debug)
-    log = logging.getLogger('phasemap_extractor')
+    log.set_verbose(not args.quiet)
+    log.set_debug(args.debug)
 
     # Start program
     start = time.time()
+    log.info('')
     log.info("Phase-Map Extractor")
     log.info("by Bruno Quint & Fabricio Ferrari")
-    log.info("version {:d}.{:d}.{:d} - {:02d}.{:d}".format(
-        version.api, version.feature, version.bug, version.month, version.year))
+    log.info("version {:s}".format(version.__str__))
     log.info("Extracting phase-map from file: %s" % args.filename)
+    log.info('')
 
     # Checking input data
-    log.info("Checking data-cube for phase-correction.")
-    check_dimensions(args.filename)
+    _check_dimensions(args.filename, log)
 
-    # Extracting phase-map
+    # # Extracting phase-map
     phm = PhaseMap(
         args.filename,
         args.wavelength,
@@ -79,7 +79,7 @@ def main():
 
     # All done!
     end = time.time() - start
-    log.info("\nTotal time elapsed: %02d:%02d:%02d" %
+    log.info("Total time elapsed: %02d:%02d:%02d" %
              (end // 3600, end % 3600 // 60, end % 60))
     log.info("All done!\n")
 
@@ -122,23 +122,21 @@ def _parse_arguments():
     return args
 
 
-def check_dimensions(filename, dimensions=3, keyword='NAXIS'):
+def _check_dimensions(filename, log, dimensions=3, keyword='NAXIS'):
     """
     Method written to check the dimensions of the input fits data.
 
     Parameters
     ----------
-        filename : str
-            String containing path to the input filename.
+        filename (str) : String containing path to the input filename.
 
-        dimensions : int
-            Base number of dimensions for reference.
+        log (logging.Logger) : a logget for information
 
-        keyword : str
-            Header keyword that holds the number of axis (dimensions).
+        dimensions (int) : Base number of dimensions for reference.
+
+        keyword (str) : Header keyword that holds the number of axis
+        (dimensions).
     """
-
-    log = logging.getLogger('phasemap_extractor')
     header = pyfits.getheader(filename)
 
     if keyword not in header:
@@ -153,35 +151,6 @@ def check_dimensions(filename, dimensions=3, keyword='NAXIS'):
         sys.exit()
     else:
         return
-
-
-def setup_log(verbose, debug):
-    """
-    Set log level.
-
-    Parameters
-    ----------
-        verbose (bool) : set verbose mode?
-        debug (bool) : set debug mode? (overwrite verbose if True)
-    """
-
-    # Set log format
-    log_formatter = io.MyLogFormatter()
-
-    # Set log handler to the terminal
-    log_handler = logging.StreamHandler()
-    log_handler.setFormatter(log_formatter)
-
-    # Set the logger itself
-    log = logging.getLogger('phasemap_extractor')
-    log.addHandler(log_handler)
-
-    if verbose:
-        log.setLevel(logging.INFO)
-    else:
-        log.setLevel(logging.NOTSET)
-    if debug:
-        log.setLevel(logging.DEBUG)
 
 
 class PhaseMap:
@@ -212,7 +181,6 @@ class PhaseMap:
             String that contains the path to the output phase-map.
     """
     loading = [' ', '-', '\\', '|', '/']
-    log = logging.getLogger('phasemap_extractor')
 
     def __init__(self, filename, wavelength, correlation=False, output=None,
                  ref=None, show=False, verbose=False):
@@ -251,9 +219,6 @@ class PhaseMap:
 
     def __call__(self):
 
-        # This is a Fabry-Perot data-cube. Let's make that clear to the user
-        self.log.info("\n Extracting phase-map from a Fabry-Perot data-cube.")
-
         # Subtract continuum
         self.data = self.subtract_continuum(self.data, show=self.show)
 
@@ -282,9 +247,9 @@ class PhaseMap:
         # # Calculate the finesse
         self.finesse = self.get_finesse()
 
-        self.log.info(" Ideal number of channels: %.1f channels"
+        log.info("Ideal number of channels: %.1f channels"
                  % round(2 * self.finesse))
-        self.log.info(" Ideal sampling: %.1f %s / channel"
+        log.info("Ideal sampling: %.1f %s / channel"
                  % (self.free_spectral_range / round(2 * self.finesse),
                     self.units))
 
@@ -295,22 +260,19 @@ class PhaseMap:
         """
         Extract the phase-map.
         """
-        # Old Algorithm
-        # log.info("\n  Starting phase-map extraction.")
-        # log.info("  Reading data from %s file" % self.extract_from)
-
         now = time.time()
 
         # Reading data
-        self.log.info("\n Starting phase-map extraction.")
-        self.log.info(" Reading data from %s file" % self.extract_from)
+        log.info("")
+        log.info("Starting phase-map extraction.")
+        log.info("Reading data from %s file" % self.extract_from)
         data = pyfits.getdata(self.extract_from)
 
         phase_map = np.argmax(data, axis=0).astype('float64')
         phase_map -= phase_map[self.ref_y, self.ref_x]
         phase_map *= self.current_sampling
 
-        self.log.info(" Done in %.2f seconds" % (time.time() - now))
+        log.info("Done in %.2f seconds" % (time.time() - now))
         return phase_map
 
     def find_reference_pixel(self):
@@ -322,17 +284,18 @@ class PhaseMap:
             ref_x (int) : X position of the center of the rings.
             ref_y (int) : Y position of the center of the rings.
         """
-        self.log.info("\n Finding reference pixel.")
+        log.info("")
+        log.info("Finding reference pixel.")
 
         if ('PHMREFX' in self.header) and ('PHMREFY' in self.header):
             ref_x = self.header['PHMREFX']
             ref_y = self.header['PHMREFY']
-            self.log.info(" Found reference pixel found in header.")
-            self.log.info(" Using [%d, %d]" % (ref_x, ref_y))
+            log.info("Found reference pixel found in header.")
+            log.info("Using [%d, %d]" % (ref_x, ref_y))
 
         else:
-            self.log.info(" Reference pixel NOT found in header.")
-            self.log.info(" Trying to find the center of the rings.")
+            log.info("Reference pixel NOT found in header.")
+            log.info("Trying to find the center of the rings.")
             ref_x, ref_y = self.find_rings_center(self.fsr_channel)
 
         return ref_x, ref_y
@@ -354,7 +317,6 @@ class PhaseMap:
             ref_y (int) : Y position of the center of the rings.
         """
         now = time.time()
-        log = logging.getLogger('phasemap_extractor')
         depth, height, width = self.data.shape
 
         # Choosing the points
@@ -366,7 +328,7 @@ class PhaseMap:
         ref_y = self.header['NAXIS2'] // 2
 
         # Storing reference pixels for comparison between interactions
-        log.info(" Start center finding.")
+        log.info("Start center finding.")
         old_ref_x = ref_x
         old_ref_y = ref_y
 
@@ -462,10 +424,8 @@ class PhaseMap:
                 except KeyError:
                     pass
 
-                if self.verbose:
-                    log.info(
-                        " Rings center found at: [%d, %d]" % (ref_x, ref_y))
-                    log.info(" Done in %.2f s" % (time.time() - now))
+                log.info("Rings center found at: [%d, %d]" % (ref_x, ref_y))
+                log.info("Done in %.2f s" % (time.time() - now))
 
                 if self.show:
                     plt.tight_layout()
@@ -505,8 +465,8 @@ class PhaseMap:
                 log.warning('Ok then. Leaving now.')
                 sys.exit()
 
-        log.info("    Then, enter the reference X in pixel:")
-        log.info("    Leave it empty to get it in the center of the image")
+        log.info("Then, enter the reference X in pixel:")
+        log.info("Leave it empty to get it in the center of the image")
         reply = '.'
         while not reply.isdigit():
             reply = io.input('? ')
@@ -515,8 +475,8 @@ class PhaseMap:
                 break
         ref_x = int(reply)
 
-        log.info("    Then, enter the reference Y in pixels:")
-        log.info("    Leave it empty to get it in the center of the image")
+        log.info("Then, enter the reference Y in pixels:")
+        log.info("Leave it empty to get it in the center of the image")
         reply = '.'
         while not reply.isdigit():
             reply = io.input('? ')
@@ -534,8 +494,8 @@ class PhaseMap:
         except KeyError:
             pass
 
-        log.info(" Done in %.2f s" % (time.time() - now))
-        log.info(" Using [%d, %d]." % (ref_x, ref_y))
+        log.info("Done in %.2f s" % (time.time() - now))
+        log.info("Using [%d, %d]." % (ref_x, ref_y))
 
         return ref_x, ref_y
 
@@ -543,8 +503,6 @@ class PhaseMap:
         """
         Return an array with the current calibration.
         """
-        log = logging.getLogger('phasemap_extractor')
-
         z = np.arange(self.depth)
         try:
             # The "+ 1" change from fortran like to c like indexing
@@ -556,8 +514,8 @@ class PhaseMap:
             log.debug('CRVAL3: %.2f' % self.header['CRVAL3'])
 
         except KeyError:
-            log.info("! Calibration in third axis not found.")
-            log.info("! I will ignore this step.")
+            log.warning("! Calibration in third axis not found.")
+            log.warning("! I will ignore this step.")
 
         return z
 
@@ -574,12 +532,10 @@ class PhaseMap:
         -------
             finesse : float
         """
-        log = logging.getLogger('phasemap_extractor')
-
         finesse = self.free_spectral_range / self.fwhm
 
         if self.verbose:
-            log.info(" Finesse = %.1f" % finesse)
+            log.info("Finesse = %.1f" % finesse)
 
         return finesse
 
@@ -599,8 +555,7 @@ class PhaseMap:
             fsr_channel : int
                 Free-spectral-range in channels.
         """
-        log = logging.getLogger('phasemap_extractor')
-        log.info(" Finding the free-spectral-range.")
+        log.info("Finding the free-spectral-range.")
 
         now = time.time()
 
@@ -641,8 +596,8 @@ class PhaseMap:
         # What if my cube has less than a FSR or could not find it?
         if fsr_c == 5:
 
-            log.info("! FSR could not be found.")
-            log.info("  Do you want to continue? [Y,n]")
+            log.warning("FSR could not be found.")
+            log.info("Do you want to continue? [Y,n]")
 
             reply = '.'
             while reply not in ' yn':
@@ -650,29 +605,29 @@ class PhaseMap:
                 if reply.lower() == 'n':
                     sys.exit()
 
-            log.info("    Then, enter a FSR in Z units (usually BCV):")
+            log.info("Then, enter a FSR in Z units (usually BCV):")
             reply = '.'
             while not reply.isdigit():
                 reply = io.input('? ')
             fsr = float(reply)
 
-            log.info("    Then, enter a FSR in number of channels:")
+            log.info("Then, enter a FSR in number of channels:")
             reply = '.'
             while not reply.isdigit():
                 reply = io.input('? ')
             fsr_channel = int(reply)
 
         elif fsr_c == len(data):
-            log.info(" It seems that you scanned exactly over a FSR.")
-            log.info(" If not, check your data and phasemap_fit again.")
+            log.info("It seems that you scanned exactly over a FSR.")
+            log.info("If not, check your data and phasemap_fit again.")
 
         # Calculate the sampling
         sampling = fsr / fsr_c
 
-        log.info(" FSR = %.1f %s" % (fsr, self.units))
-        log.info("     = %d channels" % fsr_c)
-        log.info(" Sampling = %.1f %s / channel" % (sampling, self.units))
-        log.info(" Done in %.2f s" % (time.time() - now))
+        log.info("FSR = %.1f %s" % (fsr, self.units))
+        log.info("    = %d channels" % fsr_c)
+        log.info("Sampling = %.1f %s / channel" % (sampling, self.units))
+        log.info("Done in %.2f s" % (time.time() - now))
 
         return fsr, fsr_c
 
@@ -697,7 +652,7 @@ class PhaseMap:
             fwhm (float) : the full-width-at-half-maximum in units equal to z
             (either channel or bcv).
         """
-        log = logging.getLogger('phasemap_extractor')
+
 
         # Get statistics
         midpt = np.median(s)
@@ -732,9 +687,9 @@ class PhaseMap:
             g_rms = np.sqrt(np.mean((s - g_fit(z)) ** 2))
             l_rms = np.sqrt(np.mean((s - l_fit(z)) ** 2))
 
-            log.info("\nPeak at {:2d}".format(argm) +
-                     "\ngaussian fit rms: {:.2f}".format(g_rms) +
-                     "\nlorentzian fit rms: {:.2f}".format(l_rms))
+            log.info("Peak at {:2d}".format(argm))
+            log.info("gaussian fit rms: {:.2f}".format(g_rms))
+            log.info("lorentzian fit rms: {:.2f}".format(l_rms))
 
             if g_rms > l_rms:
                 gauss += 1
@@ -743,8 +698,8 @@ class PhaseMap:
 
         g_fwhm = np.mean(g_fwhm)
         l_fwhm = np.mean(l_fwhm)
-        log.info("\nGaussian fwhm: {:.2f}".format(g_fwhm) +
-                 "\nLorentzian fwhm: {:.2f}".format(l_fwhm))
+        log.info("Gaussian fwhm: {:.2f}".format(g_fwhm))
+        log.info("Lorentzian fwhm: {:.2f}".format(l_fwhm))
 
         if gauss > 0:
             fwhm_measured = g_fwhm
@@ -844,21 +799,21 @@ class PhaseMap:
         """
         Use correlation data-cube.
         """
-        log = logging.getLogger('phasemap_extractor')
+        log.info("A correlation cube will be used.")
+        log.info("Looking for an existing correlation data-cube in the current "
+                 "folder.")
 
-        log.info("\n A correlation cube will be used.")
-        log.info(" Looking for an existing correlation data-cube in the current folder.")
         candidates = glob.glob("*.fits")
 
         corr_cube = None
         for candidate in candidates:
             if 'CORRFROM' in pyfits.getheader(candidate):
                 if pyfits.getheader(candidate)['CORRFROM'] == self.input_file:
-                    log.info(" Correlation cube to be used: %s" % candidate)
+                    log.info("Correlation cube to be used: %s" % candidate)
                     return candidate
 
         if corr_cube is None:
-            log.info(" Correlation cube not found. Creating a new one.")
+            log.info("Correlation cube not found. Creating a new one.")
             data = pyfits.getdata(self.input_file)
             corr_cube = np.empty_like(data)
 
@@ -879,23 +834,22 @@ class PhaseMap:
                 sys.stdout.write(self.loading[int(temp * 10 % 5)])
                 sys.stdout.flush()
 
-            log.info(" Done.")
+            log.info("Done.")
             corr_name = os.path.splitext(self.input_file)[0] + '--corrcube.fits'
-            log.info(" Saving correlation cube to %s" % corr_name)
+            log.info("Saving correlation cube to %s" % corr_name)
 
             corr_hdr = self.header.copy()
             corr_hdr.set('CORRFROM', self.input_file, 'Cube used for corrcube.')
             corr_hdr.set('', '', before='CORRFROM')
             corr_hdr.set('', '--- Correlation cube ---', before='CORRFROM')
 
-            pyfits.writeto(corr_name, corr_cube, corr_hdr, clobber=True)
+            pyfits.writeto(corr_name, corr_cube, corr_hdr, overwrite=True)
             del corr_hdr
             del corr_cube
 
             return corr_name
 
     def save(self):
-        log = logging.getLogger('phasemap_extractor')
 
         # Getting the input information to work on in
         f = os.path.splitext(self.input_file)[0]
@@ -936,13 +890,13 @@ class PhaseMap:
 
         filename = io.safe_save(f + "--obs_phmap.fits", overwrite=True,
                              verbose=self.verbose)
-        log.info(" Saving observed phase-map to file: %s" % filename)
-        pyfits.writeto(filename, self.phase_map, h, clobber=True)
+        log.info("Saving observed phase-map to file: %s" % filename)
+        pyfits.writeto(filename, self.phase_map, h, overwrite=True)
 
         filename = io.safe_save(f + "--ref_spec.fits", overwrite=True,
                              verbose=self.verbose)
-        log.info(" Saving reference spectrum to file: %s" % filename)
-        pyfits.writeto(filename, self.ref_s, h, clobber=True)
+        log.info("Saving reference spectrum to file: %s" % filename)
+        pyfits.writeto(filename, self.ref_s, h, overwrite=True)
 
         return
 
