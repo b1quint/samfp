@@ -1,7 +1,10 @@
 import logging
 import os
 import sys
-from builtins import input
+try:
+    from builtins import input
+except ImportError:
+    input = raw_input
 
 __all__ = ['input', 'safe_save', 'MyLogFormatter']
 
