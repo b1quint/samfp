@@ -14,11 +14,12 @@
     0.5.0 - phmapply back to work.
 
     0.6.0 - Add tools to combine Bias, Flats, Darks and Images.
+       .1 - Fixed some installation issues.
 """
 
 api = 0
 feature = 6
-bug = 0
+bug = 1
 
 month = 8
 year = 2017

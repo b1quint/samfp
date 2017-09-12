@@ -66,6 +66,7 @@ _dilstruct[0, 4] = 0
 _dilstruct[4, 0] = 0
 _dilstruct[4, 4] = 0
 
+
 def main():
     pargs = _parse_arguments()
 
@@ -867,7 +868,7 @@ class SAMI_XJoin:
         list_of_files = sorted(list_of_files)
 
         if self.norm_flat and (self.flat_file is not None):
-            print('AAAAAA')
+
             log.info(" Normalizing flat")
 
             flat_hdr = _pyfits.getheader(self.flat_file)
@@ -878,7 +879,6 @@ class SAMI_XJoin:
 
             _pyfits.writeto(self.flat_file, flat, flat_hdr, overwrite=True)
             log.info(" Done\n")
-
 
         for filename in list_of_files:
 
@@ -912,6 +912,7 @@ class SAMI_XJoin:
                             header, overwrite=True)
 
         log.info("\n All done!")
+
 
 def _normalize_data(data):
     """
