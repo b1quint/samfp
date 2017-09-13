@@ -15,6 +15,9 @@
 
     0.6.0 - Add tools to combine Bias, Flats, Darks and Images.
        .1 - Fixed some installation issues.
+       .2 - Now every script that is part of the samfp tools will carry the
+            version of the package itself. Before, they were carrying only their
+            own versions and it was difficult to track/update.
 """
 
 api = 0
