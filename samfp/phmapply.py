@@ -9,8 +9,6 @@
 
 from __future__ import division, print_function
 
-from .tools import io
-
 import argparse
 import os
 import sys
@@ -20,10 +18,13 @@ import astropy.io.fits as pyfits
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 
+from .tools import io, version
+
+log = io.MyLogger(__name__)
+
 
 def main():
 
-    # Setting Options ---------------------------------------------------------
     parser = argparse.ArgumentParser(
         description="Apply a phase-map on a data-cube."
     )
@@ -61,14 +62,16 @@ def main():
     )
 
     args = parser.parse_args()
-    v = not args.quiet
+    log.set_verbose(verbose=not args.quiet)
 
     # Printing program header --------------------------------------------------
-    if v:
-        start = time.time()
-        print("\n Phase-Map Apply")
-        print(" by Bruno Quint & Fabricio Ferrari")
-        print(" version 0.0 - Feb 2014")
+    start = time.time()
+    log.info("")
+    log.info("SAM-FP Tools: PHase-Map Apply")
+    log.info("by Bruno Quint (bquint@ctio.noao.edu)")
+    log.info("version {:s}".format(version.__str__))
+    log.info("Starting program.")
+    log.info("")
 
     root_dir = os.path.dirname(args.cube_file)
     cube_file = args.cube_file
@@ -79,50 +82,45 @@ def main():
     else:
         out_file = args.output
 
-    if v:
-        print(" \n Root dir: %s" % root_dir)
-        print(" Cube to be corrected: %s" % cube_file)
-        print(" Phase-map to be applied: %s" % map_file)
-        print(" Output corrected cube: %s" % out_file)
+    log.info("Root dir: %s" % root_dir)
+    log.info("Cube to be corrected: %s" % cube_file)
+    log.info("Phase-map to be applied: %s" % map_file)
+    log.info("Output corrected cube: %s" % out_file)
 
     # Systemic wavelength ------------------------------------------------------
     vel = args.speed
     c = 299792 # km/s
     wavelength = args.wavelength * np.sqrt((1 + vel / c) / (1 - vel / c))
-    if v:
-        print(" Emitted/systemic wavelength: %.2f A" % args.wavelength)
-        print(" Systemic velocity: %.2f km/s" % vel)
-        print(" Observed wavelength: %.2f A" % wavelength)
+
+    log.info("")
+    log.info("Emitted/systemic wavelength: %.2f A" % args.wavelength)
+    log.info("Systemic velocity: %.2f km/s" % vel)
+    log.info("Observed wavelength: %.2f A" % wavelength)
 
     # Reading input data ------------------------------------------------------
-    if v:
-        print("\n Reading cube to be corrected.")
-
+    log.info("")
+    log.info("Reading cube to be corrected.")
     data_cube = pyfits.open(cube_file)[0]
+    log.info("Done.")
 
-    if v:
-        print(" Done.")
-        print("\n Reading phase-map to be applied.")
-
+    log.info("Reading phase-map to be applied.")
     phase_map = pyfits.open(map_file)[0]
-
-    if v:
-        print(" Done.")
+    log.info("Done.")
 
     # Checking data -----------------------------------------------------------
     if data_cube.data[0].shape != phase_map.shape:
-        print("[!] Cube and map does not have matching width and height.")
-        print("[!] Leaving now.\n")
+        log.error("Cube and map does not have matching width and height.")
+        log.error("[!] Leaving now.\n")
         sys.exit()
 
     if data_cube.data.ndim != 3:
-        print("[!] Cube file is not really a cube.")
-        print("[!] Leaving now.\n")
+        log.error("[!] Cube file is not really a cube.")
+        log.error("[!] Leaving now.\n")
         sys.exit()
 
     if phase_map.data.ndim != 2:
-        print("[!] Map file is not really an image.")
-        print("[!] Leaving now.\n")
+        log.error("[!] Map file is not really an image.")
+        log.error("[!] Leaving now.\n")
         sys.exit()
 
     m = data_cube.header['NAXIS1']
@@ -137,36 +135,33 @@ def main():
 
     # Reading the Free-Spectral-Range --------------------------------------
     try:
-        if v:
-            print(" Reading free-spectral-range from cube header.")
+        log.info("")
+        log.info("Reading free-spectral-range from cube header.")
         # TODO add an option to use the FSR found while extracting
         # TODO the phase-map or while fitting it.
         # TODO or even to give the option for the user to enter it.
         cal_fsr = phase_map.header['PHM_FSR']
         cal_wavelength = phase_map.header['PHMWCAL']
         f_s_r = cal_fsr / cal_wavelength * wavelength
-        if v:
-            print(" Free Spectral Range = %.2f %s" % (f_s_r, units))
+        log.info(" Free Spectral Range = %.2f %s" % (f_s_r, units))
 
     except KeyError:
-        print(" Please, enter the free-spectral-range in %s units" % units)
-        f_s_r = io.input(" > ")
+        log.info("Please, enter the free-spectral-range in %s units" % units)
+        f_s_r = io.input("    >")
 
     f_s_r = round(f_s_r / abs(sample)) # From BCV to Channels
-    if v:
-        print(" Free-Spectral-Range is %d channels" % f_s_r)
+    log.info("Free-Spectral-Range is %d channels" % f_s_r)
 
     fsr = f_s_r * args.npoints  # From Channels to nPoints
     fsr = int(round(fsr))
-    if v:
-        print(" Free-Spectral-Range is %d points" % fsr)
+    log.info("Free-Spectral-Range is %d points" % fsr)
 
     # Assure that the reference spectrum will not be moved ----------------
     try:
         phase_map.data = phase_map.data - phase_map.data[ref_y, ref_x]
     except IndexError:
-        print("[!] Reference pixel out of field.")
-        print("[!] Skipping reference pixel map subtraction.")
+        log.warn("Reference pixel out of field.")
+        log.warn("Skipping reference pixel map subtraction.")
         pass
     phase_map.data *= -1
 
@@ -177,8 +172,8 @@ def main():
     phase_map.data = phase_map.data * args.npoints
 
     # Applying phase-map --------------------------------------------------
-    if v:
-        print("\n Applying phase-map:")
+    log.info("")
+    log.info("Applying phase-map:")
 
     n_channels = data_cube.header['NAXIS3']
     z = np.arange(3 * n_channels) - n_channels
@@ -211,15 +206,14 @@ def main():
             data_cube.data[:, j, i] = spec[n_channels:2 * n_channels]
 
             # Giving a feedback to the user
-            if v:
+            if not args.quiet:
                 temp = ((i + 1) * 100.00 / m)
-                sys.stdout.write('\r  %2.2f%% ' % temp)
+                sys.stdout.write('\r    %2.2f%% ' % temp)
                 sys.stdout.flush()
 
     end_of_cube = min(int(round(f_s_r)), data_cube.data.shape[0])
     data_cube.data = data_cube.data[0:end_of_cube, :, :]
-    if v:
-        print(" Done.")
+    log.info(" Done.")
 
     if args.center:
         collapsed_cube = data_cube.data.sum(axis=2).sum(axis=1)
@@ -252,21 +246,20 @@ def main():
     # data_cube.header.add_blank(after='PHMFIT_C')
 
     # Saving corrected data-cube ----------------------------------------------
-    if v:
-        print("\n Writing output to file %s." % out_file)
+    log.info("Writing output to file %s." % out_file)
 
     try:
         data_cube.writeto(out_file, overwrite=True)
     except TypeError:
         data_cube.writeto(out_file, clobber=True)
 
-    if v:
-        print(" Done.")
-        # noinspection PyUnboundLocalVariable
-        end = time.time() - start
-        print("\n Total time ellapsed: {0:02d}:{1:02d}:{2:02d}".format(
+    log.info("Done.")
+
+    end = time.time() - start
+    log.info("")
+    log.info("Total time ellapsed: {0:02d}:{1:02d}:{2:02d}".format(
             int(end // 3600), int(end % 3600 // 60), int(end % 60)))
-        print(" All done!\n")
+    log.info(" All done!\n")
 
 
 # Method shift_spectrum ========================================================
@@ -318,35 +311,3 @@ def shift_spectrum(spec, dz, fsr=-1, sample=1.0, n_points=100):
     spec = spline(z)
 
     return spec
-
-
-def error(my_string):
-    s = BColors.FAIL + '[ERROR] ' + BColors.ENDC
-    s = s + my_string
-    print(s)
-    return
-
-
-def warning(my_string):
-    s = BColors.WARNING + '[WARNING] ' + BColors.ENDC
-    s = s + my_string
-    print(s)
-    return
-
-
-# noinspection PyClassHasNoInit
-class BColors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-
-    def disable(self):
-        self.HEADER = ''
-        self.OKBLUE = ''
-        self.OKGREEN = ''
-        self.WARNING = ''
-        self.FAIL = ''
-        self.ENDC = ''

@@ -1,62 +1,61 @@
+from builtins import input
+
 import logging
 import os
 import sys
-from builtins import input
 
 __all__ = ['input', 'safe_save', 'MyLogFormatter']
 
 
 def safe_save(name, extension=None, overwrite=False, verbose=False):
     """
-    This is a generic method used to check if a file called 'name' already
-    exists. If so, it starts some interaction with the user.
+        This is a generic method used to check if a file called 'name'
+        already exists. If so, it starts some interaction with the user.
 
-    @param name: the name of the file that will be written in the future.
+        Parameters:
+            name : str
+                The name of the file that will be written in the future.
 
-    @keyword extension: check if the file has the following extension. If not,
-    it fills for the user. Defaults is None. An example would be
-    extension='.fits'.
+            extension: str (default=None)
+                Check if the file has the following extension. If not, it fills
+                for the user. Defaults is None. An example would be
+                extension='.fits'.
 
-    @keyword overwrite: if False, this method will interact with the user to
-    ask if 'name' file shall be overwritten or if a new name will be given. If
-    True, 'name' file is automatically overwritten.
+            overwrite : bool
+                If False, this method will interact with the user to ask if 'name'
+                file shall be overwritten or if a new name will be given. If True,
+                'name' file is automatically overwritten.
 
-    @keyword verbose: force verbose mode on even when overwrite is automatic.
-
-    v1.0.2 - added 'extension' keyword.
-    v1.0.1 - added 'overwrite' keyword.
-           - added 'verbose' keyword.
+            verbose : bool
+                force verbose mode on even when overwrite is automatic.
     """
+
     log = MyLogger(__name__)
+    log.set_verbose(verbose=verbose)
 
     if os.path.splitext(name)[1] != extension and extension is not None:
         name = name + extension
 
-    v = False if (overwrite is True) else True
-    if v:
-        log.info('\nWriting to output file "%s"' % name)
+    log.info('Writing to output file "%s"' % name)
 
     while os.path.exists(name):
 
         if overwrite in ['y', 'Y', True]:
-            if v or verbose:
-                log.info(" Overwriting %s file." % name)
+            log.info("Overwriting %s file." % name)
             os.remove(name)
 
         elif overwrite in ['', 'n', 'N', False]:
-            name = input("Please, enter a new filename:\n > ")
+            name = input("    Please, enter a new filename:\n    > ")
             if os.path.splitext(name)[1] != extension and extension is not None:
                 name = name + extension
 
         elif overwrite in ['q']:
-            if v:
-                log.info("Exiting program.")
+            log.info("Exiting program.")
             sys.exit()
 
         else:
             overwrite = input(" '%s' file exist. Overwrite? (y/[n])" % name)
-            if v:
-                log.info("Writing data-cube to %s" % name)
+            log.info('Writing to output file "%s"' % name)
 
     return name
 
@@ -123,12 +122,12 @@ class MyLogger(logging.Logger):
         # Set the logger itself
         self.addHandler(self.stream_handler)
 
-    def set_verbose(self, verbose):
+    def set_verbose(self, verbose=True):
         if verbose:
             self.setLevel(logging.INFO)
         else:
             self.setLevel(logging.NOTSET)
 
-    def set_debug(self, debug):
+    def set_debug(self, debug=True):
         if debug:
             self.setLevel(logging.DEBUG)

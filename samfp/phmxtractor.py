@@ -53,10 +53,13 @@ def main():
 
     # Start program
     start = time.time()
-    log.info('')
-    log.info("Phase-Map Extractor")
-    log.info("by Bruno Quint & Fabricio Ferrari")
+    log.info("")
+    log.info("SAM-FP Tools: PHase-Map eXtractor")
+    log.info("by Bruno Quint (bquint@ctio.noao.edu)")
     log.info("version {:s}".format(version.__str__))
+    log.info("Starting program.")
+    log.info("")
+
     log.info("Extracting phase-map from file: %s" % args.filename)
     log.info('')
 

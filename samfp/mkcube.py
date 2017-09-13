@@ -12,7 +12,7 @@
 
 """
 
-from __future__ import division, print_function
+from __future__ import absolute_import, division, print_function
 
 import astropy.io.fits as pyfits
 import argparse
@@ -21,13 +21,15 @@ import logging as log
 import numpy as np
 import pandas as pd
 
-__author__ = 'Bruno Quint'
+from .tools import io, version
 
-log.basicConfig(format='%(levelname)s: %(name)s(%(funcName)s): %(message)s',
-                level=log.INFO)
+log = io.MyLogger(__name__)
+
+__author__ = 'Bruno Quint'
 
 
 def main():
+
     # Parsing Arguments -------------------------------------------------------
     parser = argparse.ArgumentParser(
         description="Build a data-cube from image files.")
@@ -54,10 +56,15 @@ def main():
 
     parsed_args = parser.parse_args()
 
-    if parsed_args.quiet:
-        log.basicConfig(level=log.ERROR)
-    if parsed_args.debug:
-        log.basicConfig(level=log.DEBUG)
+    log.set_verbose(verbose=not parsed_args.quiet)
+    log.set_debug(debug=parsed_args.debug)
+
+    log.info("")
+    log.info("SAM-FP Tools: mkcube")
+    log.info("by Bruno Quint (bquint@ctio.noao.edu)")
+    log.info("version {:s}".format(version.__str__))
+    log.info("Starting program.")
+    log.info("")
 
     make_cube(parsed_args.files,
               output=parsed_args.output,
@@ -193,10 +200,10 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     hdr.add_blank('--- Channels and Files ---', before='CHAN_001')
 
     filename = output
-    output = safesave(output, verbose=True)
+    output = io.safe_save(output, verbose=True)
 
-    log.info('Writing file to %s' % output)
-    pyfits.writeto(output, cube, hdr, clobber=True)
+    log.info('Writing file to {:s}'.format(output))
+    pyfits.writeto(output, cube, hdr, overwrite=True)
 
     log.debug(pd.DataFrame(data={'x': z,
                                  'y': z_array,
@@ -205,53 +212,6 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     log.debug(p)
 
     return
-
-
-def safesave(name, overwrite=False, verbose=False):
-    """
-    This is a generic method used to check if a file called 'name'
-    already exists. If so, it starts some interaction with the user.
-
-    Parameters:
-        name : str
-            The name of the file that will be written in the future.
-
-        overwrite : bool
-            If False, this method will interact with the user to ask if 'name'
-            file shall be overwritten or if a new name will be given. If True,
-            'name' file is automatically overwritten.
-
-        verbose : bool
-            force verbose mode on even when overwrite is automatic.
-    """
-    import os
-    import sys
-
-    v = False if (overwrite is True) else True
-    if v:
-        print("\n Writing to output file %s" % name)
-
-    while os.path.exists(name):
-
-        if overwrite in ['y', 'Y', True]:
-            if v or verbose:
-                print(" Overwriting %s file." % name)
-            os.remove(name)
-
-        elif overwrite in ['', 'n', 'N', False]:
-            name = input("   Please, enter a new filename:\n   > ")
-
-        elif overwrite in ['q']:
-            if v:
-                print(" Exiting program.")
-            sys.exit()
-
-        else:
-            overwrite = input("   '%s' file exist. Overwrite? (y/[n])" % name)
-            if v:
-                print(" Writing data-cube to %s" % name)
-
-    return name
 
 
 if __name__ == '__main__':

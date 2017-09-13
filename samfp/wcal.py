@@ -3,7 +3,6 @@
 from __future__ import division, print_function
 
 import argparse
-import logging
 import threading
 import sys
 
@@ -11,6 +10,10 @@ from astropy.io import fits as pyfits
 from scipy import signal
 
 import numpy as np
+
+from .tools import io, version
+
+log = io.MyLogger(__name__)
 
 
 __author__ = 'Bruno Quint'
@@ -25,51 +28,38 @@ class WavelengthCalibration(threading.Thread):
                  verbose_mode=False, wavelength=None):
 
         threading.Thread.__init__(self)
+        global log
 
-        self.debug_mode = debug_mode
         self.gap_size = gap_size
+        self.log = log
         self.input_file = input_file
         self.output_file = output
-        self.verbose_mode = verbose_mode
         self.wavelength = wavelength
 
-    def run(self):
-
-        # ----------------------------------------------------------------------
-        # Setting the log
-        self.log_formatter = logging.Formatter()
-        self.log_handler = logging.StreamHandler()
-        self.log = logging.getLogger()
-
-        self.log_handler.setFormatter(self.log_formatter)
-        self.log.addHandler(self.log_handler)
-
-        if self.debug_mode:
-            self.log.setLevel(logging.DEBUG)
-        elif self.verbose_mode:
-            self.log.setLevel(logging.INFO)
-        else:
-            self.log.setLevel(logging.WARN)
+        self.log.set_verbose(verbose=verbose_mode)
+        self.log.set_debug(debug=debug_mode)
 
         self.info = self.log.info
         self.debug = self.log.debug
         self.error = self.log.error
         self.warn = self.log.debug
 
-        # ----------------------------------------------------------------------
-        # Printing options
-        msg = ("\n"
-               "\n SAM-FP Wavelength Calibration"
-               "\n"
-               "\n Input filename: {0.input_file:s}"
-               "\n Output filename: {0.output_file:s}"
-               "\n "
-               "\n Verbose mode: {0.verbose_mode:}"
-               "\n Debug mode: {0.debug_mode:}")
+        return
 
-        self.info(msg.format(self))
+    def run(self):
 
-        # ----------------------------------------------------------------------
+        self.info()
+
+        self.info("")
+        self.info("SAM-FP Tools: Wavelength Calibration")
+        self.info("by Bruno Quint (bquint@ctio.noao.edu)")
+        self.info("version {:s}".format(version.__str__))
+        self.info("Starting program.")
+        self.info("")
+
+        self.info("Input filename: {0.input_file:s}".format(self))
+        self.info("Output filename: {0.output_file:s}".format(self))
+
         # Seistemic wavelength
         try:
             header = pyfits.getheader(self.input_file)
@@ -96,7 +86,6 @@ class WavelengthCalibration(threading.Thread):
         header.set('CRVAL3', value=self.wavelength,
                    comment='Seistemic wavelength.')
 
-        # ----------------------------------------------------------------------
         # Finding the reference pixel
         data = pyfits.getdata(self.input_file)
         s = np.mean(data, axis=2)
@@ -117,34 +106,32 @@ class WavelengthCalibration(threading.Thread):
         cc = signal.correlate(s_[5:-5], k, mode="same")
         self.arg_max = np.argmax(cc) + 5
 
-        msg = ("\n Reference channel is: "
-               "\n CRPIX3 = {0.arg_max:d}")
+        self.info("Reference channel is: ")
+        self.info("CRPIX3 = {0.arg_max:d}")
         header.set('CRPIX3', value=self.arg_max)
-        self.info(msg.format(self))
 
-        # ----------------------------------------------------------------------
         # Find the step in angstroms
         try:
             z_fsr = header[self.key_zfsr]
         except KeyError:
             self.warn('%s card was not found in the header.' % self.key_zfsr)
-            z_fsr = input('Please, enter the Free-Spectral-Range in bcv:'
-                          '\n > ')
+            z_fsr = input('    Please, enter the Free-Spectral-Range in bcv:'
+                          '\n    > ')
         except TypeError:
-            z_fsr = input('Please, enter the Free-Spectral-Range in bcv:'
-                          '\n >  ')
+            z_fsr = input('    Please, enter the Free-Spectral-Range in bcv:'
+                          '\n    >  ')
 
         try:
             z_step = header[self.key_z_step]
         except KeyError:
             self.warn('%s card was not found in the header.' % self.key_z_step)
-            z_step = input('Please, enter the step between channels in bcv'
-                           '\n >  ')
+            z_step = input('    Please, enter the step between channels in bcv'
+                           '\n     >  ')
         except TypeError:
             self.warn('Header was not passed to "WCal.get_wavelength_step"'
-                        ' method')
-            z_step = input('Please, enter the step between channels in bcv'
-                           '\n >  ')
+                      ' method')
+            z_step = input('    Please, enter the step between channels in bcv'
+                           '\n    >  ')
 
         gap_size = self.gap_size * 1e-6
         self.info(' Gap size e = {:.1f} um'.format(gap_size * 1e6))
@@ -196,8 +183,8 @@ def parse_arguments():
     parser.add_argument('-q', '--quiet', action='store_true',
                         help="Run program quietly.")
 
-    args = parser.parse_args()
-    return args
+    _args = parser.parse_args()
+    return _args
 
 
 if __name__ == '__main__':

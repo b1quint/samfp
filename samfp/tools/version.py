@@ -24,4 +24,4 @@ bug = 1
 month = 8
 year = 2017
 
-__str__ = '{:d}.{:d}.{:d} {:d}-{:d}'.format(api, feature, bug, month, year)
+__str__ = 'v{:d}.{:d}.{:d} {:d}-{:0d}'.format(api, feature, bug, year, month)

@@ -33,7 +33,7 @@
 """
 
 from __future__ import division as _division
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
 try:
     # noinspection PyUnresolvedReferences,PyUnboundLocalVariable
@@ -42,15 +42,15 @@ except NameError:
     # noinspection PyShadowingBuiltins
     _xrange = range
 
-import logging as log
-
 import astropy.io.fits as _pyfits
 import numpy as _np
 from ccdproc import cosmicray_lacosmic as _cosmicray_lacosmic
 from numpy import random
 from scipy import stats
 
-from .tools import slices
+from .tools import io, slices, version
+
+log = io.MyLogger(__name__)
 
 # Piece of code from cosmics.py
 # We define the laplacian kernel to be used
@@ -133,8 +133,8 @@ class SAMI_XJoin:
                  flat_file=None, glow_file=None, norm_flat=False,
                  time=False, verbose=False):
 
-        self.set_verbose(verbose)
-        self.set_debug(debug)
+        log.set_verbose(verbose)
+        log.set_debug(debug)
 
         self.bias_file = bias_file
         self.clean = clean
@@ -691,12 +691,12 @@ class SAMI_XJoin:
         """
         Simply prints a message at the beginning.
         """
-        msg = (
-            "\n SAMI - Join Extensions"
-            " by Bruno Quint (bquint@ctio.noao.edu)"
-            " 2016 - Version 1.0"
-            "\n Starting program. \n")
-        log.info(msg)
+        log.info("")
+        log.info("SAM-FP Tools: xjoin")
+        log.info("by Bruno Quint (bquint@ctio.noao.edu)")
+        log.info("version {:s}".format(version.__str__))
+        log.info("Starting program.")
+        log.info("")
 
     @staticmethod
     def remove_cosmic_rays(data, header, prefix, cosmic_rays):
@@ -794,32 +794,6 @@ class SAMI_XJoin:
         return data, header, prefix
 
     @staticmethod
-    def set_debug(debug):
-        """
-        Turn on debug mode.
-
-        Parameter
-        ---------
-            debug : bool
-        """
-        if debug:
-            log.basicConfig(level=log.DEBUG, format='%(message)s')
-
-    @staticmethod
-    def set_verbose(verbose):
-        """
-        Turn on verbose mode.
-
-        Parameter
-        ---------
-            verbose : bool
-        """
-        if verbose:
-            log.basicConfig(level=log.INFO, format='%(message)s')
-        else:
-            log.basicConfig(level=log.WARNING, format='%(message)s')
-
-    @staticmethod
     def remove_central_bad_columns(data):
         """
         Remove central bad columns at the interface of the four extensions.
@@ -864,7 +838,7 @@ class SAMI_XJoin:
         from os.path import join, split
 
         self.print_header()
-        log.info(' Processing data')
+        log.info('Processing data')
         list_of_files = sorted(list_of_files)
 
         if self.norm_flat and (self.flat_file is not None):
@@ -904,14 +878,15 @@ class SAMI_XJoin:
             except KeyError:
                 pass
 
-            log.info(' %s -> %s' % (filename, prefix + filename))
+            log.info('{:s} -> {:s}'.format(filename, prefix + filename))
 
             header.add_history('Extensions joined using "sami_xjoin"')
             path, filename = split(filename)
             _pyfits.writeto(join(path, prefix + filename), data,
                             header, overwrite=True)
 
-        log.info("\n All done!")
+        log.info("")
+        log.info("All done!")
 
 
 def _normalize_data(data):

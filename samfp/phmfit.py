@@ -7,22 +7,20 @@
 """
 from __future__ import division, print_function
 
-import matplotlib
-matplotlib.use('Qt5Agg')
-
-try:
-    from .tools import io
-except ValueError:
-    from tools import io
-
 import argparse
 import os
+
+import matplotlib
+matplotlib.use('Qt5Agg')
 
 import astropy.io.fits as pyfits
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .tools import io, version
+
 log = io.MyLogger(__name__)
+
 
 def main():
 
@@ -134,10 +132,13 @@ class PhaseMapFit:
 
     def print_header(self):
         """Just print a nice header to show when the script is running."""
-        log = self.log
-        log.info("Phase-Map Fitting for BTFI")
-        log.info("by Bruno Quint & Fabricio Ferrari")
-        log.info("version 0.0a - Jan 2014\n")
+        _log = self.log
+        _log.info("")
+        _log.info("SAM-FP Tools: PHase-Map eXtractor")
+        _log.info("by Bruno Quint (bquint@ctio.noao.edu)")
+        _log.info("version {:s}".format(version.__str__))
+        _log.info("Starting program.")
+        _log.info("")
 
     def read_observed_phasemap(self, filename):
         """
