@@ -1,4 +1,4 @@
-# SAM-FP
+# SAM-FP Tools
 
 This page contains some scripts that help me (and hopefully will help you too) to reduce Fabry-Perot data obtained at [SOAR Telescope](http://www.ctio.noao.edu/soar/) with[SOAR Adaptive Module](http://www.ctio.noao.edu/soar/content/soar-adaptive-optics-module-sam), or SAM. 
 
