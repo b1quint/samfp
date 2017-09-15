@@ -74,6 +74,7 @@ setup(
     # package_dir={'': 'samfp'},
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     scripts=[
+        'scripts/autoastrometry.py',
         'scripts/combine_flat',
         'scripts/combine_zero',
         'scripts/fp_cut',
@@ -84,7 +85,6 @@ setup(
         'scripts/phmfit',
         'scripts/phmapply',
         'scripts/sami_ccr',
-        'scripts/sami_qastrometry',
         'scripts/xjoin',
 ],
     # zip_safe=False,

@@ -1869,6 +1869,9 @@ def main():
     for filename in filenames:
         if len(filenames) > 1: print 'Processing', filename
         if nosolve and catalog=='': catalog = filename+'.cat'
+
+        # ToDO - A better way to keep the 'tmc' catalog as default.
+        catalo = 'tmc'
         fitinfo = autoastrometry(filename,pixelscale=pixelscale,pa=pa,inv=inv,uncpa=uncpa,minfwhm=minfwhm,maxfwhm=maxfwhm,maxellip=maxellip,boxsize=boxsize, maxrad=maxrad, tolerance=tolerance, catalog=catalog, nosolve=nosolve, overwrite=overwrite, outfile=outfile, saturation=saturation, quiet=quiet)
         if nosolve: continue
         if type(fitinfo)==int: 
