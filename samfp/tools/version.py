@@ -18,11 +18,12 @@
        .2 - Now every script that is part of the samfp tools will carry the
             version of the package itself. Before, they were carrying only their
             own versions and it was difficult to track/update.
+    0.7.0 - fp_tools are now inside samfp-tools
 """
 
 api = 0
-feature = 6
-bug = 1
+feature = 7
+bug = 0
 
 month = 8
 year = 2017

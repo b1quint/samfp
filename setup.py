@@ -76,6 +76,9 @@ setup(
     scripts=[
         'scripts/combine_flat',
         'scripts/combine_zero',
+        'scripts/fp_cut',
+        'scripts/fp_repeat',
+        'scripts/fp_oversample',
         'scripts/mkcube',
         'scripts/phmxtractor',
         'scripts/phmfit',
@@ -83,7 +86,7 @@ setup(
         'scripts/sami_ccr',
         'scripts/sami_qastrometry',
         'scripts/xjoin',
-    ],
+],
     # zip_safe=False,
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
