@@ -80,6 +80,7 @@ setup(
         'scripts/fp_cut',
         'scripts/fp_repeat',
         'scripts/fp_oversample',
+        'scripts/fp_wcal',
         'scripts/mkcube',
         'scripts/phmxtractor',
         'scripts/phmfit',

@@ -1,6 +1,7 @@
 #!/usr/bin/env python 
 # -*- coding: utf8 -*-
 from __future__ import division, print_function
+from builtins import input
 
 import argparse
 import threading
@@ -39,16 +40,26 @@ class WavelengthCalibration(threading.Thread):
         self.log.set_verbose(verbose=verbose_mode)
         self.log.set_debug(debug=debug_mode)
 
-        self.info = self.log.info
-        self.debug = self.log.debug
-        self.error = self.log.error
-        self.warn = self.log.debug
+        self.arg_max = None
+        self.queesgate_constant = None
+        self.w_order = None
+        self.w_fsr = None
+        self.w_step = None
+        self.z_fsr = None
+        self.z_step = None
 
         return
 
-    def run(self):
+    def debug(self, msg):
+        self.log.debug(msg.format(self))
 
-        self.info()
+    def error(self, msg):
+        self.log.error(msg.format(self))
+
+    def info(self, msg):
+        self.log.info(msg.format(self))
+
+    def run(self):
 
         self.info("")
         self.info("SAM-FP Tools: Wavelength Calibration")
@@ -57,34 +68,31 @@ class WavelengthCalibration(threading.Thread):
         self.info("Starting program.")
         self.info("")
 
-        self.info("Input filename: {0.input_file:s}".format(self))
-        self.info("Output filename: {0.output_file:s}".format(self))
+        self.info("Input filename: {0.input_file:s}")
+        self.info("Output filename: {0.output_file:s}")
 
         # Seistemic wavelength
         try:
             header = pyfits.getheader(self.input_file)
         except IOError:
-
-            self.error("\n File not found:\n {0.input_file:s}".format(self))
-            self.error(" Leaving program now.")
+            self.error("File not found:\n {0.input_file:s}")
+            self.error("Leaving program now.")
             sys.exit(1)
 
         if self.wavelength is None:
             try:
                 self.wavelength = header['PHMWCAL']
-                self.info("\n Seistemic wavelength found in the header: "
-                          "\n CRVAL = {0.wavelength:.2f} Angstrom".format(self))
+                self.info("Seistemic wavelength found in the header: "
+                          "CRVAL = {0.wavelength:.2f} Angstrom".format(self))
             except KeyError:
-                msg = ("\n No wavelength could be found. "
+                msg = ("No wavelength could be found. "
                        "Leaving program now.")
                 self.error(msg)
                 sys.exit(1)
         else:
-            self.info("\n Seistemic wavelength providen by the user: "
-                      "\n CRVAL = {0.wavelength:.2f} Angstrom".format(self))
+            self.info("Seistemic wavelength providen by the user: ")
+            self.info("CRVAL = {0.wavelength:.2f} Angstrom")
 
-        header.set('CRVAL3', value=self.wavelength,
-                   comment='Seistemic wavelength.')
 
         # Finding the reference pixel
         data = pyfits.getdata(self.input_file)
@@ -94,11 +102,11 @@ class WavelengthCalibration(threading.Thread):
         midpt = np.median(s)
         std = np.std(s)
 
-        self.debug(" Collapsed data statistics: ")
-        self.debug(" median = {:.2f}".format(midpt))
-        self.debug(" std = {:.2f}".format(std))
+        self.debug("Collapsed data statistics: ")
+        self.debug("median = {:.2f}".format(midpt))
+        self.debug("std = {:.2f}".format(std))
 
-        p = np.percentile(data, 50.)
+        p = np.percentile(data, 50)
         s_ = s.copy()
         s_[s < p] = 0.
 
@@ -108,7 +116,6 @@ class WavelengthCalibration(threading.Thread):
 
         self.info("Reference channel is: ")
         self.info("CRPIX3 = {0.arg_max:d}")
-        header.set('CRPIX3', value=self.arg_max)
 
         # Find the step in angstroms
         try:
@@ -133,27 +140,34 @@ class WavelengthCalibration(threading.Thread):
             z_step = input('    Please, enter the step between channels in bcv'
                            '\n    >  ')
 
-        gap_size = self.gap_size * 1e-6
-        self.info(' Gap size e = {:.1f} um'.format(gap_size * 1e6))
+        w_order = 2 * (self.gap_size * 1e-6) / (self.wavelength * 1e-10)
 
-        self.wavelength = self.wavelength * 1e-10
-        w_order = 2 * gap_size / self.wavelength
-        self.info(' Interference order p({:.02f}) = {:.2f}'.format(
-            self.wavelength * 1e10, w_order))
-
-        self.info(' Z Free-Spectral-Range = {:.02f} bcv'.format(z_fsr))
         w_fsr = self.wavelength / (w_order * (1 + 1 / w_order ** 2))
-        self.info(' W Free-Spectral-Range = {:.02f} A'.format(w_fsr * 1e10))
 
-        w_step = w_fsr / z_fsr * z_step
-        QGC = w_fsr / z_fsr * 1e10
-        self.info(' Queesgate constant = {:.02f} A / bcv'.format(QGC))
-        self.info(' Step = {:.02f} A / channel'.format(w_step * 1e10))
+        QGC = z_fsr / w_fsr
 
-        w_step *= 1e10
-        header.set('CDELT3', value=w_step)
-        header.set('C3_3', value=w_step)
+        w_step = z_step / QGC
 
+        self.queesgate_constant = QGC
+        self.w_order = w_order
+        self.w_fsr = w_fsr
+        self.w_step = w_step
+        self.z_fsr = z_fsr
+        self.z_step = z_step
+
+        self.info('Gap size e = {0.gap_size:.1f} um')
+        self.info('Interference order p({0.wavelength:.02f}) = {0.w_order:.2f}')
+        self.info(' Z Free-Spectral-Range = {0.z_fsr:.02f} bcv')
+        self.info(' W Free-Spectral-Range = {0.w_fsr:.02f} A')
+        self.info(' Queesgate constant = {0.queesgate_constant:.02f} bcv / A')
+        self.info(' Step = {0.w_step:.02f} A / channel')
+
+        header.set('CRVAL3', value=self.wavelength,
+                   comment='Seistemic wavelength.')
+        header.set('CRPIX3', value=self.arg_max)
+
+        header.set('CDELT3', value=self.w_step)
+        header.set('C3_3', value=self.w_step)
 
         header.set('WCAL_W0', value=self.wavelength,
                    comment='Seistemic Wavelength [A]', after='PHMFIT_C')
@@ -165,6 +179,9 @@ class WavelengthCalibration(threading.Thread):
 
         pyfits.writeto(self.input_file.replace('.fits', '_wcal.fits'), data,
                        header, overwrite=True)
+
+    def warn(self, msg):
+        self.log.warn(msg.format(self))
 
 
 def parse_arguments():
