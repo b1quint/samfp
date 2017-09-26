@@ -144,11 +144,11 @@ class WavelengthCalibration(threading.Thread):
 
         w_fsr = self.wavelength / (w_order * (1 + 1 / w_order ** 2))
 
-        QGC = z_fsr / w_fsr
+        queensgate_constant = self.wavelength / z_fsr
 
-        w_step = z_step / QGC
+        w_step = z_step / queensgate_constant
 
-        self.queesgate_constant = QGC
+        self.queesgate_constant = queensgate_constant
         self.w_order = w_order
         self.w_fsr = w_fsr
         self.w_step = w_step
@@ -160,7 +160,8 @@ class WavelengthCalibration(threading.Thread):
         self.info(' Z Free-Spectral-Range = {0.z_fsr:.02f} bcv')
         self.info(' W Free-Spectral-Range = {0.w_fsr:.02f} A')
         self.info(' Queesgate constant = {0.queesgate_constant:.02f} bcv / A')
-        self.info(' Step = {0.w_step:.02f} A / channel')
+        self.info(' Z Step = {0.z_step:.03f} bcv / channel')
+        self.info(' W Step = {0.w_step:.04f} A / channel')
 
         header.set('CRVAL3', value=self.wavelength,
                    comment='Seistemic wavelength.')
