@@ -37,16 +37,16 @@ def main():
         help="Number of points in the re-sampling for channel [10]."
     )
     parser.add_argument(
-        '-s', '--speed', type=float, default=0.0,
-        help="Systemic velocity to be applied to the emitted wavelength [km/s]."
-    )
-    parser.add_argument(
         '-o', '--output', metavar='output', type=str, default=None,
         help="Name of the output corrected cube"
     )
     parser.add_argument(
         '-q', '--quiet', action='store_true',
         help="Run it quietly."
+    )
+    parser.add_argument(
+        '-v', '--velocity', type=float, default=0.0,
+        help="Systemic velocity to be applied to the emitted wavelength [km/s]."
     )
     parser.add_argument(
         'cube_file', metavar='cube_file', type=str,
@@ -59,6 +59,10 @@ def main():
     parser.add_argument(
         'wavelength', type=float,
         help="Average systemic wavelength or emitted wavelength."
+    )
+    parser.add_argument(
+        'gap_size', type=float,
+        help="Nominal gap size [um]."
     )
 
     args = parser.parse_args()
@@ -88,7 +92,7 @@ def main():
     log.info("Output corrected cube: %s" % out_file)
 
     # Systemic wavelength ------------------------------------------------------
-    vel = args.speed
+    vel = args.velocity
     c = 299792 # km/s
     wavelength = args.wavelength * np.sqrt((1 + vel / c) / (1 - vel / c))
 
@@ -220,7 +224,7 @@ def main():
     log.info(" Done.")
 
     if args.center:
-        collapsed_cube = data_cube.data.sum(axis=2).sum(axis=1)
+        collapsed_cube = np.median(data_cube.data, axis=(1, 2))
         imax = np.argmax(collapsed_cube)
         print(' Maximum argument found at {:d}'.format(imax))
         print(' Cube center at {:d}'.format(collapsed_cube.size // 2))
@@ -243,11 +247,31 @@ def main():
     data_cube.header.add_blank(value='f(x) = a * z ** 2 + b * z + c',
                                before='PHMFIT_A')
 
-    # data_cube.header.add_history(
-    #     'Phase-map corrected using {:s}'.format(map_file), after='PHMFIT_C'
-    # )
-    # data_cube.header.add_blank(value='--- phmapply ---', after='PHMFIT_C')
-    # data_cube.header.add_blank(after='PHMFIT_C')
+    # Wavelength Calibration --------------------------------------------------
+    collapsed_cube = np.average(data_cube.data, axis=(1, 2))
+    z = np.arange(collapsed_cube.size)
+    imax = (z * collapsed_cube).sum() / collapsed_cube.sum() + 1
+    #imax = np.argmax(collapsed_cube) + 1
+
+    fp_order = 2. * (args.gap_size * 1e-6) / (wavelength * 1e-10)
+    fsr_angstrom = (wavelength / fp_order) * (1 / (1 - 1 / fp_order ** 2))
+    delta_wavelength = data_cube.header["C3_3"] / f_s_r * fsr_angstrom
+
+    log.info("Reference Channel: {:d}".format(imax))
+    log.info("Observed wavelength: {:.2f} A".format(wavelength))
+    log.info("Order: {:.2f}".format(fp_order))
+    log.info("FSR in angstrom: {:.2f}".format(fsr_angstrom))
+    log.info("Wavelength per channel: {:5f} A".format(delta_wavelength))
+
+    data_cube.header.set("CRPIX3", imax, after="PHMFIT_C")
+    data_cube.header.set("CRVAL3", wavelength, after="CRPIX3")
+    data_cube.header.set("C3_3", delta_wavelength, after="CRVAL3")
+    data_cube.header.set("CDELT3", delta_wavelength, after="C3_3")
+
+    data_cube.header.add_history(
+        'Phase-map corrected using {:s}'.format(map_file), after='PHMFIT_C')
+    data_cube.header.add_blank(value='--- phmapply ---', after='PHMFIT_C')
+    data_cube.header.add_blank(after='PHMFIT_C')
 
     # Saving corrected data-cube ----------------------------------------------
     log.info("Writing output to file %s." % out_file)

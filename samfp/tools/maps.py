@@ -27,53 +27,6 @@ from scipy import ndimage, signal, stats
 def signal_handler(s, frame):
     sys.exit()
 
-
-def main():
-    """
-    Main function runned by the script. Do not try to import it.
-    """
-
-    # Parse arguments ---
-    args = parse_arguments()
-
-    # Load log ---
-    if args.debug:
-        log_level = logging.DEBUG
-    elif args.quiet:
-        log_level = logging.NOTSET
-    else:
-        log_level = logging.INFO
-
-    log = load_log(log_level)
-    log.info('\n 2D Map Extractor')
-    log.info(' by {0}'.format(__author__))
-    log.info(' Version {0} - {1}\n'.format(__version__, __date__))
-
-    # Let's start to count the time ---
-    tstart = datetime.datetime.now()
-    log.debug(' [{0}] Script Start'.format(tstart.strftime('%H:%M:%S')))
-
-    # Perform the 2D-Map Extraction ---
-    results = perform_2dmap_extraction(
-        args.filename, log, args.pool_size, args.algorithm
-    )
-
-    # Write the results to a FITS file ---
-    write_results(
-        results, args.filename, args.output, args.algorithm,
-        wavelength=args.wavelength
-    )
-
-    # Now I am good. The script is already done ---
-    tend = datetime.datetime.now()
-    delta_t = tend - tstart
-
-    log.info('')
-    log.debug(' [{0}] Script finished.'.format(tend.strftime('%H:%M:%S')))
-    log.debug(' Total time elapsed: {:s}'.format(str(delta_t)))
-    log.info('All done.')
-
-
 def perform_2dmap_extraction(_input_filename, log, n=4, algorithm='direct'):
     """
     Perform the 2D-Map extraction using `multiprocessing` and
