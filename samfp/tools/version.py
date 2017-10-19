@@ -19,6 +19,7 @@
             version of the package itself. Before, they were carrying only their
             own versions and it was difficult to track/update.
     0.7.0 - fp_tools are now inside samfp-tools
+       .1 - updated phmfit - not sure if it is better or worse.
 """
 
 api = 0

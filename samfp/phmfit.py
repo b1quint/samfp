@@ -91,11 +91,11 @@ class PhaseMapFit:
         :rtype n_rows: int
         """
         h = header
-        log = self.log
+        _log = self.log
 
         n_cols = h['NAXIS1']
         n_rows = h['NAXIS2']
-        log.info('Input phase-map dimensions are: [%d, %d]\n' % (n_rows, n_cols))
+        _log.info('Input phase-map dimensions are: [%d, %d]\n' % (n_rows, n_cols))
 
         return n_cols, n_rows
 
@@ -153,13 +153,13 @@ class PhaseMapFit:
         :return header: the observed phase-map's header.
         :rtype header: pyfits.Header
         """
-        log = self.log
-        log.info('Reading data from "%s"' % filename)
+        _log = self.log
+        _log.info('Reading data from "%s"' % filename)
 
         data = pyfits.getdata(filename)
         header = pyfits.getheader(filename)
 
-        log.info('Done.\n')
+        _log.info('Done.\n')
         return data, header
 
     def run(self, filename, n_points=10, interactions=5, show=False):
@@ -180,10 +180,6 @@ class PhaseMapFit:
         ref_x, ref_y = self.get_reference_pixel(h)
         n_cols, n_rows = self.get_map_dimensions(h)
 
-        # Subtract reference value from the phase-map so the map becomes
-        # relative
-        # d -= d[ref_y, ref_x]
-
         # Get sample points
         x = (np.linspace(0.05, 0.95, n_points) * n_cols).astype(int)
         y = (np.linspace(0.05, 0.95, n_points) * n_rows).astype(int)
@@ -199,8 +195,7 @@ class PhaseMapFit:
         sampling = h['PHMSAMP']
         FSR = float(h['PHM_FSR'])
 
-        self.show_sampled_phasemap(
-            d, ref_x, ref_y, n_cols, n_rows, X, Y, unit, show)
+        self.show_sampled_phasemap(d, ref_x, ref_y, n_cols, n_rows, X, Y, unit, show)
 
         # Flatten sampled data
         x, y, z = np.ravel(X), np.ravel(Y), np.ravel(Z)
@@ -218,13 +213,13 @@ class PhaseMapFit:
         # Sort the data to be ordered in 'r'
         z = z[np.argsort(r)]
         r = np.sort(r)
-        dz = np.diff(z, 1)
 
+        dz = np.diff(z, 1)
         sign = self.get_concavity_sign(dz, sampling)
 
-        # Tell me the limits to fit the first parabola
+        # Unwrap the phase-map
         dz_abs = np.abs(dz)
-        dz_abs_crit = dz_abs >= FSR / 2
+        dz_abs_crit = dz_abs > FSR / 2
 
         if np.any(dz_abs_crit):
             where = np.argmax(dz_abs_crit)
@@ -233,34 +228,51 @@ class PhaseMapFit:
 
         log.info('r[FSR] = {:.2f}'.format(r[where]))
 
-        delta = 10
-        z = (z + sign * delta + sign * FSR) % FSR + sign * FSR - sign * delta
+        if show:
+
+            fig2 = plt.figure(figsize=(15, 3))
+            ax1 = fig2.add_subplot(1, 3, 1)
+
+            ax1.plot(r[:where], z[:where], 'b.', alpha=0.25, label='Not to be fixed')
+            ax1.plot(r[where:], z[where:], 'r.', alpha=0.25, label='Data to be fixed')
+
+            ax1.axvline(r[where], color='black', lw=2, ls='--')
+            ax1.yaxis.set_label_position("right")
+            ax1.set_xlabel('Radius [px]')
+            ax1.set_ylabel('Peak displacement \n [%s]' % unit)
+            ax1.legend(loc='best')
+            ax1.grid(ls=":")
+
+            # Plot the gradient
+
+            ax3 = fig2.add_subplot(1, 3, 2)
+
+            ax3.plot(r[1:], dz, 'b-')
+
+            ax3.yaxis.set_label_position("right")
+            ax3.axvline(r[where], color='black', lw=2, ls='--')
+            ax3.axhline(FSR / 2, color='red', ls='--', label="FSR")
+            ax3.axhline(- FSR / 2, color='red', ls='--')
+            ax3.set_xlabel('Radius [px]')
+            ax3.set_ylabel(u'$\delta z / \delta r$ \n [%s]' % unit)
+            ax3.legend(loc='best')
+            ax3.grid()
+
+        z[where:] = z[where:] + sign * FSR
 
         if show:
-            # Plot the gradient
-            plt.figure(figsize=(16, 7))
-            plt.subplot(2, 2, 3)
-            plt.plot(r[1:], dz, 'b-')
-            plt.gca().yaxis.set_label_position("right")
-            plt.axvline(r[where], color='black', lw=2, ls='--')
-            plt.axhline(FSR / 2, color='red', ls='--', label="FSR")
-            plt.axhline(- FSR / 2, color='red', ls='--')
-            plt.xlabel('Radius [px]')
-            plt.ylabel(u'$\delta z / \delta r$ \n [%s]' % unit)
-            plt.legend(loc='best')
-            plt.grid()
+            ax3 = fig2.add_subplot(1, 3, 3)
+            ax3.plot(r[:where], z[:where], 'b.', alpha=0.25, label='Not to be fixed')
+            ax3.plot(r[where:], z[where:], 'r.', alpha=0.25, label='Data to be fixed')
+            ax3.yaxis.set_label_position("right")
+            ax3.set_xlabel('Radius [px]')
+            ax3.set_ylabel('Peak displacement \n [%s]' % unit)
+            ax3.grid()
 
-            plt.subplot(2, 2, 1)
-            plt.plot(r[:where], z[:where], 'b.', alpha=0.25, label='Not to be fixed')
-            plt.plot(r[where:], z[where:], 'r.', alpha=0.25, label='Data to be fixed')
-            plt.axvline(r[where], color='black', lw=2, ls='--')
-            plt.gca().yaxis.set_label_position("right")
+            plt.show()
 
-            plt.xlabel('Radius [px]')
-            plt.ylabel('Peak displacement \n [%s]' % unit)
-
-            plt.legend(loc='best')
-            plt.grid()
+        #delta = 10
+        #z = (z + sign * delta + sign * FSR) % FSR + sign * FSR - sign * delta
 
         # Fit data
         for i in range(interactions):
@@ -275,9 +287,35 @@ class PhaseMapFit:
             log.info("Average err = %.2f" % err.mean())
             log.info("Error STD = %.2f" % err.std())
 
-            c = np.where(np.abs(err) <= 2 * np.abs(sampling))
+            c = np.where(np.abs(err) <= 2 * np.abs(sampling), True, False)
+
+            if show:
+                fig = plt.figure(figsize=(10, 4))
+
+                ax1 = fig.add_subplot(1, 2, 1)
+                ax1.yaxis.set_label_position("right")
+                ax1.set_xlabel('Radius [px]')
+                ax1.set_ylabel('Peak displacement \n [%s]' % unit)
+                ax1.grid()
+
+                ax1.plot(r[c], z[c], 'b.',
+                         alpha=0.25, label='Not to be fixed')
+                ax1.plot(r[np.logical_not(c)], z[np.logical_not(c)], 'r.',
+                         alpha=0.25, label='Data to be fixed')
+
+                ax_err = fig.add_subplot(1, 2, 2)
+                ax_err.yaxis.set_label_position("right")
+                ax_err.set_xlabel('Radius [px]')
+                ax_err.set_ylabel('Peak displacement \n [%s]' % unit)
+                ax_err.grid()
+
+                ax_err.plot(r, err, 'k-', alpha=0.25)
+
+                plt.show()
+
             r = r[c]
             z = z[c]
+
 
         log.info("")
         log.info("phi(x,y) = %.2e x^2 + %.2e x + %.2e " % (p[0], p[1], p[2]))
@@ -311,26 +349,6 @@ class PhaseMapFit:
         pyfits.writeto(fname + '--res_phmap.fits', Z - d, h, overwrite=True)
 
         log.info(" All done.\n")
-
-        if show:
-
-            # Plot data after correction
-            ax_fit = plt.subplot(2, 2, 2)
-            ax_fit.plot(r, z, 'r.', alpha=0.25, label='Fixed data')
-            ax_fit.plot(rr, zz, 'k-', alpha=0.75)
-            ax_fit.yaxis.set_label_position("right")
-            ax_fit.set_xlabel('Radius [px]')
-            ax_fit.set_ylabel('Peak displacement \n [%s]' % unit)
-            ax_fit.grid()
-
-            ax_err = plt.subplot(224)
-            ax_err.plot(r, err, 'k-', alpha=0.25)
-            ax_err.yaxis.set_label_position("right")
-            ax_err.set_xlabel('Radius [px]')
-            ax_err.set_ylabel('Peak displacement \n [%s]' % unit)
-            ax_err.grid()
-
-            plt.show()
 
     def set_log_level(self, level):
         """
