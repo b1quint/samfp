@@ -237,8 +237,9 @@ class PhaseMap:
 
         # Get the center of the rings
         if self.ref is None:
-            ref = self.find_reference_pixel()
-        self.ref_x, self.ref_y = ref[:]
+            self.ref = self.find_reference_pixel()
+
+        self.ref_x, self.ref_y = self.ref[:]
 
         self.ref_s = self.get_reference_spectrum(
             self.input_file, self.ref_x, self.ref_y, self.z, units=self.units,
