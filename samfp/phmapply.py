@@ -130,8 +130,12 @@ def main():
     ref_y = phase_map.header['PHMREFY']
     units = phase_map.header['PHMUNIT']
 
-    # sample = float(phase_map.header['PHMSAMP'])
-    sample = float(data_cube.header['CDELT3'])
+    # TODO -- fix this
+    try:
+        sample = float(data_cube.header['CDELT3'])
+    except KeyError:
+        log.error('"CDELT3" keyword was not found in the header.')
+        sample = 1
 
     # Reading the Free-Spectral-Range --------------------------------------
     try:
