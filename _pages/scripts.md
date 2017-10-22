@@ -1,6 +1,7 @@
 ---
 layout: single
 permalink: /docs/
+title: "Using SAM-FP"
 author_profile: false
 ---
 

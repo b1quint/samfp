@@ -1,6 +1,7 @@
 ---
 layout: single
 permalink: /docs/download/
+title: "Download"
 author_profile: false
 ---
 

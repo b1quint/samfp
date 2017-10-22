@@ -1,6 +1,7 @@
 ---
 layout: single
 permalink: /docs/install/
+title: "Install"
 author_profile: false
 ---
 
