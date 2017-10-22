@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+# -*- coding: utf8 -*-
+
+from __future__ import division, print_function
+
+import argparse
+import os
+
+from astropy.io import fits as pyfits
+from ccdproc import cosmicray_lacosmic
+
+__all__ = ['remove_cosmic_rays']
+
+
+def remove_cosmic_rays(list_of_files):
+    """
+    Use LACosmic to remove cosmic rays.
+
+    Parameters
+    ----------
+        list_of_files : list
+            List containing the name of the files that will be cleaned.
+    """
+    for f in list_of_files:
+
+        print(' {:s}'.format(f))
+        header = pyfits.getheader(f)
+        data = pyfits.getdata(f)
+
+        data, _ = cosmicray_lacosmic(data, gain=2.6, readnoise=10.0,
+                                      sigclip=2.5, sigfrac=0.3, objlim=5.0)
+        data /= 2.6
+
+        header.set('UNITS', 'adu')
+        header.set('BUNIT', 'adu')
+        header.add_history(
+            'Cosmic rays and hot pixels removed using LACosmic')
+
+        path, name = os.path.split(f)
+
+        name = 'r' + name
+
+        f = os.path.join(path, name)
+
+        pyfits.writeto(f, data, header, overwrite=True)
+
+if __name__ == '__main__':
+
+    # Parsing Arguments ---
+    parser = argparse.ArgumentParser(
+        description="Use LACosmic to remove cosmic rays."
+    )
+
+    parser.add_argument('files', metavar='files', type=str, nargs='+',
+                        help="input filenames.")
+
+    args = parser.parse_args()
+    remove_cosmic_rays(args.files)
+
