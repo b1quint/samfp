@@ -1,1 +1,1 @@
-Sitemap: https://b1quint.github.io/samfp-tools/sitemap.xml
+Sitemap: http://localhost:4000/samfp-tools/sitemap.xml

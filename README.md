@@ -1,5 +1,3 @@
-# SAM-FP Tools
-
 This page contains some scripts that help me (and hopefully will help you too)
 to reduce data obtained with SAM-FP, a new observation mode at the
 [SOAR Telescope](http://www.ctio.noao.edu/soar/). This mode, consists of a

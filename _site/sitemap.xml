@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url>
-<loc>https://b1quint.github.io/samfp-tools/docs/download/</loc>
+<loc>http://localhost:4000/samfp-tools/docs/download/</loc>
 </url>
 <url>
-<loc>https://b1quint.github.io/samfp-tools/</loc>
+<loc>http://localhost:4000/samfp-tools/</loc>
 </url>
 <url>
-<loc>https://b1quint.github.io/samfp-tools/docs/install/</loc>
+<loc>http://localhost:4000/samfp-tools/docs/install/</loc>
 </url>
 <url>
-<loc>https://b1quint.github.io/samfp-tools/docs/</loc>
+<loc>http://localhost:4000/samfp-tools/docs/</loc>
 </url>
 <url>
-<loc>https://b1quint.github.io/samfp-tools/other/calibration_lambda.pdf</loc>
+<loc>http://localhost:4000/samfp-tools/other/calibration_lambda.pdf</loc>
 <lastmod>2017-10-21T21:06:48-03:00</lastmod>
 </url>
 <url>
-<loc>https://b1quint.github.io/samfp-tools/other/calibration_lambda_renato.pdf</loc>
+<loc>http://localhost:4000/samfp-tools/other/calibration_lambda_renato.pdf</loc>
 <lastmod>2017-10-21T21:06:48-03:00</lastmod>
 </url>
 </urlset>

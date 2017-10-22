@@ -5,13 +5,21 @@ title: "Download"
 author_profile: false
 ---
 
-SAM-FP tools can be downloaded using one of the links bellow:
+# Released Versions
 
-link_1
+Here is some of the released versions of SAM-FP Tools. You may download them using
+the links bellow.
 
-link_2
+## SAM-FP Tools v0.6.2
 
-You may also __clone__ the repository but since we are working on this project
-constantly, you may end up receiving too many updates.
+[Souce Code (zip)](https://github.com/b1quint/samfp-tools/archive/0.6.2v.zip)
 
-If you want to contribute to the code you can consider __forking_it__.
+[Souce Code (tar.gz)](https://github.com/b1quint/samfp-tools/archive/0.6.2v.tar.gz)
+
+# Cloning SAM-FP
+
+You can also download SAM-FP Tools by cloning it directly from the
+[repository](https://github.com/b1quint/samfp-tools/). For that, open a terminal
+an terminal and type:
+
+    git clone https://github.com/b1quint/samfp-tools.git (destination_path)
