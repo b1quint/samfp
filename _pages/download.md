@@ -1,6 +1,6 @@
 ---
 layout: single
-permalink: /docs/download
+permalink: /docs/download/
 author_profile: false
 ---
 

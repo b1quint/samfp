@@ -1,6 +1,6 @@
 ---
 layout: single
-permalink: /docs/scripts
+permalink: /docs/
 author_profile: false
 ---
 
