@@ -4,8 +4,6 @@ permalink: /docs/install/
 author_profile: false
 ---
 
-# Installing SAM-FP Tools
-
 We wrote `samfp-tools` in Python 2 but, in principle, it should be compatible
 with Python 3. We simply did not have the chance yet to actually test the Py2
 to Py3 conversion.
