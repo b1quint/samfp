@@ -1,0 +1,95 @@
+#!/usr/bin/env python 
+# -*- coding: utf8 -*-
+"""
+    2D Map Extractor
+
+    This script is used to calculate the main 2D maps from a data-cube. All
+    the maps are saved inside a single FITS file. Each maps is saved in a
+    different extension.
+
+    [0] Main extension - Contains the main header
+"""
+from __future__ import division, print_function
+from argparse import ArgumentParser
+
+import datetime
+import logging
+import samfp
+
+__author__ = 'Bruno Quint'
+
+if __name__ == '__main__':
+
+    parser = ArgumentParser(
+        description="This script is used to calculate the main 2D maps from a "
+                    "data-cube. All the maps are saved inside a single FITS "
+                    "file. Each maps is saved in a different extension."
+    )
+    parser.add_argument(
+        '-a', '--algorithm', type=str, default='direct', nargs='?',
+        const='direct', help="Use [lorentzian|gaussian|direct] to find" +
+                             "the maps. 'direct' is the default"
+    )
+    parser.add_argument(
+        '-d', '--debug', action='store_true',
+        help="Enable debug mode."
+    )
+    parser.add_argument(
+        'filename', type=str, help="Input data-cube name."
+    )
+    parser.add_argument(
+        '-o', '--output', default=None, type=str,
+        help='Number of the output file. Each map is saved inside a different '
+             'extention. If not given, a new file is created for each 2d-map.'
+    )
+    parser.add_argument(
+        '-p', '--pool_size', default=4, type=int,
+        help='Number of parallel processes (Default: 4)'
+    )
+    parser.add_argument(
+        '-q', '--quiet', action='store_true',
+        help="Run program quietly. true/[FALSE]"
+    )
+    parser.add_argument(
+        '-w', '--wavelength', type=float, default=None,
+        help="The rest wavelength if you want to get your maps in km/s instead."
+    )
+    args = parser.parse_args()
+
+    # Load log ---
+    if args.debug:
+        log_level = logging.DEBUG
+    elif args.quiet:
+        log_level = logging.NOTSET
+    else:
+        log_level = logging.INFO
+
+    log = samfp.maps.load_log(log_level)
+    log.info('\n 2D Map Extractor')
+    log.info(' by {0}'.format(__author__))
+    log.info(' {0}'.format(samfp.tools.version))
+
+    # Let's start to count the time ---
+    tstart = datetime.datetime.now()
+    log.debug(' [{0}] Script Start'.format(tstart.strftime('%H:%M:%S')))
+
+    # Perform the 2D-Map Extraction ---
+    results = samfp.maps.perform_2dmap_extraction(
+        args.filename, log, args.pool_size, args.algorithm
+    )
+
+    # Write the results to a FITS file ---
+    samfp.maps.write_results(
+        results, args.filename, args.output, args.algorithm,
+        wavelength=args.wavelength
+    )
+
+    # Now I am good. The script is already done ---
+    tend = datetime.datetime.now()
+    delta_t = tend - tstart
+
+    log.info('')
+    log.debug(' [{0}] Script finished.'.format(tend.strftime('%H:%M:%S')))
+    log.debug(' Total time elapsed: {:s}'.format(str(delta_t)))
+    log.info('All done.')
+

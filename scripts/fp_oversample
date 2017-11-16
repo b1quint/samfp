@@ -19,6 +19,8 @@ parser.add_argument('output_cube', type=str, help="Output cube.")
 
 parser.add_argument('oversample_factor', type=int, help="Oversample factor.")
 
+parser.add_argument('--kind', '-k', type=str, default='linear', choices=['linear'], help="Oversample factor.")
+
 args = parser.parse_args()
 
 # Check before running
@@ -32,8 +34,7 @@ if os.path.exists(args.output_cube):
     sys.exit(1)
 
 # Running scripts
-fp_repeat = tools_3d.ZOversample(args.input_cube, args.output_cube,
-                                          args.oversample_factor)
+fp_repeat = tools_3d.ZOversample(args.input_cube, args.output_cube, args.oversample_factor, kind=args.kind)
 
 fp_repeat.start()
 fp_repeat.join()

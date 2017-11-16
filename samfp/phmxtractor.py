@@ -622,8 +622,10 @@ class PhaseMap:
             fsr_channel = int(reply)
 
         elif fsr_c == len(data):
+            fsr = np.abs(self.z[0] - self.z[-1])
             log.info("It seems that you scanned exactly over a FSR.")
             log.info("If not, check your data and phasemap_fit again.")
+
 
         # Calculate the sampling
         sampling = fsr / fsr_c

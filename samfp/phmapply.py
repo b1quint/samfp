@@ -255,12 +255,13 @@ def main():
 
     fp_order = 2. * (args.gap_size * 1e-6) / (wavelength * 1e-10)
     fsr_angstrom = (wavelength / fp_order) * (1 / (1 - 1 / fp_order ** 2))
-    delta_wavelength = data_cube.header["C3_3"] / f_s_r * fsr_angstrom
+    delta_wavelength = data_cube.header["C3_3"] / data_cube.header["PHM_FSR"] * fsr_angstrom
 
-    log.info("Reference Channel: {:d}".format(imax))
+    log.info("Reference Channel: {:.2f}".format(imax))
     log.info("Observed wavelength: {:.2f} A".format(wavelength))
     log.info("Order: {:.2f}".format(fp_order))
     log.info("FSR in angstrom: {:.2f}".format(fsr_angstrom))
+    log.info("FSR in BCV: {:.2f}".format(data_cube.header["PHM_FSR"]))
     log.info("Wavelength per channel: {:5f} A".format(delta_wavelength))
 
     data_cube.header.set("CRPIX3", imax, after="PHMFIT_C")

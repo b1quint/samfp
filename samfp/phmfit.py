@@ -258,7 +258,7 @@ class PhaseMapFit:
             ax3.legend(loc='best')
             ax3.grid()
 
-        z[where:] = z[where:] + sign * FSR
+        z[where:] = z[where:] + sign * FSR + sign
 
         if show:
             ax3 = fig2.add_subplot(1, 3, 3)

@@ -77,6 +77,7 @@ setup(
         'scripts/autoastrometry.py',
         'scripts/combine_flat',
         'scripts/combine_zero',
+        'scripts/fp_2dmaps',
         'scripts/fp_cut',
         'scripts/fp_repeat',
         'scripts/fp_oversample',
