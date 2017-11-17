@@ -1,4 +1,4 @@
-astropy
+astropy>2
 ccdproc
 future
 matplotlib

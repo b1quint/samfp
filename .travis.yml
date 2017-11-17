@@ -34,8 +34,9 @@ install:
 - source activate astroconda
 
 script:
+- pip install -r requirements.txt
+- pip install .
 - pytest
-#- sbt clean coverage test
 
 #after_success:
 #- sbt coveralls
