@@ -38,7 +38,7 @@ install:
 - source activate astroconda
 
 - pip install -r requirements.txt
-- pip install .
+- python setup.py install
 
 script:
 - pytest
