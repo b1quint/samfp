@@ -86,7 +86,7 @@ def perform_2dmap_extraction(_input_filename, log, n=4, algorithm='direct'):
     elif algorithm in 'gaussian':
         fitter = FitGaussian(_input_filename)
     else:
-        raise IOError, 'Wrong algorithm input: {:s}'.format(algorithm)
+        raise IOError('Wrong algorithm input: {:s}'.format(algorithm))
 
     p = Pool(n)
     results = None
