@@ -1,5 +1,2 @@
 future
 astropy>2
-ccdproc
-photutils
-scikit-learn
