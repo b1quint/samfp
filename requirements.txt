@@ -1,3 +1,2 @@
 future
 astropy>2
-ccdproc
