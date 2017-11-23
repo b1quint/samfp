@@ -57,20 +57,20 @@ def perform_2dmap_extraction(_input_filename, log, n=4, algorithm='direct'):
     """
 
     if not isinstance(_input_filename, str):
-        raise TypeError, ('_input_filename expected to be string. '
-                          '{}s found.'.format(_input_filename.__class__))
+        raise TypeError('_input_filename expected to be string. '
+                        '{}s found.'.format(_input_filename.__class__))
 
     if not isinstance(log, logging.Logger):
-        raise TypeError, ('`log` expected to be a logging.Logger instance. '
-                          '{}s found.'.format(log.__class__))
+        raise TypeError('`log` expected to be a logging.Logger instance. '
+                        '{}s found.'.format(log.__class__))
 
     if not isinstance(n, int):
-        raise TypeError, ('`n` expected to be a `int` instance. '
-                          '{}s found.'.format(n.__class__))
+        raise TypeError('`n` expected to be a `int` instance. '
+                        '{}s found.'.format(n.__class__))
 
     if not os.path.exists(_input_filename):
-        raise IOError, ('{}s file not could not be open for '
-                        'reading.'.format(_input_filename))
+        raise IOError('{}s file not could not be open for '
+                      'reading.'.format(_input_filename))
 
     # Load data ---
     log.info(' Loading data from: {0:s}'.format(_input_filename))
@@ -86,7 +86,7 @@ def perform_2dmap_extraction(_input_filename, log, n=4, algorithm='direct'):
     elif algorithm in 'gaussian':
         fitter = FitGaussian(_input_filename)
     else:
-        raise IOError, 'Wrong algorithm input: {:s}'.format(algorithm)
+        raise IOError('Wrong algorithm input: {:s}'.format(algorithm))
 
     p = Pool(n)
     results = None
@@ -312,7 +312,7 @@ def write_results(_results, _input_file, _output_file, algorithm='direct',
     elif algorithm in 'gaussian':
         i = 'G'
     else:
-        raise (IOError, 'Wrong algorithm input: {:s}'.format(algorithm))
+        raise IOError('Wrong algorithm input: {:s}'.format(algorithm))
 
     if wavelength is not None:
 

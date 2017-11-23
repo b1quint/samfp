@@ -1,9 +1,2 @@
-astropy
-ccdproc
 future
-matplotlib
-numpy
-photutils
-pandas
-scipy
-scikit-learn
+astropy>2

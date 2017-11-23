@@ -20,11 +20,12 @@
             own versions and it was difficult to track/update.
     0.7.0 - fp_tools are now inside samfp-tools
        .1 - updated phmfit - not sure if it is better or worse.
+       .2 - Fixed fp_repeat and fp_overscan. Travis CI working for Linux.
 """
 
 api = 0
 feature = 7
-bug = 0
+bug = 2
 
 month = 9
 year = 2017

@@ -372,15 +372,20 @@ class OverSampler:
 
         x = np.arange(y.size)
 
-        y = np.hstack((y[y.size // 2:], y, y[:y.size // 2]))
-        x = np.hstack((x[x.size // 2:] - x.size, x, x[:x.size // 2] + x.size))
+        y_ext = np.hstack(
+            (y[y.size // 2:], y, y[:y.size // 2])
+        )
 
-        f = interpolate.interp1d(x, y, kind='linear')
+        x_ext = np.hstack(
+            (x[x.size // 2:] - x.size, x, x[:x.size // 2] + x.size)
+        )
+
+        f = interpolate.interp1d(x_ext, y_ext, kind='linear')
 
         o = self.oversample_factor
         new_x = np.linspace(x[0], x[-1] + (o - 1) / o, o * x.size)
         new_y = f(new_x) / self.oversample_factor
-        new_y = new_y[y.size * o // 4:-y.size * o // 4]
+        # new_y = new_y[y.size * o // 4:-y.size * o // 4]
 
         return new_y
 
