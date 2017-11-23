@@ -4,7 +4,7 @@ import os
 import sys
 
 import argparse
-from samfp.tools import tools_3d
+from samfp.tools import ztools
 
 
 # Parse command line arguments
@@ -40,8 +40,8 @@ if os.path.exists(args.output_cube):
     sys.exit(1)
 
 # Running scripts
-fp_cut = tools_3d.ZCut(args.input_cube, args.output_cube, n_begin=args.begin,
-                       n_end=args.end)
+fp_cut = ztools.ZCut(args.input_cube, args.output_cube, n_begin=args.begin,
+                     n_end=args.end)
 
 fp_cut.start()
 fp_cut.join()
