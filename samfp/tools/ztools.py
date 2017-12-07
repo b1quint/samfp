@@ -14,6 +14,7 @@ log = io.MyLogger(__name__)
 
 __all__ = ['ZCut', 'ZOversample', 'ZRepeat', 'OverSampler']
 
+
 # noinspection PyUnusedLocal,PyUnusedLocal
 def signal_handler(s, frame):
     sys.exit()
@@ -200,6 +201,7 @@ class ZRepeat(threading.Thread):
         self._width = None
         self._height = None
         self._depth = None
+        self._original_depth = None
 
     def run(self):
         self.print_initial_info()
@@ -209,12 +211,54 @@ class ZRepeat(threading.Thread):
         self.write()
 
     def fix_header(self):
+
+        self.get_data_shape()
+
         self.header['CRPIX3'] += self.n_before * self._depth
 
-        self.header.set('3DREP_B', value=self.n_before, comment='Number of copies of the cube at its beginning.')
-        self.header.set('3DREP_A', value=self.n_after, comment='Number of copies of the cube at its end.', after='3DREP_B')
-        self.header.add_blank('--- Cube Repeat ---', before='3DREP_B')
-        self.header.add_blank('', after='3DREP_A')
+        self.header.set(
+            'ZREP_ORSI',
+            value=self._original_depth,
+            comment='Original cube depth before repeating Z.'
+        )
+
+        self.header.set(
+            'ZREP_SIAF',
+            value=self._depth,
+            comment='Cube depth after repeating Z.',
+            after='ZREP_ORSI'
+        )
+
+        self.header.set(
+            'ZREP_COBE',
+            value=self.n_before,
+            comment='Number of copies of the cube at its beginning.',
+            after='ZREP_SIAF'
+        )
+
+        self.header.set(
+            'ZREP_CHBE',
+            value=self._original_depth,
+            comment='Number of channels added at the beginning of the cube.',
+            after='ZREP_COBE'
+        )
+
+        self.header.set(
+            'ZREP_COEN',
+            value=self.n_after,
+            comment='Number of copies of the cube at its end.',
+            after='ZREP_CHBE'
+        )
+
+        self.header.set(
+            'ZREP_CHEN',
+            value=self.n_after,
+            comment='Number of channels added to the end of the cube.',
+            after='ZREP_COEN'
+        )
+
+        self.header.add_blank('--- Cube Repeat ---', before='ZREP_ORSI')
+        self.header.add_blank('', after='ZREP_COEN')
 
     def print_initial_info(self):
         log.info("")
@@ -233,6 +277,7 @@ class ZRepeat(threading.Thread):
         self.data = fits.getdata(self.input)
         self.header = fits.getheader(self.input)
         self.get_data_shape()
+        self._original_depth = self._depth
 
     def get_data_shape(self):
         d, w, h = self.data.shape

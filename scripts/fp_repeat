@@ -5,7 +5,7 @@ import sys
 import time
 
 import argparse
-from samfp.tools import tools_3d
+from samfp.tools import ztools
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description="Repeats a data-cube [N] times.")
@@ -37,9 +37,8 @@ if os.path.exists(args.output_cube):
     sys.exit(1)
 
 # Running scripts
-fp_repeat = tools_3d.ZRepeat(args.input_cube, args.output_cube,
-                             n_after=args.n_end_repeat,
-                             n_before=args.n_begin_repeat)
+fp_repeat = ztools.ZRepeat(args.input_cube, args.output_cube,
+                                      n_after=args.n_end_repeat, n_before=args.n_begin_repeat)
 
 fp_repeat.start()
 fp_repeat.join()
