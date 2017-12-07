@@ -16,11 +16,11 @@ parser.add_argument('input_cube', type=str,
 parser.add_argument('output_cube', type=str,
                     help="Output cube.")
 
-parser.add_argument('--begin', '-b', type=int, default=0,
+parser.add_argument('--n_begin_repeat', '-b', type=int, default=0,
                     help="Add 'n' copies of the cube in its beginning (affects "
                          "header).")
 
-parser.add_argument('--end', '-e', type=int, default=0,
+parser.add_argument('--n_end_repeat', '-e', type=int, default=0,
                     help="Add 'n' copies of the cube in its end (affects "
                          "header).")
 
@@ -38,7 +38,8 @@ if os.path.exists(args.output_cube):
 
 # Running scripts
 fp_repeat = tools_3d.ZRepeat(args.input_cube, args.output_cube,
-                                      n_after=args.end, n_before=args.begin)
+                             n_after=args.n_end_repeat,
+                             n_before=args.n_begin_repeat)
 
 fp_repeat.start()
 fp_repeat.join()
