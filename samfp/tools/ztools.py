@@ -214,51 +214,51 @@ class ZRepeat(threading.Thread):
 
         self.get_data_shape()
 
-        self.header['CRPIX3'] += self.n_before * self._depth
+        self.header['CRPIX3'] += self.n_before * self._original_depth
 
         self.header.set(
-            'ZREP_ORSI',
+            'ZR_ORSIZ',
             value=self._original_depth,
             comment='Original cube depth before repeating Z.'
         )
 
         self.header.set(
-            'ZREP_SIAF',
+            'ZR_AFSIZ',
             value=self._depth,
             comment='Cube depth after repeating Z.',
-            after='ZREP_ORSI'
+            after='ZR_ORSIZ'
         )
 
         self.header.set(
-            'ZREP_COBE',
+            'ZR_COPBE',
             value=self.n_before,
             comment='Number of copies of the cube at its beginning.',
-            after='ZREP_SIAF'
+            after='ZR_AFSIZ'
         )
 
         self.header.set(
-            'ZREP_CHBE',
+            'ZR_CHBEF',
             value=self._original_depth,
             comment='Number of channels added at the beginning of the cube.',
-            after='ZREP_COBE'
+            after='ZR_COPBE'
         )
 
         self.header.set(
-            'ZREP_COEN',
+            'ZR_COPEN',
             value=self.n_after,
             comment='Number of copies of the cube at its end.',
-            after='ZREP_CHBE'
+            after='ZR_CHBEF'
         )
 
         self.header.set(
-            'ZREP_CHEN',
+            'ZR_CHEND',
             value=self.n_after,
             comment='Number of channels added to the end of the cube.',
-            after='ZREP_COEN'
+            after='ZR_COPEN'
         )
 
-        self.header.add_blank('--- Cube Repeat ---', before='ZREP_ORSI')
-        self.header.add_blank('', after='ZREP_COEN')
+        self.header.add_blank('--- Cube Repeat ---', before='ZR_ORSIZ')
+        self.header.add_blank('', after='ZR_CHEND')
 
     def print_initial_info(self):
         log.info("")
@@ -274,9 +274,14 @@ class ZRepeat(threading.Thread):
         log.info('Add {0.n_after:d} FSR at the end the cube'.format(self))
 
     def read_data(self):
+        """
+        Read the data and store it and its metadate for header manipulation.
+        """
         self.data = fits.getdata(self.input)
         self.header = fits.getheader(self.input)
+
         self.get_data_shape()
+
         self._original_depth = self._depth
 
     def get_data_shape(self):
