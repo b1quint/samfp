@@ -1,2 +1,4 @@
 future
-astropy>2
+matplotlib>2
+scipy
+numpy
