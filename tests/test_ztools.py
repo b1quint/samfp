@@ -6,6 +6,7 @@ from scipy import interpolate
 from astropy.io import fits
 
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 
 def test_z_cut():
     """Little method to test the ZCut method"""
@@ -186,37 +187,7 @@ def test_z_roc():
     plt.plot(x_r, y_r - 0.1, 'C1+', label='Repeated data')
     plt.plot(x_o, y_o - 0.2, 'C2x', alpha=0.5, label='Normalized and oversampled data')
     plt.plot(x_c, y_c, 'C3v', alpha=0.5, label='Cut, normalized and oversampled data')
+
     plt.ylim(-2, 4.5)
-    # plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.25))
     plt.legend(loc='best')
-
-    # h = fits.getheader('tests/test_data/test_ztools.fits')
-    # x = (np.arange(h['NAXIS3'])  + 1 - h['CRPIX3']) * h['CDELT3'] + h['CRVAL3']
-    # y = np.array([0, 0, 0, 1, 4, 4, 1, 0, 0, 0])
-    # ncan = x.size
-    #
-    # x5 = np.hstack((x - 2 * ncan * h['CDELT3'], x - ncan * h['CDELT3'], x, x + ncan * h['CDELT3'], x + 2 * ncan * h['CDELT3']))
-    # y5 = np.hstack((y, y, y, y, y))
-    # f = interpolate.interp1d(x5, y5, kind='linear')
-    #
-    # overs = 4
-    # x3 = np.hstack((x - ncan * h['CDELT3'], x, x + ncan * h['CDELT3']))
-    #
-    # x33 = np.linspace(x3.min(), x3.max() + (overs - 1) / overs, overs * x3.size)
-    # y33 = f(x33)
-    # y33n = y33 / overs
-    #
-    # x33c = x33[ncan * overs:-ncan * overs]
-    # y33c = y33n[ncan * overs:-ncan * overs]
-
-
-    # plt.plot(x33, y33n, 'C3^', alpha=0.5, label='Normalized oversampled data')
-    # plt.plot(x33, y33, 'C2x', alpha=0.5, label='Oversampled data')
-    # plt.plot(x5, y5, 'C1+', label='Replicated data')
-    # plt.plot(x33c, y33c, 'C4v', alpha=0.5, label='Trimmed normalized oversampled data')
-    # plt.plot(x, y, 'C0o', label='Original data')
-    # plt.legend()
-
-
     plt.savefig('.temp.png')
-
