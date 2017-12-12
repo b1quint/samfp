@@ -2,12 +2,10 @@
 
 import os
 import sys
-import time
 
 import argparse
 from samfp.tools import ztools
 
-# Parse command line arguments
 parser = argparse.ArgumentParser(description="Repeats a data-cube [N] times.")
 
 parser.add_argument(
@@ -39,7 +37,6 @@ parser.add_argument(
 
 parser.add_argument(
     '--n_begin_repeat',
-    '-b',
     type=int,
     default=0,
     help="Add 'n' copies of the cube in its beginning (affects header)."
@@ -47,11 +44,27 @@ parser.add_argument(
 
 parser.add_argument(
     '--n_end_repeat',
-    '-e',
     type=int,
     default=0,
     help="Add 'n' copies of the cube in its end (affects header)."
 )
+
+parser.add_argument(
+    '--n_begin_cut',
+    type=int,
+    default=None,
+    help="Cut channel at the beginning of the cube where "
+         "[BEGIN] is the index of the channel number starting "
+         "from 0."
+)
+
+parser.add_argument(
+    '--n_end_cut',
+    type=int,
+    default=None,
+    help="Cut channel at the end of the cube. Use negative "
+         "values to count the channels backwards (e.g. -10 "
+         "excludes the last 10 channels).")
 
 args = parser.parse_args()
 
@@ -65,22 +78,37 @@ if os.path.exists(args.output_cube):
     print(" Delete it before running this.\n Leaving now.")
     sys.exit(1)
 
-# Running scripts
-fp_repeat = ztools.ZRepeat(args.input_cube, args.output_cube,
-                                      n_after=args.n_end_repeat, n_before=args.n_begin_repeat)
+fp_repeat = ztools.ZRepeat(
+    args.input_cube,
+    '.fp_repeat.temp.fits',
+    n_after=args.n_end_repeat,
+    n_before=args.n_begin_repeat
+)
 
 fp_repeat.start()
 fp_repeat.join()
 
-# Running scripts
-fp_repeat = ztools.ZOversample(args.input_cube, args.output_cube, args.oversample_factor, kind=args.kind)
+fp_repeat = ztools.ZOversample(
+    '.fp_repeat.temp.fits',
+    '.fp_oversample.temp.fits',
+    args.oversample_factor,
+    kind=args.kind
+)
 
 fp_repeat.start()
 fp_repeat.join()
 
-# Running scripts
-fp_cut = ztools.ZCut(args.input_cube, args.output_cube, n_begin=args.n_begin_cut,
-                       n_end=args.n_end_cut)
+fp_cut = ztools.ZCut(
+    '.fp_oversample.temp.fits',
+    args.output_cube,
+    n_begin=args.n_begin_cut,
+    n_end=args.n_end_cut
+)
 
 fp_cut.start()
 fp_cut.join()
+
+os.remove('.fp_repeat.temp.fits')
+os.remove('.fp_oversample.temp.fits')
+
+print('Finished all.\n\n\n')
