@@ -6,6 +6,9 @@ different situations.
 
     by Bruno Quint
 """
+import matplotlib
+matplotlib.use('TkAgg')
+
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt

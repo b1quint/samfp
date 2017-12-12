@@ -11,7 +11,7 @@ import argparse
 import os
 
 import matplotlib
-matplotlib.use('Qt5Agg')
+matplotlib.use('TkAgg')
 
 import astropy.io.fits as pyfits
 import matplotlib.pyplot as plt

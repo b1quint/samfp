@@ -1,3 +1,16 @@
 #!/usr/bin/env bash
+
+conda config --set always_yes yes --set changeps1 no
+conda config --add channels http://ssb.stsci.edu/astroconda
+conda update -q conda
+
+# Useful for debugging any issues with conda
+conda info -a
+
+# Create astroconda virtual environment
+conda create -q -n astroconda stsci python=$TRAVIS_PYTHON_VERSION
+source activate astroconda
+
 pip install -r requirements.txt
-pip install .
+conda install -c astropy ccdproc
+python setup.py install

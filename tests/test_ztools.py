@@ -4,6 +4,7 @@ from samfp.tools import ztools
 from scipy import interpolate
 from astropy.io import fits
 
+import pkg_resources
 
 def test_z_cut():
     """Little method to test the ZCut method"""
@@ -29,11 +30,14 @@ def test_linear_interpolation():
 # Todo - Fix This Test
 def test_z_oversample():
 
-    oversample = ztools.ZOversample('tests/test_data/test_000.fits', 'dummy.fits', 4)
+    #sample_data = pkg_resources.resource_filename(
+    #    'samfp-tools', 'tests/test_data/test_ztools.fits')
+
+    oversample = ztools.ZOversample('tests/test_data/test_ztools.fits', 'dummy.fits', 4)
     oversample.start()
     oversample.join()
 
-    data = fits.getdata('tests/test_data/test_000.fits')
+    data = fits.getdata('tests/test_data/test_ztools.fits')
     assert (np.abs(data.sum() - oversample.results.sum()) / data.sum() < 0.1)
     assert (data.size * 4 == oversample.results.size)
 
