@@ -21,13 +21,15 @@
     0.7.0 - fp_tools are now inside samfp-tools
        .1 - updated phmfit - not sure if it is better or worse.
        .2 - Fixed fp_repeat and fp_overscan. Travis CI working for Linux.
+       .3 - Fixed Travis CI and implemented tests for fp_repeat, fp_oversample ,fp_cut and fp_roc.
+          - fp_oversample is fixed.
 """
 
 api = 0
 feature = 7
-bug = 2
+bug = 3
 
-month = 9
+month = 12
 year = 2017
 
 __str__ = 'v{:d}.{:d}.{:d} {:d}-{:0d}'.format(api, feature, bug, year, month)
