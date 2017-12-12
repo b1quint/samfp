@@ -19,9 +19,6 @@
 
 from __future__ import absolute_import, division, print_function
 
-import matplotlib
-matplotlib.use('Qt5Agg')
-
 from .tools import io, plots, version
 
 import argparse
@@ -41,6 +38,8 @@ from astropy.modeling import models, fitting
 from scipy import interpolate, signal
 
 log = io.MyLogger(__name__)
+
+__all__ = ['main', 'PhaseMap', 'PeakFinder']
 
 
 def main():

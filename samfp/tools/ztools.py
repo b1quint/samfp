@@ -63,19 +63,45 @@ class ZCut(threading.Thread):
         data = fits.getdata(self._input)
         header = fits.getheader(self._input)
 
-        if self.n_begin is not None:
-            data = data[self.n_begin:]
-            header['CRPIX3'] -= (self.n_begin + 1)
-        else:
-            self.n_begin = 0
+        self.n_begin = 0 if self.n_begin is None else self.n_begin
+        self.n_end = header['NAXIS3'] if self.n_end is None else self.n_end
 
-        if self.n_end is not None:
-            data = data[:self.n_end]
-        else:
-            self.n_end = data.shape[0]
+        self._original_depth = data.shape[0]
 
-        header.add_history('Cube cut from z = %i to z = %i' %
-                           (self.n_begin, self.n_end))
+        data = data[self.n_begin:self.n_end]
+        header['CRPIX3'] -= self.n_begin
+
+        self._depth = data.shape[0]
+
+        header.set(
+            'ZC_ORSIZ',
+            value=self._original_depth,
+            comment='Cube depth before trim.'
+        )
+
+        header.set(
+            'ZC_AFSIZ',
+            value=self._depth,
+            comment='Cube depth after trim.',
+            after='ZC_ORSIZ'
+        )
+
+        header.set(
+            'ZC_BEGIN',
+            value=self.n_begin,
+            comment='# channels removed from beginning.',
+            after='ZC_AFSIZ'
+        )
+
+        header.set(
+            'ZC_END',
+            value=self.n_end,
+            comment='# channels removed from end.',
+            after='ZC_BEGIN'
+        )
+
+        header.add_blank('--- Cube Z Cut ---', before='ZC_ORSIZ')
+        header.add_blank('', after='ZC_END')
 
         fits.writeto(self._output, data, header)
         log.info('Done.')
@@ -113,6 +139,9 @@ class ZOversample(threading.Thread):
         self.oversample_factor = oversample_factor
         self.kind = kind
 
+        self._depth = None
+        self._original_depth = None
+
     def run(self):
 
         log.info("")
@@ -132,6 +161,9 @@ class ZOversample(threading.Thread):
         new_depth = self.oversample_factor * depth
         log.info("Cube depth after oversample: {:d}".format(new_depth))
         del data
+
+        self._original_depth = depth
+        self._depth = new_depth
 
         x = np.arange(header['NAXIS1'], dtype=int)
         y = np.arange(header['NAXIS2'], dtype=int)
@@ -168,18 +200,50 @@ class ZOversample(threading.Thread):
         log.info('Done.')
         log.info('')
 
-    def fix_header(self, header=None):
+    def fix_header(self, header):
 
-        keys = ['CDELT3', 'C3_3', 'PHMSAMP']
+        o = self.oversample_factor
+        x = (np.arange(self._original_depth) - header['CRPIX3'] + 1) \
+            * header['CDELT3'] + header['CRVAL3']
+
+        new_x = np.linspace(x[0], x[-1] + (o - 1) / o, o * x.size)
+        delta_x = np.mean(new_x[1:] - new_x[:-1])
+
+        keys = ['PHMSAMP', 'C3_3', 'CDELT3']
         for key in keys:
             try:
-                header[key] /= self.oversample_factor
+                header.set(
+                    key,
+                    value = delta_x,
+                    after='CRVAL3'
+                )
             except KeyError:
                 pass
 
-        header.set('3DOVS_O', value=self.oversample_factor, comment='Oversample factor.')
-        header.add_blank('--- Cube Z Oversample ---', before='3DOVS_O')
-        header.add_blank('', after='3DOVS_O')
+        header['CRPIX3'] = np.argmin(np.abs(new_x - header['CRVAL3'])) + 1
+
+        header.set(
+            'ZO_OVFAC',
+            value=self.oversample_factor,
+            comment='Oversample factor.'
+        )
+
+        header.set(
+            'ZO_ORSIZ',
+            value=self._original_depth,
+            comment='Cube depth before oversample',
+            after='ZO_OVFAC'
+        )
+
+        header.set(
+            'ZO_AFSIZ',
+            value=self._depth,
+            comment='Cube depth after oversample.',
+            after='ZO_ORSIZ'
+        )
+
+        header.add_blank('--- Cube Z Oversample ---', before='ZO_OVFAC')
+        header.add_blank('', after='ZO_AFSIZ')
 
         return header
 
@@ -232,28 +296,28 @@ class ZRepeat(threading.Thread):
         self.header.set(
             'ZR_COPBE',
             value=self.n_before,
-            comment='Number of copies of the cube at its beginning.',
+            comment='# copies of the cube at its beginning.',
             after='ZR_AFSIZ'
         )
 
         self.header.set(
             'ZR_CHBEF',
-            value=self._original_depth,
-            comment='Number of channels added at the beginning of the cube.',
+            value=self._original_depth * self.n_before,
+            comment='# channels added at the beginning of the cube.',
             after='ZR_COPBE'
         )
 
         self.header.set(
             'ZR_COPEN',
             value=self.n_after,
-            comment='Number of copies of the cube at its end.',
+            comment='# copies of the cube at its end.',
             after='ZR_CHBEF'
         )
 
         self.header.set(
             'ZR_CHEND',
-            value=self.n_after,
-            comment='Number of channels added to the end of the cube.',
+            value=self._original_depth * self.n_after,
+            comment='# channels added to the end of the cube.',
             after='ZR_COPEN'
         )
 

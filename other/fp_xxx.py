@@ -21,7 +21,7 @@ print('g.size=',g.size,g)
 gsum = np.sum(g)
 print('g=',gsum)
 
-x5 = np.hstack((x - 2*ncan,x - ncan, x, x + ncan, x + 2*ncan))
+x5 = np.hstack((x - 2 * ncan, x - ncan, x, x + ncan, x + 2 * ncan))
 print('x5.size=',x5.size,x5)
 g5 = gaussian(x5, 0., 1e-20)
 g5 = np.zeros(5*ncan)
