@@ -1,7 +1,13 @@
-# Ignored Files
-# by Bruno Quint
-# 2016.09.21
-.idea/
-docs/
 
+.idea/
+build/
+docs/
+_site/
+assets/
+dist/
+samfp/__pycache__/
+samfp/old/__pycache__/
+samfp/tools/__pycache__/
+tests/__pycache__/
 *.pyc
+scripts/autoastrometry.py.bak
