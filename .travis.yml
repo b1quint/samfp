@@ -14,11 +14,18 @@ branches:
   - master
   - reconfigure_ci
 
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then 
+    MINICONDA=https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+    else
+    MINICONDA=https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh;
+    fi
+
 install:
 - sudo apt-get update
 
 # Here we install Anaconda to work with Virtual Environments.
-- wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+- wget $MINICONDA -O miniconda.sh;
 - bash miniconda.sh -b -p $HOME/miniconda
 - export PATH="$HOME/miniconda/bin:$PATH"
 - hash -r
@@ -43,8 +50,8 @@ script:
 - py.test --ignore=src -v
 - coverage run --branch --source= setup.py test
 
-#after_success:
-#- coveralls
+after_success:
+- coveralls
 
 #notifications:
 #  slack:
