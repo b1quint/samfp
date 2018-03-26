@@ -1,0 +1,11 @@
+name: samfptools
+channels:
+  - astroconda
+dependencies:
+  - astropy
+  - configparser
+  - dateutil
+  - pip
+  - pip:
+    - future
+    - coveralls
