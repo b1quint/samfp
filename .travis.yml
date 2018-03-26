@@ -33,5 +33,5 @@ install:
 
 # Create astroconda virtual environment
 - conda env create -q python=$TRAVIS_PYTHON_VERSION -f environment.yml
-- source activate dragons
+- source activate samfptools
 
