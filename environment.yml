@@ -5,6 +5,7 @@ dependencies:
   - astropy
   - configparser
   - dateutil
+  - scipy
   - matplotlib
   - pip
   - pip:
