@@ -3,12 +3,13 @@ channels:
   - astroconda
 dependencies:
   - astropy
+  - ccdproc
   - configparser
   - dateutil
-  - scipy
   - matplotlib
   - pandas
   - pip
+  - scipy
   - pip:
     - future
     - coveralls
