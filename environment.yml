@@ -3,7 +3,7 @@ channels:
   - astroconda
 dependencies:
   - astropy
-  - ccdproc
+  - astroconda::ccdproc
   - configparser
   - dateutil
   - matplotlib
