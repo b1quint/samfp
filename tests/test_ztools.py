@@ -8,6 +8,7 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 
+
 def test_z_cut():
     """Little method to test the ZCut method"""
 
@@ -191,3 +192,7 @@ def test_z_roc():
     plt.ylim(-2, 4.5)
     plt.legend(loc='best')
     plt.savefig('.temp.png')
+
+    os.remove(repeated_data_filename)
+    os.remove(oversampled_data_filename)
+    os.remove(final_filename)
