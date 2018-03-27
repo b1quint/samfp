@@ -41,6 +41,7 @@ install:
 # Create astroconda virtual environment
 - conda env create -q python=$TRAVIS_PYTHON_VERSION -f environment.yml
 - source activate samfptools
+- conda install -c astroconda ccdproc # The channel deppendency is still not implemented in Conda
 
 # Install me
 - python setup.py test
