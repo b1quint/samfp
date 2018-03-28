@@ -32,7 +32,6 @@ class TestLogFormat(unittest.TestCase):
 
         self.assertRegex(log_message, r'(\[I\s\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\s\w*\]\s)')
 
-    @unittest.skip
     def test_warning(self):
         logger = get_logger('TestLogApp')
         logger.warning("warning message")
@@ -40,7 +39,6 @@ class TestLogFormat(unittest.TestCase):
 
         self.assertRegex(log_message, r'(\[W\s\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\s\w*\]\s)')
 
-    @unittest.skip
     def test_error(self):
         logger = get_logger('TestLogApp')
         logger.error("error message")
@@ -48,10 +46,10 @@ class TestLogFormat(unittest.TestCase):
 
         self.assertRegex(log_message, r'(\[E\s\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\s\w*\]\s)')
 
-    @unittest.skip
     def test_critical(self):
         logger = get_logger('TestLogApp')
         logger.critical("critical message")
         log_message = sys.stderr.getvalue().strip()
 
         self.assertRegex(log_message, r'(\[C\s\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\s\w*\]\s)')
+
