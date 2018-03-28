@@ -3,6 +3,7 @@
 
 import logging
 import sys
+import curses
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 
@@ -10,11 +11,13 @@ RESET_SEQ = '\033[0m'
 COLOR_SEQ = '\033[1;%dm'
 BOLD_SEQ = '\033[1m'
 
+
+
 COLORS = {
     'WARNING': YELLOW,
-    'INFO': WHITE,
-    'DEBUG': BLUE,
-    'CRITICAL': YELLOW,
+    'INFO': BLUE,
+    'DEBUG': GREEN,
+    'CRITICAL': RED,
     'ERROR': RED
 }
 
@@ -37,7 +40,7 @@ def get_logger(logger_name, use_color=True):
 
     formatter = SamFpLogFormatter(message_format, datefmt=date_format)
 
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler()
     handler.setFormatter(formatter)
 
     _logger = logging.getLogger(logger_name)
@@ -57,8 +60,8 @@ class SamFpLogFormatter(logging.Formatter):
 
         colour = COLOR_SEQ % (30 + COLORS[levelname])
 
-        fmt = fmt.replace(left_char, "{:s}{:s}".format(colour, left_char))
-        fmt = fmt.replace(right_char, "{:s}{:s}".format(right_char, RESET_SEQ))
+        fmt = fmt.replace(left_char, "{:s} {:s}".format(colour, left_char))
+        fmt = fmt.replace(right_char, "{:s} {:s}".format(right_char, RESET_SEQ))
 
         return fmt
 
@@ -66,11 +69,11 @@ class SamFpLogFormatter(logging.Formatter):
 
         format_orig = self._fmt
 
-        if self.use_colours:
-                self._fmt = self.color_format(self._fmt, record.levelname)
-
         # Call the original formatter class to do the grunt work
         result = logging.Formatter.format(self, record)
+
+        if self.use_colours:
+            result = self.color_format(result, record.levelname)
 
         # Restore the original format configured by the user
         self._fmt = format_orig

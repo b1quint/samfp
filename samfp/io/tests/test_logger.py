@@ -52,4 +52,9 @@ class TestLogFormat(unittest.TestCase):
 
         self.assertRegex(log_message, r'(\[C\s\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\s\w*\]\s)')
 
+    def test_color(self):
+        logger = get_logger('TestLogApp')
+        logger.critical("critical message")
+        log_message = sys.stderr.getvalue().strip()
 
+        self.assertRegex(log_message, '(\033\[0m)')
