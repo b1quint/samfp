@@ -52,14 +52,14 @@ class SamFpLogFormatter(logging.Formatter):
         self.use_colours = use_colours
 
     @staticmethod
-    def color_format(fmt, levelname, left_char="[", right_char="]"):
+    def color_format(message, levelname, left_char="[", right_char="]"):
 
         colour = COLOR_SEQ % (30 + COLORS[levelname])
 
-        fmt = fmt.replace(left_char, "{:s} {:s}".format(colour, left_char))
-        fmt = fmt.replace(right_char, "{:s} {:s}".format(right_char, RESET_SEQ))
+        message = message.replace(left_char, "{:s} {:s}".format(colour, left_char))
+        message = message.replace(right_char, "{:s} {:s}".format(right_char, RESET_SEQ))
 
-        return fmt
+        return message
 
     def format(self, record):
 
