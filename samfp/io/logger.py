@@ -2,8 +2,6 @@
 # -*- coding: utf8 -*-
 
 import logging
-import sys
-import curses
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 
@@ -11,12 +9,10 @@ RESET_SEQ = '\033[0m'
 COLOR_SEQ = '\033[1;%dm'
 BOLD_SEQ = '\033[1m'
 
-
-
 COLORS = {
     'WARNING': YELLOW,
-    'INFO': BLUE,
-    'DEBUG': GREEN,
+    'INFO': WHITE,
+    'DEBUG': BLUE,
     'CRITICAL': RED,
     'ERROR': RED
 }
@@ -67,16 +63,11 @@ class SamFpLogFormatter(logging.Formatter):
 
     def format(self, record):
 
-        format_orig = self._fmt
-
         # Call the original formatter class to do the grunt work
         result = logging.Formatter.format(self, record)
 
         if self.use_colours:
             result = self.color_format(result, record.levelname)
-
-        # Restore the original format configured by the user
-        self._fmt = format_orig
 
         return result
 
