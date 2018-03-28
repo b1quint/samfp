@@ -1,21 +1,20 @@
 
 import io
-import logging
 import unittest
 import sys
 
-from samfp.io.logging import get_logger
+from samfp.io.logger import get_logger
 
 
 class TestLogFormat(unittest.TestCase):
 
     def setUp(self):
         self.held_stdout, sys.stdout = sys.stdout, io.StringIO()
-        self.help_stderr, sys.stderr = sys.stderr, io.StringIO()
+        self.held_stderr, sys.stderr = sys.stderr, io.StringIO()
 
     def tearDown(self):
         sys.stdout = self.held_stdout
-        sys.stderr = self.help_stderr
+        sys.stderr = self.held_stderr
 
     def test_debug(self):
 
@@ -52,4 +51,5 @@ class TestLogFormat(unittest.TestCase):
         log_message = sys.stderr.getvalue().strip()
 
         self.assertRegex(log_message, r'(\[C\s\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\s\w*\]\s)')
+
 
