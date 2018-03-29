@@ -3,7 +3,7 @@ import io
 import unittest
 import sys
 
-from samfp.io.logger import get_logger, SamFpLogger
+from samfp.io.logger import get_logger
 
 
 class TestLogFormat(unittest.TestCase):
