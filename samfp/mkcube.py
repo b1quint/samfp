@@ -22,8 +22,9 @@ import numpy as np
 import pandas as pd
 
 from .tools import io, version
+from .io import logger
 
-log = io.MyLogger(__name__)
+log = logger.get_logger("MakeCube")
 
 __author__ = 'Bruno Quint'
 

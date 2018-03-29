@@ -49,8 +49,9 @@ from numpy import random
 from scipy import stats
 
 from .tools import io, slices, version
+from .io.logger import get_logger
 
-log = io.MyLogger(__name__)
+log = get_logger("SamiXjoinApp")
 
 # Piece of code from cosmics.py
 # We define the laplacian kernel to be used

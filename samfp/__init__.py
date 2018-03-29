@@ -7,6 +7,7 @@
 import matplotlib
 matplotlib.use('Qt5Agg')
 
+from . import io
 from . import maps
 from . import mkcube
 from . import phmapply

@@ -2,6 +2,9 @@
 # -*- coding: utf8 -*-
 
 import logging
+import sys
+
+__all__ = ['COLORS', 'get_logger']
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 
@@ -22,25 +25,25 @@ def get_logger(logger_name, use_color=True):
     """
     Return a logger with the "logger_name".
 
-    Parameters
-    ----------
+    Args:
         logger_name (str) : the logger name to be used in different contexts.
         use_colors (bool, optional) : use colors on Stream Loggers.
 
-    Return
-    ------
+    Returns:
         _logger (logging.Logger) : the logger to be used.
     """
     message_format = " [%(levelname).1s %(asctime)s %(name)s] %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
 
-    formatter = SamFpLogFormatter(message_format, datefmt=date_format)
+    formatter = SamFpLogFormatter(message_format, datefmt=date_format, use_colours=use_color)
 
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
 
+    logging.setLoggerClass(SamFpLogger)
     _logger = logging.getLogger(logger_name)
     _logger.addHandler(handler)
+    _logger.setLevel(logging.DEBUG)
 
     return _logger
 
@@ -70,6 +73,24 @@ class SamFpLogFormatter(logging.Formatter):
             result = self.color_format(result, record.levelname)
 
         return result
+
+
+class SamFpLogger(logging.Logger):
+
+    def __init__(self, name, verbose=True, debug=False):
+        logging.Logger.__init__(self, name)
+        self.set_verbose(verbose)
+        self.set_debug(debug)
+
+    def set_verbose(self, verbose=True):
+        if verbose:
+            self.setLevel(logging.INFO)
+        else:
+            self.setLevel(logging.NOTSET)
+
+    def set_debug(self, debug=True):
+        if debug:
+            self.setLevel(logging.DEBUG)
 
 
 if __name__ == "__main__":
