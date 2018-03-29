@@ -40,7 +40,6 @@ def get_logger(logger_name, use_color=True):
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
 
-    logging.setLoggerClass(SamFpLogger)
     _logger = logging.getLogger(logger_name)
     _logger.addHandler(handler)
     _logger.setLevel(logging.DEBUG)
@@ -73,24 +72,6 @@ class SamFpLogFormatter(logging.Formatter):
             result = self.color_format(result, record.levelname)
 
         return result
-
-
-class SamFpLogger(logging.Logger):
-
-    def __init__(self, name, verbose=True, debug=False):
-        logging.Logger.__init__(self, name)
-        self.set_verbose(verbose)
-        self.set_debug(debug)
-
-    def set_verbose(self, verbose=True):
-        if verbose:
-            self.setLevel(logging.INFO)
-        else:
-            self.setLevel(logging.NOTSET)
-
-    def set_debug(self, debug=True):
-        if debug:
-            self.setLevel(logging.DEBUG)
 
 
 if __name__ == "__main__":

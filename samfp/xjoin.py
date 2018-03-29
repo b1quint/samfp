@@ -51,7 +51,7 @@ from scipy import stats
 from .tools import io, slices, version
 from .io.logger import get_logger
 
-log = get_logger("SamiXjoinApp")
+logger = get_logger("SamiXjoinApp")
 
 # Piece of code from cosmics.py
 # We define the laplacian kernel to be used
@@ -134,8 +134,12 @@ class SAMI_XJoin:
                  flat_file=None, glow_file=None, norm_flat=False,
                  time=False, verbose=False):
 
-        log.set_verbose(verbose)
-        log.set_debug(debug)
+        if verbose:
+            logger.setLevel('INFO')
+        elif debug:
+            logger.setLevel('DEBUG')
+        else:
+            logger.setLevel('ERROR')
 
         self.bias_file = bias_file
         self.clean = clean
@@ -594,7 +598,7 @@ class SAMI_XJoin:
         w, h = slices.iraf2python(fits_file[1].header['DETSIZE'])
 
         if len(fits_file) is 1:
-            log.warning('%s file contains a single extension. ' % fits_file +
+            logger.warning('%s file contains a single extension. ' % fits_file +
                         'Not doing anything')
             return fits_file[0].data
 
@@ -692,12 +696,12 @@ class SAMI_XJoin:
         """
         Simply prints a message at the beginning.
         """
-        log.info("")
-        log.info("SAM-FP Tools: xjoin")
-        log.info("by Bruno Quint (bquint@ctio.noao.edu)")
-        log.info("version {:s}".format(version.__str__))
-        log.info("Starting program.")
-        log.info("")
+        logger.info("")
+        logger.info("SAM-FP Tools: xjoin")
+        logger.info("by Bruno Quint (bquint@ctio.noao.edu)")
+        logger.info("version {:s}".format(version.__str__))
+        logger.info("Starting program.")
+        logger.info("")
 
     @staticmethod
     def remove_cosmic_rays(data, header, prefix, cosmic_rays):
@@ -839,12 +843,12 @@ class SAMI_XJoin:
         from os.path import join, split
 
         self.print_header()
-        log.info('Processing data')
+        logger.info('Processing data')
         list_of_files = sorted(list_of_files)
 
         if self.norm_flat and (self.flat_file is not None):
 
-            log.info(" Normalizing flat")
+            logger.info(" Normalizing flat")
 
             flat_hdr = _pyfits.getheader(self.flat_file)
             flat = _pyfits.getdata(self.flat_file)
@@ -853,7 +857,7 @@ class SAMI_XJoin:
             self.flat_file = self.flat_file.replace('.fits', '_n.fits')
 
             _pyfits.writeto(self.flat_file, flat, flat_hdr, overwrite=True)
-            log.info(" Done\n")
+            logger.info(" Done\n")
 
         for filename in list_of_files:
 
@@ -861,10 +865,10 @@ class SAMI_XJoin:
             try:
                 data = self.get_joined_data(filename)
             except IOError:
-                log.warning(' %s file does not exists' % filename)
+                logger.warning(' %s file does not exists' % filename)
                 continue
             except IndexError:
-                log.warning(' %s file may be already joined. Skipping it.' % filename)
+                logger.warning(' %s file may be already joined. Skipping it.' % filename)
                 continue
 
             # Build header
@@ -879,15 +883,15 @@ class SAMI_XJoin:
             except KeyError:
                 pass
 
-            log.info('{:s} -> {:s}'.format(filename, prefix + filename))
+            logger.info('{:s} -> {:s}'.format(filename, prefix + filename))
 
             header.add_history('Extensions joined using "sami_xjoin"')
             path, filename = split(filename)
             _pyfits.writeto(join(path, prefix + filename), data,
                             header, overwrite=True)
 
-        log.info("")
-        log.info("All done!")
+        logger.info("")
+        logger.info("All done!")
 
 
 def _normalize_data(data):
