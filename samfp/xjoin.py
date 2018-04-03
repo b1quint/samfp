@@ -174,8 +174,17 @@ class SAMI_XJoin:
         from os.path import abspath
 
         if bias_file is not None:
+
             bias = _pyfits.getdata(abspath(bias_file))
-            data -= bias
+
+            try:
+                data -= bias
+            except ValueError:
+                logger.error(
+                    "Can not subtract bias {:s} from {:s} - shape mismatch ({:d},{:d}) x ({:d},{:d})".format(
+                        bias_file, "", data.shape[0], data.shape[1], bias.shape[0], bias.shape[1]
+                    ))
+
             header['BIASFILE'] = bias_file
             header.add_history('Bias subtracted')
             prefix = 'b' + prefix
