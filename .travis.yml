@@ -11,7 +11,7 @@ os:
 branches:
   only:
   - master
-  - reconfigure_ci
+  - refactor_logging
 
 before_install:
 - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
