@@ -80,9 +80,9 @@ class ZeroCombine(Combine):
                               minmax_clip=True)
         master_bias.header = hdr
         if self.output_filename is None:
-            master_bias.write('0ZERO.fits', overwrite=True)
+            master_bias.write('0ZERO.fits')
         else:
-            master_bias.write(master_bias.output_file, overwrite=True)
+            master_bias.write(self.output_filename)
 
 
 class FlatCombine(Combine):
