@@ -103,9 +103,6 @@ setup(
     install_requires=[
         'future',
         'astropy>2',
-        'matplotlib>2',
-        'numpy',
-        'scipy',
     ],
 
     # List additional groups of dependencies here (e.g. development
