@@ -17,14 +17,13 @@ from __future__ import absolute_import, division, print_function
 import astropy.io.fits as pyfits
 import argparse
 import itertools
-import logging as log
 import numpy as np
 import pandas as pd
 
 from .tools import io, version
 from .io.logger import get_logger
 
-log = get_logger("MakeCube")
+logger = get_logger("MakeCube")
 
 __author__ = 'Bruno Quint'
 
@@ -57,15 +56,19 @@ def main():
 
     parsed_args = parser.parse_args()
 
-    log.set_verbose(verbose=not parsed_args.quiet)
-    log.set_debug(debug=parsed_args.debug)
+    if parsed_args.quiet:
+        logger.setLevel('NOTSET')
+    elif parsed_args.debug:
+        logger.setLevel('DEBUG')
+    else:
+        logger.setLevel('INFO')
 
-    log.info("")
-    log.info("SAM-FP Tools: mkcube")
-    log.info("by Bruno Quint (bquint@ctio.noao.edu)")
-    log.info("version {:s}".format(version.__str__))
-    log.info("Starting program.")
-    log.info("")
+    logger.info("")
+    logger.info("SAM-FP Tools: mkcube")
+    logger.info("by Bruno Quint (bquint@ctio.noao.edu)")
+    logger.info("version {:s}".format(version.__str__))
+    logger.info("Starting program.")
+    logger.info("")
 
     make_cube(parsed_args.files,
               output=parsed_args.output,
@@ -102,12 +105,12 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     assert isinstance(list_of_files, list)
     list_of_files.sort()
 
-    log.debug('Create table')
+    logger.debug('Create table')
     df = pd.DataFrame(columns=['filename', 'nrows', 'ncols', 'z'])
 
-    log.debug('Filling the table')
+    logger.debug('Filling the table')
     for f in list_of_files:
-        log.debug('Read %s file' % f)
+        logger.debug('Read %s file' % f)
         hdr = pyfits.getheader(f)
         ds = pd.Series({
             'filename': f,
@@ -117,11 +120,11 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
         })
         df = df.append(ds, ignore_index=True)
 
-    log.debug('%d files with different number of rows' % len(
+    logger.debug('%d files with different number of rows' % len(
         df['nrows'].unique()))
-    log.debug('%d files with different number of columns' % len(
+    logger.debug('%d files with different number of columns' % len(
         df['ncols'].unique()))
-    log.debug('%d files with different Z' % len(df['z'].unique()))
+    logger.debug('%d files with different Z' % len(df['z'].unique()))
 
     if len(df['nrows'].unique()) is not 1:
         raise (
@@ -139,8 +142,8 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     ncols = int(ncols)
     nchan = int(nchan)
 
-    log.info('Creating data-cube with shape')
-    log.info('[%d, %d, %d]' % (nrows, ncols, nchan))
+    logger.info('Creating data-cube with shape')
+    logger.info('[%d, %d, %d]' % (nrows, ncols, nchan))
     cube = np.zeros((nchan, ncols, nrows))
 
     z_array = df['z'].unique()
@@ -157,12 +160,12 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     else:
         raise ValueError('"combine_algorith" kwarg must be average/median/sum')
 
-    log.info('Filling data-cube')
+    logger.info('Filling data-cube')
     x, y = range(binning[0]), range(binning[1])
 
     # Build data-cube
     for i in range(z_array.size):
-        log.debug('Processing channel %03d - z = %.2f' % (i + 1, z_array[i]))
+        logger.debug('Processing channel %03d - z = %.2f' % (i + 1, z_array[i]))
         files = df[df['z'] == z_array[i]]['filename'].tolist()
         temp_cube = np.zeros((len(files), ncols, nrows))
 
@@ -176,7 +179,7 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
 
         cube[i] = combine(temp_cube, axis=0)
 
-    log.info('Find Z solution')
+    logger.info('Find Z solution')
     z = np.arange(z_array.size) + 1
     p = np.polyfit(z, z_array, deg=1)
     delta_z = p[0]
@@ -203,14 +206,14 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     filename = output
     output = io.safe_save(output, verbose=True)
 
-    log.info('Writing file to {:s}'.format(output))
+    logger.info('Writing file to {:s}'.format(output))
     pyfits.writeto(output, cube, hdr, overwrite=True)
 
-    log.debug(pd.DataFrame(data={'x': z,
+    logger.debug(pd.DataFrame(data={'x': z,
                                  'y': z_array,
                                  'fit_y': np.polyval(p, z),
                                  'round_fit': np.round(np.polyval(p, z))}))
-    log.debug(p)
+    logger.debug(p)
 
     return
 
