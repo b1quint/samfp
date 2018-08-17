@@ -181,7 +181,7 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
 
     logger.info('Find Z solution')
     z = np.arange(z_array.size) + 1
-    p = np.polyfit(z, z_array, deg=1)
+    p = np.polyfit(z, z_array, deg=2)
     delta_z = p[0]
     z_zero = np.polyval(p, 1)
 
