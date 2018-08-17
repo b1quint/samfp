@@ -22,9 +22,9 @@ import numpy as np
 import pandas as pd
 
 from .tools import io, version
-from .io import logger
+from .io.logger import get_logger
 
-log = logger.get_logger("MakeCube")
+log = get_logger("MakeCube")
 
 __author__ = 'Bruno Quint'
 

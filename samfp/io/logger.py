@@ -35,21 +35,26 @@ def get_logger(logger_name, use_color=True):
     message_format = " [%(levelname).1s %(asctime)s %(name)s] %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
 
-    formatter = SamFpLogFormatter(message_format, datefmt=date_format, use_colours=use_color)
-
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-
     _logger = logging.getLogger(logger_name)
-    _logger.addHandler(handler)
-    _logger.setLevel(logging.DEBUG)
+
+    if len(_logger.handlers) == 0:
+
+        formatter = SamFpLogFormatter(message_format, datefmt=date_format, use_colours=use_color)
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+
+        _logger.addHandler(handler)
+        _logger.setLevel(logging.DEBUG)
 
     return _logger
 
 
 class SamFpLogFormatter(logging.Formatter):
 
-    def __init__(self, fmt="%(levelno)s: %(msg)s", datefmt=None, use_colours=True):
+    def __init__(self, fmt=" [%(levelname).1s %(asctime)s %(name)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S",
+                 use_colours=True):
+
         logging.Formatter.__init__(self, fmt, datefmt=datefmt)
         self.use_colours = use_colours
 
