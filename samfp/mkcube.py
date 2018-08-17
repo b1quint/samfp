@@ -12,8 +12,6 @@
 
 """
 
-from __future__ import absolute_import, division, print_function
-
 import astropy.io.fits as pyfits
 import argparse
 import itertools
@@ -116,7 +114,7 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
             'filename': f,
             'nrows': int(hdr['naxis1']),
             'ncols': int(hdr['naxis2']),
-            'z': int(hdr[z_key])
+            'z': int(hdr[z_key].strip())
         })
         df = df.append(ds, ignore_index=True)
 
@@ -147,6 +145,7 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     cube = np.zeros((nchan, ncols, nrows))
 
     z_array = df['z'].unique()
+    z_array = np.array(z_array, dtype=np.float64)
     z_array.sort()
     z_array = z_array[::-1]  # Reverse array so lambda increases inside the cube
 
@@ -165,8 +164,11 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
 
     # Build data-cube
     for i in range(z_array.size):
+
         logger.debug('Processing channel %03d - z = %.2f' % (i + 1, z_array[i]))
+
         files = df[df['z'] == z_array[i]]['filename'].tolist()
+
         temp_cube = np.zeros((len(files), ncols, nrows))
 
         # Build temporary data-cube for each frame before combine it
@@ -181,7 +183,9 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
 
     logger.info('Find Z solution')
     z = np.arange(z_array.size) + 1
-    p = np.polyfit(z, z_array, deg=2)
+    z = np.array(z, dtype=np.float64)
+
+    p = np.polyfit(z, z_array, deg=1)
     delta_z = p[0]
     z_zero = np.polyval(p, 1)
 
@@ -209,10 +213,17 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     logger.info('Writing file to {:s}'.format(output))
     pyfits.writeto(output, cube, hdr, overwrite=True)
 
-    logger.debug(pd.DataFrame(data={'x': z,
-                                 'y': z_array,
-                                 'fit_y': np.polyval(p, z),
-                                 'round_fit': np.round(np.polyval(p, z))}))
+    logger.debug(
+        pd.DataFrame(
+            data={
+                'x': z,
+                'y': z_array,
+                'fit_y': np.polyval(p, z),
+                'round_fit': np.round(np.polyval(p, z))
+            }
+        )
+    )
+
     logger.debug(p)
 
     return
