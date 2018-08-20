@@ -21,6 +21,7 @@ COLORS = {
 }
 
 
+
 def get_logger(logger_name, use_color=True):
     """
     Return a logger with the "logger_name".
@@ -46,6 +47,7 @@ def get_logger(logger_name, use_color=True):
 
         _logger.addHandler(handler)
         _logger.setLevel(logging.DEBUG)
+        _logger.propagate = False
 
     return _logger
 
