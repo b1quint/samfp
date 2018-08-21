@@ -19,15 +19,8 @@
 
 from __future__ import absolute_import, division, print_function
 
-from .tools import plots, version
-from samfp.io import logger
-
 import argparse
-import astropy.io.fits as pyfits
 import glob
-import logging
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
 import multiprocessing
 import numpy as np
 import os
@@ -36,12 +29,16 @@ import scipy
 import sys
 
 from astropy.modeling import models, fitting
+from matplotlib import gridspec
+from matplotlib import pyplot as plt
 from scipy import interpolate, signal
 
-_log = logger.get_logger(__name__)
-_log.propagate = False
+from .tools import plots, version
+from samfp import io
 
-__all__ = ['main', 'PhaseMap', 'PeakFinder']
+_log = io.logger.get_logger(__name__)
+
+__all__ = ['main', 'PhaseMapExtractor', 'PeakFinder']
 
 
 def main():
@@ -49,8 +46,13 @@ def main():
 
     # Parse arguments
     args = _parse_arguments()
-    _log.set_verbose(not args.quiet)
-    _log.set_debug(args.debug)
+
+    if args.quiet:
+        _log.setLevel('ERROR')
+    elif args.debug:
+        _log.setLevel('DEBUG')
+    else:
+        _log.setLevel('INFO')
 
     # Start program
     start = time.time()
@@ -68,7 +70,7 @@ def main():
     _check_dimensions(args.filename, _log)
 
     # # Extracting phase-map
-    phm = PhaseMap(
+    phase_map_extractor = PhaseMapExtractor(
         args.filename,
         args.wavelength,
         correlation=args.correlation,
@@ -77,9 +79,8 @@ def main():
         ref=args.ref,
         output=args.output
     )
-
-    # Run!
-    phm()
+    
+    phase_map_extractor.run()
 
     # All done!
     end = time.time() - start
@@ -141,10 +142,10 @@ def _check_dimensions(filename, log, dimensions=3, keyword='NAXIS'):
         keyword (str) : Header keyword that holds the number of axis
         (dimensions).
     """
-    header = pyfits.getheader(filename)
+    header = io.pyfits.getheader(filename)
 
     if keyword not in header:
-        data = pyfits.getdata(filename)
+        data = io.pyfits.getdata(filename)
         ndim = data.ndim
     else:
         ndim = header[keyword]
@@ -157,8 +158,7 @@ def _check_dimensions(filename, log, dimensions=3, keyword='NAXIS'):
         return
 
 
-class PhaseMap:
-
+class PhaseMapExtractor:
     """
     Class that holds the methods and sequences to perform phase-map extraction
     on a data-cube obtained with Fabry-Perot.
@@ -198,9 +198,20 @@ class PhaseMap:
         self.verbose = verbose
         self.wavelength = wavelength
 
+        #  ToDo: These parameters could be initialized with some value.
+        self.extract_from = None
+        self.free_spectral_range = None
+        self.fsr_channel = None
+        self.ref_x = None
+        self.ref_y = None
+        self.ref_s = None
+        self.fwhm = None
+        self.finesse = None
+        self.phase_map = None
+
         # Reading raw data
-        self.data = pyfits.getdata(filename)
-        self.header = pyfits.getheader(filename)
+        self.data = io.pyfits.getdata(filename)
+        self.header = io.pyfits.getheader(filename)
 
         # Reading data-cube configuration
         self.width = self.header['NAXIS1']
@@ -220,8 +231,7 @@ class PhaseMap:
         except KeyError:
             self.current_sampling = 1.0
 
-
-    def __call__(self):
+    def run(self):
 
         # Subtract continuum
         self.data = self.subtract_continuum(self.data, show=self.show)
@@ -254,9 +264,9 @@ class PhaseMap:
 
         _log.info("Ideal number of channels: %.1f channels"
                   % round(2 * self.finesse))
-        _log.info("Ideal sampling: %.1f %s / channel"
-                  % (self.free_spectral_range / round(2 * self.finesse),
-                    self.units))
+
+        _log.info("Ideal sampling: %.1f %s / channel" % (
+            self.free_spectral_range / round(2 * self.finesse), self.units))
 
         self.phase_map = self.extract_phase_map()
         self.save()
@@ -271,7 +281,7 @@ class PhaseMap:
         _log.info("")
         _log.info("Starting phase-map extraction.")
         _log.info("Reading data from %s file" % self.extract_from)
-        data = pyfits.getdata(self.extract_from)
+        data = io.pyfits.getdata(self.extract_from)
 
         phase_map = np.argmax(data, axis=0).astype('float64')
         phase_map -= phase_map[self.ref_y, self.ref_x]
@@ -419,12 +429,12 @@ class PhaseMap:
                 try:
 
                     # If the cube was binned this will be useful
-                    ref_x = (ref_x - self.header['CRPIX1'] + 1) * \
-                            self.header['CDELT1'] + self.header['CRVAL1']
+                    ref_x = (ref_x - self.header['CRPIX1'] + 1) \
+                        * self.header['CDELT1'] + self.header['CRVAL1']
 
                     # If the cube was binned this will be useful
-                    ref_y = (ref_y - self.header['CRPIX2']) * \
-                            self.header['CDELT2'] + self.header['CRVAL2']
+                    ref_y = (ref_y - self.header['CRPIX2']) \
+                        * self.header['CDELT2'] + self.header['CRVAL2']
 
                 except KeyError:
                     pass
@@ -492,10 +502,13 @@ class PhaseMap:
 
         # If the cube was binned this will be useful
         try:
+
             ref_x = (ref_x - self.header['CRPIX1']) \
-                    * self.header['CDELT1'] + self.header['CRVAL1']
+                * self.header['CDELT1'] + self.header['CRVAL1']
+
             ref_y = (ref_y - self.header['CRPIX2']) \
-                    * self.header['CDELT2'] + self.header['CRVAL2']
+                * self.header['CDELT2'] + self.header['CRVAL2']
+
         except KeyError:
             pass
 
@@ -620,13 +633,12 @@ class PhaseMap:
             reply = '.'
             while not reply.isdigit():
                 reply = io.input('? ')
-            fsr_channel = int(reply)
+                fsr_c = int(reply)
 
         elif fsr_c == len(data):
             fsr = np.abs(self.z[0] - self.z[-1])
             _log.info("It seems that you scanned exactly over a FSR.")
             _log.info("If not, check your data and phasemap_fit again.")
-
 
         # Calculate the sampling
         sampling = fsr / fsr_c
@@ -660,11 +672,6 @@ class PhaseMap:
             (either channel or bcv).
         """
 
-
-        # Get statistics
-        midpt = np.median(s)
-        std = np.std(s)
-
         # Clear data
         p = np.percentile(s, 50.)
         s_ = s.copy()
@@ -687,8 +694,8 @@ class PhaseMap:
             g_fit = fitter(g, z[1:-1], s_[1:-1])
             g_fwhm.append(g_fit.stddev * 2.355)
 
-            l = models.Lorentz1D(amplitude=s_[argm], x_0=z[argm], fwhm=1.)
-            l_fit = fitter(l, z[1:-1], s_[1:-1])
+            l_model = models.Lorentz1D(amplitude=s_[argm], x_0=z[argm], fwhm=1.)
+            l_fit = fitter(l_model, z[1:-1], s_[1:-1])
             l_fwhm.append(l_fit.fwhm)
         
             g_rms = np.sqrt(np.mean((s - g_fit(z)) ** 2))
@@ -718,7 +725,7 @@ class PhaseMap:
         if show:
 
             z_ = np.linspace(z[0], z[-1], 1000)
-            fig, axs = plt.subplots(2, 1, sharex=True)
+            fig, axs = plt.subplots(2, 1, sharex='all')
             axs[0].plot(z, s, 'ko')
             axs[0].plot(z[5:-5], cc / cc.max() * s_.max(), 'y-', label='Cross-correlation')
             axs[0].grid()
@@ -753,7 +760,7 @@ class PhaseMap:
         """
         from scipy.stats import mode
 
-        ref_s = pyfits.getdata(input_file)[:, y, x]
+        ref_s = io.pyfits.getdata(input_file)[:, y, x]
         ref_s /= ref_s.max()  # Normalize
         ref_s -= ref_s.mean()  # Remove mean to avoid triangular shape
         ref_s -= mode(ref_s)[0]  # Try to put zero on zero
@@ -769,7 +776,8 @@ class PhaseMap:
 
         return ref_s
 
-    def unwrap_fsr(self, peaks, fsr_channel, running_for=None):
+    @staticmethod
+    def unwrap_fsr(peaks, fsr_channel, running_for=None):
         """
         Use clusters of data to identify regions that are wrapped and
         unwrap it using the fsr in number of channels.
@@ -807,21 +815,21 @@ class PhaseMap:
         Use correlation data-cube.
         """
         _log.info("A correlation cube will be used.")
-        _log.info("Looking for an existing correlation data-cube in the current "
-                 "folder.")
+        _log.info("Looking for an existing correlation data-cube "
+                  "in the current folder.")
 
         candidates = glob.glob("*.fits")
 
         corr_cube = None
         for candidate in candidates:
-            if 'CORRFROM' in pyfits.getheader(candidate):
-                if pyfits.getheader(candidate)['CORRFROM'] == self.input_file:
+            if 'CORRFROM' in io.pyfits.getheader(candidate):
+                if io.pyfits.getheader(candidate)['CORRFROM'] == self.input_file:
                     _log.info("Correlation cube to be used: %s" % candidate)
                     return candidate
 
         if corr_cube is None:
             _log.info("Correlation cube not found. Creating a new one.")
-            data = pyfits.getdata(self.input_file)
+            data = io.pyfits.getdata(self.input_file)
             corr_cube = np.empty_like(data)
 
             x = np.arange(self.width)
@@ -850,7 +858,7 @@ class PhaseMap:
             corr_hdr.set('', '', before='CORRFROM')
             corr_hdr.set('', '--- Correlation cube ---', before='CORRFROM')
 
-            pyfits.writeto(corr_name, corr_cube, corr_hdr, overwrite=True)
+            io.pyfits.writeto(corr_name, corr_cube, corr_hdr, overwrite=True)
             del corr_hdr
             del corr_cube
 
@@ -860,11 +868,8 @@ class PhaseMap:
 
         # Getting the input information to work on in
         f = os.path.splitext(self.input_file)[0]
-        h = self.header.copy()
-
         fsr = round(self.free_spectral_range, 2)
-
-        h = pyfits.Header()
+        h = io.pyfits.Header()
 
         # Setting what is the reference pixels
         h.set('PHMREFX', value=self.ref_x, comment='Rings center - x')
@@ -896,14 +901,16 @@ class PhaseMap:
             pass
 
         filename = io.safe_save(f + "--obs_phmap.fits", overwrite=True,
-                             verbose=self.verbose)
+                                verbose=self.verbose)
+
         _log.info("Saving observed phase-map to file: %s" % filename)
-        pyfits.writeto(filename, self.phase_map, h, overwrite=True)
+        io.pyfits.writeto(filename, self.phase_map, h, overwrite=True)
 
         filename = io.safe_save(f + "--ref_spec.fits", overwrite=True,
-                             verbose=self.verbose)
+                                verbose=self.verbose)
+
         _log.info("Saving reference spectrum to file: %s" % filename)
-        pyfits.writeto(filename, self.ref_s, h, overwrite=True)
+        io.pyfits.writeto(filename, self.ref_s, h, overwrite=True)
 
         return
 
@@ -914,9 +921,6 @@ class PhaseMap:
         continuum = np.median(ordered_data[:5], axis=0)
         del ordered_data
 
-        #if show:
-        #    plots.show_image(continuum, 'viridis', "Cube continuum")
-
         data -= continuum
         return data
 
@@ -924,10 +928,12 @@ class PhaseMap:
 class PeakFinder:
 
     def __init__(self, data):
+
         assert data.ndim == 2
         self.data = data
 
     def __call__(self, i):
+
         data = self.data[:, i]
         data -= np.median(data)
         data = np.where(data > 0.70 * np.max(data), data, 0)
@@ -936,4 +942,3 @@ class PeakFinder:
         peak = np.min(peaks)
 
         return peak
-

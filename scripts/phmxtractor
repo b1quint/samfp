@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import samfp
+from samfp import phmxtractor
 
 if __name__ == '__main__':
-    samfp.phmxtractor.main()
+
+    phmxtractor.main()

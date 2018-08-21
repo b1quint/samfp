@@ -18,10 +18,10 @@ import itertools
 import numpy as np
 import pandas as pd
 
-from .tools import io, version
-from .io.logger import get_logger
+from . import io
+from .tools import version
 
-logger = get_logger("MakeCube")
+logger = io.get_logger("MakeCube")
 
 __author__ = 'Bruno Quint'
 
@@ -207,7 +207,6 @@ def make_cube(list_of_files, z_key='FAPEROTZ', combine_algorithm='average',
     hdr.add_blank('', before='CHAN_001')
     hdr.add_blank('--- Channels and Files ---', before='CHAN_001')
 
-    filename = output
     output = io.safe_save(output, verbose=True)
 
     logger.info('Writing file to {:s}'.format(output))
