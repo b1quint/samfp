@@ -229,13 +229,23 @@ def main():
     _log.info(" Done.")
 
     if args.center:
-        collapsed_cube = np.median(data_cube.data, axis=(1, 2))
+        collapsed_cube = np.mean(data_cube.data, axis=(1, 2))
+
+        collapsed_cube = np.where(
+            collapsed_cube > np.percentile(collapsed_cube, 75.),
+            collapsed_cube,
+            0.
+        )
+
         imax = np.argmax(collapsed_cube)
 
         _log.info(' Maximum argument found at {:d}'.format(imax))
         _log.info(' Cube center at {:d}'.format(collapsed_cube.size // 2))
         _log.info(' Displacemente to be applied: {:d}'.format(
                 imax - collapsed_cube.size // 2))
+
+        data_cube.data = np.roll(data_cube.data,
+                                 - (imax - collapsed_cube.size // 2), axis=0)
 
     # Saving more information in the phase-corrected cube ---------------------
     keys = ['PHMREFX', 'PHMREFY', 'PHMTYPE', 'PHMREFF', 'PHMWCAL', 'PHM_FSR',
@@ -255,9 +265,15 @@ def main():
 
     # Wavelength Calibration --------------------------------------------------
     collapsed_cube = np.average(data_cube.data, axis=(1, 2))
-    z = np.arange(collapsed_cube.size)
-    imax = (z * collapsed_cube).sum() / collapsed_cube.sum() + 1
-    #imax = np.argmax(collapsed_cube) + 1
+
+    collapsed_cube = np.where(
+        collapsed_cube > np.percentile(collapsed_cube, 75.),
+        collapsed_cube,
+        0.
+    )
+
+    n_channels = collapsed_cube.size
+    imax = signal.argrelmax(collapsed_cube, order=n_channels // 2)[0][0] + 1
 
     fp_order = 2. * (args.gap_size * 1e-6) / (wavelength * 1e-10)
     fsr_angstrom = (wavelength / fp_order) * (1 / (1 - 1 / fp_order ** 2))
