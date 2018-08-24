@@ -339,8 +339,8 @@ class PhaseMapExtractor:
         y = (np.linspace(0.05, 0.95, 500) * height).astype(int)
 
         # First guess is that the reference pixel is at the center
-        ref_x = self.header['NAXIS1'] // 2
-        ref_y = self.header['NAXIS2'] // 2
+        ref_x = width // 2
+        ref_y = height // 2
 
         # Storing reference pixels for comparison between interactions
         _log.info("Start center finding.")
@@ -426,18 +426,18 @@ class PhaseMapExtractor:
             # Choosing when to stop
             if (abs(old_ref_x - ref_x) <= 2) and (abs(old_ref_y - ref_y) <= 2):
 
-                try:
-
-                    # If the cube was binned this will be useful
-                    ref_x = (ref_x - self.header['CRPIX1'] + 1) \
-                        * self.header['CDELT1'] + self.header['CRVAL1']
-
-                    # If the cube was binned this will be useful
-                    ref_y = (ref_y - self.header['CRPIX2']) \
-                        * self.header['CDELT2'] + self.header['CRVAL2']
-
-                except KeyError:
-                    pass
+                # try:
+                #
+                #     # If the cube was binned this will be useful
+                #     ref_x = (ref_x - self.header['CRPIX1'] + 1) \
+                #         * self.header['CDELT1'] + self.header['CRVAL1']
+                #
+                #     # If the cube was binned this will be useful
+                #     ref_y = (ref_y - self.header['CRPIX2']) \
+                #         * self.header['CDELT2'] + self.header['CRVAL2']
+                #
+                # except KeyError:
+                #     pass
 
                 _log.info("Rings center found at: [%d, %d]" % (ref_x, ref_y))
                 _log.info("Done in %.2f s" % (time.time() - now))
@@ -688,13 +688,14 @@ class PhaseMapExtractor:
 
         fitter = fitting.LevMarLSQFitter()
         g_fwhm, l_fwhm, gauss = [], [], 0
+
         for (i, argm) in enumerate(arg_maxima):
 
-            g = models.Gaussian1D(amplitude=s_[argm], mean=z[argm], stddev=1.)
+            g = models.Gaussian1D(amplitude=s_[argm], mean=z[argm], stddev=3.)
             g_fit = fitter(g, z[1:-1], s_[1:-1])
             g_fwhm.append(g_fit.stddev * 2.355)
 
-            l_model = models.Lorentz1D(amplitude=s_[argm], x_0=z[argm], fwhm=1.)
+            l_model = models.Lorentz1D(amplitude=s_[argm], x_0=z[argm], fwhm=3.)
             l_fit = fitter(l_model, z[1:-1], s_[1:-1])
             l_fwhm.append(l_fit.fwhm)
         
