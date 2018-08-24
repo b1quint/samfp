@@ -24,6 +24,10 @@
                 fp_cut and fp_roc.
           - fp_oversample is fixed.
        .4 - Fixed bug on mkcube while trying to fit a polynomium.
+       .5 - Changed way that some libraries are imported.
+          - Changed log system for some scripts.
+          - Changed algorithm to extract the phase-map.
+          - Changed method to find peaks on phmapply.
 """
 
 api = 0
