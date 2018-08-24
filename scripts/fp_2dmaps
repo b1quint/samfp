@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 
 import datetime
 import logging
-import samfp
+from samfp import maps
 
 __author__ = 'Bruno Quint'
 
@@ -74,12 +74,12 @@ if __name__ == '__main__':
     log.debug(' [{0}] Script Start'.format(tstart.strftime('%H:%M:%S')))
 
     # Perform the 2D-Map Extraction ---
-    results = samfp.maps.perform_2dmap_extraction(
+    results = maps.perform_2dmap_extraction(
         args.filename, log, args.pool_size, args.algorithm
     )
 
     # Write the results to a FITS file ---
-    samfp.maps.write_results(
+    maps.write_results(
         results, args.filename, args.output, args.algorithm,
         wavelength=args.wavelength
     )

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import samfp
+from samfp import phmapply
 
 if __name__ == '__main__':
-    samfp.phmapply.main()
+    phmapply.main()

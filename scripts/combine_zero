@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-import samfp
+from samfp import image_combine
 
 if __name__ == '__main__':
 
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    zero_combine = samfp.ZeroCombine(input_list=args.input_files,
+    zero_combine = image_combine.ZeroCombine(input_list=args.input_files,
                                      verbose=not args.quiet, debug=args.debug)
     zero_combine.run()
 

@@ -2,14 +2,19 @@
 import sys
 
 try:
-    import samfp
+
+    from samfp import xjoin
+
 except ImportError:
+
     print(
-        "Please, check if you have samfp installed or if you are within the " +
-        "Virtual Environment where it was installed.")
+        "Please, check if you have samfp installed or if you are within " 
+        "the Virtual Environment where it was installed."
+    )
+
     print("Leaving now.")
     sys.exit()
 
 
 if __name__ == '__main__':
-    samfp.xjoin.main()
+    xjoin.main()
