@@ -80,14 +80,14 @@ class ZeroCombine(Combine):
                               minmax_clip=True)
         master_bias.header = hdr
         if self.output_filename is None:
-            master_bias.write('0ZERO.fits', overwrite=True)
+            master_bias.write('0ZERO.fits')
         else:
-            master_bias.write(master_bias.output_file, overwrite=True)
+            master_bias.write(self.output_filename)
 
 
 class FlatCombine(Combine):
 
-    def __init__(self, _input, _output=None, verbose=False,
+    def __init__(self, input_list, output_file=None, verbose=False,
                  debug=False):
         """
         Class created to help combining flats. By now, it does not do any type
@@ -108,8 +108,8 @@ class FlatCombine(Combine):
                 Turn on debug mode?
         """
         Combine.__init__(self, verbose=verbose, debug=debug)
-        self.input_list = _input
-        self.output_filename = _output
+        self.input_list = input_list
+        self.output_filename = output_file
 
     def run(self):
 
@@ -152,4 +152,4 @@ class FlatCombine(Combine):
             filename = '1NSFLAT{0:d}x{0:d}_{1:s}.fits'.format(binning, filter_name)
             master_flat.write(filename, overwrite=True)
         else:
-            master_flat.write(master_flat.output_file, overwrite=True)
+            master_flat.write(self.output_filename, overwrite=True)
