@@ -17,10 +17,12 @@ import time
 import astropy.io.fits as pyfits
 import numpy as np
 from scipy.interpolate import UnivariateSpline
+from scipy import signal
 
-from .tools import io, version
+from . import io
+from .tools import version
 
-log = io.MyLogger(__name__)
+_log = io.get_logger(__name__)
 
 
 def main():
@@ -66,16 +68,19 @@ def main():
     )
 
     args = parser.parse_args()
-    log.set_verbose(verbose=not args.quiet)
+    if args.quiet:
+        _log.setLevel('ERROR')
+    else:
+        _log.setLevel('INFO')
 
     # Printing program header --------------------------------------------------
     start = time.time()
-    log.info("")
-    log.info("SAM-FP Tools: PHase-Map Apply")
-    log.info("by Bruno Quint (bquint@ctio.noao.edu)")
-    log.info("version {:s}".format(version.__str__))
-    log.info("Starting program.")
-    log.info("")
+    _log.info("")
+    _log.info("SAM-FP Tools: PHase-Map Apply")
+    _log.info("by Bruno Quint (bquint@ctio.noao.edu)")
+    _log.info("version {:s}".format(version.__str__))
+    _log.info("Starting program.")
+    _log.info("")
 
     root_dir = os.path.dirname(args.cube_file)
     cube_file = args.cube_file
@@ -86,45 +91,45 @@ def main():
     else:
         out_file = args.output
 
-    log.info("Root dir: %s" % root_dir)
-    log.info("Cube to be corrected: %s" % cube_file)
-    log.info("Phase-map to be applied: %s" % map_file)
-    log.info("Output corrected cube: %s" % out_file)
+    _log.info("Root dir: %s" % root_dir)
+    _log.info("Cube to be corrected: %s" % cube_file)
+    _log.info("Phase-map to be applied: %s" % map_file)
+    _log.info("Output corrected cube: %s" % out_file)
 
     # Systemic wavelength ------------------------------------------------------
     vel = args.velocity
     c = 299792 # km/s
     wavelength = args.wavelength * np.sqrt((1 + vel / c) / (1 - vel / c))
 
-    log.info("")
-    log.info("Emitted/systemic wavelength: %.2f A" % args.wavelength)
-    log.info("Systemic velocity: %.2f km/s" % vel)
-    log.info("Observed wavelength: %.2f A" % wavelength)
+    _log.info("")
+    _log.info("Emitted/systemic wavelength: %.2f A" % args.wavelength)
+    _log.info("Systemic velocity: %.2f km/s" % vel)
+    _log.info("Observed wavelength: %.2f A" % wavelength)
 
     # Reading input data ------------------------------------------------------
-    log.info("")
-    log.info("Reading cube to be corrected.")
+    _log.info("")
+    _log.info("Reading cube to be corrected.")
     data_cube = pyfits.open(cube_file)[0]
-    log.info("Done.")
+    _log.info("Done.")
 
-    log.info("Reading phase-map to be applied.")
+    _log.info("Reading phase-map to be applied.")
     phase_map = pyfits.open(map_file)[0]
-    log.info("Done.")
+    _log.info("Done.")
 
     # Checking data -----------------------------------------------------------
     if data_cube.data[0].shape != phase_map.shape:
-        log.error("Cube and map does not have matching width and height.")
-        log.error("[!] Leaving now.\n")
+        _log.error("Cube and map does not have matching width and height.")
+        _log.error("[!] Leaving now.\n")
         sys.exit()
 
     if data_cube.data.ndim != 3:
-        log.error("[!] Cube file is not really a cube.")
-        log.error("[!] Leaving now.\n")
+        _log.error("[!] Cube file is not really a cube.")
+        _log.error("[!] Leaving now.\n")
         sys.exit()
 
     if phase_map.data.ndim != 2:
-        log.error("[!] Map file is not really an image.")
-        log.error("[!] Leaving now.\n")
+        _log.error("[!] Map file is not really an image.")
+        _log.error("[!] Leaving now.\n")
         sys.exit()
 
     m = data_cube.header['NAXIS1']
@@ -138,38 +143,38 @@ def main():
     try:
         sample = float(data_cube.header['CDELT3'])
     except KeyError:
-        log.error('"CDELT3" keyword was not found in the header.')
+        _log.error('"CDELT3" keyword was not found in the header.')
         sample = 1
 
     # Reading the Free-Spectral-Range --------------------------------------
     try:
-        log.info("")
-        log.info("Reading free-spectral-range from cube header.")
+        _log.info("")
+        _log.info("Reading free-spectral-range from cube header.")
         # TODO add an option to use the FSR found while extracting
         # TODO the phase-map or while fitting it.
         # TODO or even to give the option for the user to enter it.
         cal_fsr = phase_map.header['PHM_FSR']
         cal_wavelength = phase_map.header['PHMWCAL']
         f_s_r = cal_fsr / cal_wavelength * wavelength
-        log.info(" Free Spectral Range = %.2f %s" % (f_s_r, units))
+        _log.info(" Free Spectral Range = %.2f %s" % (f_s_r, units))
 
     except KeyError:
-        log.info("Please, enter the free-spectral-range in %s units" % units)
+        _log.info("Please, enter the free-spectral-range in %s units" % units)
         f_s_r = io.input("    >")
 
     f_s_r = round(f_s_r / abs(sample)) # From BCV to Channels
-    log.info("Free-Spectral-Range is %d channels" % f_s_r)
+    _log.info("Free-Spectral-Range is %d channels" % f_s_r)
 
     fsr = f_s_r * args.npoints  # From Channels to nPoints
     fsr = int(round(fsr))
-    log.info("Free-Spectral-Range is %d points" % fsr)
+    _log.info("Free-Spectral-Range is %d points" % fsr)
 
     # Assure that the reference spectrum will not be moved ----------------
     try:
         phase_map.data = phase_map.data - phase_map.data[ref_y, ref_x]
     except IndexError:
-        log.warn("Reference pixel out of field.")
-        log.warn("Skipping reference pixel map subtraction.")
+        _log.warning("Reference pixel out of field.")
+        _log.warning("Skipping reference pixel map subtraction.")
         pass
     phase_map.data *= -1
 
@@ -180,8 +185,8 @@ def main():
     phase_map.data = phase_map.data * args.npoints
 
     # Applying phase-map --------------------------------------------------
-    log.info("")
-    log.info("Applying phase-map:")
+    _log.info("")
+    _log.info("Applying phase-map:")
 
     n_channels = data_cube.header['NAXIS3']
     z = np.arange(3 * n_channels) - n_channels
@@ -216,20 +221,21 @@ def main():
             # Giving a feedback to the user
             if not args.quiet:
                 temp = ((i + 1) * 100.00 / m)
-                sys.stdout.write('\r    %2.2f%% ' % temp)
+                sys.stdout.write('\r' + 42 * ' ' + '%2.2f%% ' % temp)
                 sys.stdout.flush()
 
     end_of_cube = min(int(round(f_s_r)), data_cube.data.shape[0])
     data_cube.data = data_cube.data[0:end_of_cube, :, :]
-    log.info(" Done.")
+    _log.info(" Done.")
 
     if args.center:
         collapsed_cube = np.median(data_cube.data, axis=(1, 2))
         imax = np.argmax(collapsed_cube)
-        print(' Maximum argument found at {:d}'.format(imax))
-        print(' Cube center at {:d}'.format(collapsed_cube.size // 2))
-        print(' Displacemente to be applied: {:d}'.format(imax - collapsed_cube.size // 2))
-        data_cube.data = np.roll(data_cube.data, - (imax - collapsed_cube.size // 2), axis=0)
+
+        _log.info(' Maximum argument found at {:d}'.format(imax))
+        _log.info(' Cube center at {:d}'.format(collapsed_cube.size // 2))
+        _log.info(' Displacemente to be applied: {:d}'.format(
+                imax - collapsed_cube.size // 2))
 
     # Saving more information in the phase-corrected cube ---------------------
     keys = ['PHMREFX', 'PHMREFY', 'PHMTYPE', 'PHMREFF', 'PHMWCAL', 'PHM_FSR',
@@ -257,12 +263,12 @@ def main():
     fsr_angstrom = (wavelength / fp_order) * (1 / (1 - 1 / fp_order ** 2))
     delta_wavelength = data_cube.header["C3_3"] / data_cube.header["PHM_FSR"] * fsr_angstrom
 
-    log.info("Reference Channel: {:.2f}".format(imax))
-    log.info("Observed wavelength: {:.2f} A".format(wavelength))
-    log.info("Order: {:.2f}".format(fp_order))
-    log.info("FSR in angstrom: {:.2f}".format(fsr_angstrom))
-    log.info("FSR in BCV: {:.2f}".format(data_cube.header["PHM_FSR"]))
-    log.info("Wavelength per channel: {:5f} A".format(delta_wavelength))
+    _log.info("Reference Channel: {:.2f}".format(imax))
+    _log.info("Observed wavelength: {:.2f} A".format(wavelength))
+    _log.info("Order: {:.2f}".format(fp_order))
+    _log.info("FSR in angstrom: {:.2f}".format(fsr_angstrom))
+    _log.info("FSR in BCV: {:.2f}".format(data_cube.header["PHM_FSR"]))
+    _log.info("Wavelength per channel: {:5f} A".format(delta_wavelength))
 
     data_cube.header.set("CRPIX3", imax, after="PHMFIT_C")
     data_cube.header.set("CRVAL3", wavelength, after="CRPIX3")
@@ -275,23 +281,22 @@ def main():
     data_cube.header.add_blank(after='PHMFIT_C')
 
     # Saving corrected data-cube ----------------------------------------------
-    log.info("Writing output to file %s." % out_file)
+    _log.info("Writing output to file %s." % out_file)
 
     try:
         data_cube.writeto(out_file, overwrite=True)
     except TypeError:
         data_cube.writeto(out_file, clobber=True)
 
-    log.info("Done.")
+    _log.info("Done.")
 
     end = time.time() - start
-    log.info("")
-    log.info("Total time ellapsed: {0:02d}:{1:02d}:{2:02d}".format(
+    _log.info("")
+    _log.info("Total time ellapsed: {0:02d}:{1:02d}:{2:02d}".format(
             int(end // 3600), int(end % 3600 // 60), int(end % 60)))
-    log.info(" All done!\n")
+    _log.info(" All done!\n")
 
 
-# Method shift_spectrum ========================================================
 def shift_spectrum(spec, dz, fsr=-1, sample=1.0, n_points=100):
     """
     Parameters
